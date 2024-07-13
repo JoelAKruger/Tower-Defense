@@ -8,5 +8,4 @@ maps/
 build/
 Nsight/
 .vs/
-compileall.bat
 build.bat
