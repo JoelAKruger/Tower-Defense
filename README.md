@@ -2,7 +2,7 @@
 Tower defense game and engine written for Windows in C++
 
 ## Build Instructions
-**Note: Only x64 Windows builds are available
+Note: Only x64 Windows builds are available
 
 ### 1. Installing the Required Tools
 Microsoft C/C++ Build Tools are required for the Windows SDK and the MSVC compiler.
