@@ -1,0 +1,12 @@
+*.idb
+*.pdb
+*.obj
+*.exe
+*.enc
+screenshots/
+maps/
+build/
+Nsight/
+.vs/
+compileall.bat
+build.bat
