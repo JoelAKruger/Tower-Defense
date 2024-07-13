@@ -13,4 +13,5 @@ Call 'vcvarsall.bat x64' from the Microsoft C/C++ Build Tools. This can be done 
 
 ### 3. Building
 Within this command prompt, navigate to the project directory and run the 'compile.bat' script
-If compilation is successful, the executables in the build directory can be run from the project directory. For example '.\build\Win32DX11.exe'
+If compilation is successful, the executables in the build directory can be run from the project directory.
+For example '.\build\Win32DX11.exe'
