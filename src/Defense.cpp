@@ -575,6 +575,11 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         }
     }
     
+    if (Input->ButtonDown & Button_Escape)
+    {
+        GameState->Mode = Mode_Normal;
+    }
+    
     if (Input->ButtonDown & Button_Jump)
     {
         if (GameState->Mode == Mode_Place)
@@ -702,24 +707,27 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     //Draw new tower
     f32 TowerRadius = 0.03f;
-    if (HoveringRegion && GameState->Mode == Mode_Place)
+    if (GameState->Mode == Mode_Place)
     {
         v2 P = CursorWorldPos;
         
-        bool Placeable = (DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
+        bool Placeable = (HoveringRegion &&
+                          DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
                           DistanceToNearestTower(GameState, HoveringRegionIndex, P) > 2.0f * TowerRadius);
         
-        v4 RegionColor = GameState->World.Colors[HoveringRegion->ColorIndex];
+        v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
-        f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
-        v4 Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
-        
-        if (!Placeable)
+        if (Placeable)
         {
-            Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
+            v4 RegionColor = GameState->World.Colors[HoveringRegion->ColorIndex];
+            
+            f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
+            Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        SetModelColor(V4(0.7f * Color.RGB, 1.0f));
+        Color = V4(0.7f * Color.RGB, 1.0f);
+        
+        SetModelColor(Color);
         SetModelTransform(RotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f) * TranslateTransform(P.X, P.Y, 0.0f));
         DrawVertices((f32*)GameState->CubeVertices.Memory, sizeof(model_vertex) * GameState->CubeVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
         
@@ -742,6 +750,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     //Draw GUI
     if (Button(V2(-0.95f, -0.8f), V2(0.6f / GlobalAspectRatio, 0.3f), String("Tower")))
     {
+        GameState->Mode = Mode_Place;
     }
     
     gui_layout Layout = DefaultLayout(-0.5f, -0.95f, Allocator.Transient);

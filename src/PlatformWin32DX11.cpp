@@ -41,7 +41,8 @@ enum
     Button_Left     = (1 << 7),
     Button_Right    = (1 << 8),
     Button_Up       = (1 << 9),
-    Button_Down     = (1 << 10)
+    Button_Down     = (1 << 10),
+    Button_Escape   = (1 << 11)
 };
 
 struct input_state
@@ -912,6 +913,8 @@ KeyboardAndMouseInputState(input_state* InputState, HWND Window)
         InputState->Buttons |= Button_Up;
     if (GetAsyncKeyState(VK_DOWN) & 0x8000)
         InputState->Buttons |= Button_Down;
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
+        InputState->Buttons |= Button_Escape;
     
     //Movement
     if ((GetAsyncKeyState('A') & 0x8000))
