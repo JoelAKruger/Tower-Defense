@@ -404,6 +404,11 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     Layout.NextRow();
     
+    Layout.Label(ArenaPrint(Arena, "Region: %u", Game->Editor.SelectedRegionIndex));
+    Layout.NextRow();
+    Layout.Label(ArenaPrint(Arena, "Position: %u", Game->Editor.SelectedVertexIndex));
+    Layout.NextRow();
+    
     Layout.Label("Vertices");
     
     if (Layout.Button("Add"))
@@ -441,9 +446,9 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     {
         world_region* Region = Game->World.Regions + RegionIndex;
         
-        for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+        for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
         {
-            v2 Vertex = Region->Vertices[VertexIndex];
+            v2 Vertex = Region->Positions[PositionIndex];
             v2 VertexScreen = WorldToScreen(Game, Vertex);
             
             v2 SquareSize = V2(VertexDisplaySize, VertexDisplaySize);
@@ -465,9 +470,9 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
         {
             world_region* Region = Game->World.Regions + RegionIndex;
             
-            for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+            for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
             {
-                v2 Vertex = Region->Vertices[VertexIndex];
+                v2 Vertex = Region->Positions[PositionIndex];
                 v2 VertexScreen = WorldToScreen(Game, Vertex);
                 
                 if (Abs(VertexScreen.X - Input->Cursor.X) < 0.5f * VertexDisplaySize &&
@@ -475,7 +480,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
                 {
                     Game->Editor.DraggingVertex = true;
                     Game->Editor.SelectedRegionIndex = RegionIndex;
-                    Game->Editor.SelectedVertexIndex = VertexIndex;
+                    Game->Editor.SelectedVertexIndex = PositionIndex;
                 }
             }
         }
@@ -484,7 +489,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     if (Game->Editor.DraggingVertex)
     {
         world_region* Region = Game->World.Regions + Game->Editor.SelectedRegionIndex;
-        Region->Vertices[Game->Editor.SelectedVertexIndex] = ScreenToWorld(Game, Input->Cursor);
+        Region->Positions[Game->Editor.SelectedVertexIndex] = ScreenToWorld(Game, Input->Cursor);
     }
 }
 

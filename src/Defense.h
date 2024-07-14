@@ -1,8 +1,16 @@
 struct world_region
 {
     //Defined relative to world
-    v2 Center;
-    v2 Vertices[63];
+    union
+    {
+        struct
+        {
+            v2 Center;
+            v2 Vertices[63];
+        };
+        v2 Positions[64];
+    };
+    
     u32 VertexCount;
     
     u32 ColorIndex;
