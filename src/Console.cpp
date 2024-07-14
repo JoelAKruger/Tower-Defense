@@ -164,6 +164,7 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
         CONSOLE_COMMAND(Console, background);
         CONSOLE_COMMAND(Console, name);
         CONSOLE_COMMAND(Console, reset);
+        CONSOLE_COMMAND(Console, color);
     }
     
     //Check if toggled

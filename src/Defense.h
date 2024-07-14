@@ -61,6 +61,8 @@ struct game_state
     game_mode Mode;
     editor Editor;
     
+    u32 MyColorIndex;
+    
     tower Towers[64];
     u32 TowerCount;
     

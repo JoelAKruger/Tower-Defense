@@ -266,8 +266,8 @@ GameInitialise(allocator Allocator)
     GameState->World.Regions[0] = Region;
     GameState->World.RegionCount = 1;
     
-    GameState->World.Colors[0] = V4(0.0f, 1.0f, 0.0f, 1.0f);
-    GameState->World.Colors[1] = V4(0.0f, 0.0f, 1.0f, 1.0f);
+    GameState->World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
+    GameState->World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
     
     GameState->CameraP = {0.0f, -1.0f, -0.5f};
     GameState->CameraDirection = {0.0f, 1.0f, 5.5f};
@@ -804,4 +804,14 @@ void Command_name(int ArgCount, string* Args, console* Console, game_state* Game
 void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
     GameState->TowerCount = 0;
+}
+
+void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+{
+    u32 ColorCount = ArrayCount(Game->World.Colors);
+    
+    for (u32 RegionIndex = 0; RegionIndex < Game->World.RegionCount; RegionIndex++)
+    {
+        Game->World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
+    }
 }
