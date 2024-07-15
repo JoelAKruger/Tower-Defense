@@ -133,7 +133,7 @@ ParseVertex(file_reader* Reader)
 }
 
 static span<model_vertex>
-LoadModel(allocator Allocator, char* Path)
+LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
 {
     span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
     file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
@@ -247,10 +247,19 @@ LoadModel(allocator Allocator, char* Path)
     {
         obj_file_face* Face = Faces + FaceIndex;
         
-        //Flip direction of vertices to convert to left-handed
-        Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[2].PositionIndex - 1], Normals[Face->Vertices[2].NormalIndex - 1]};
-        Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], Normals[Face->Vertices[1].NormalIndex - 1]};
-        Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[0].PositionIndex - 1], Normals[Face->Vertices[0].NormalIndex - 1]};
+        if (ChangeOrder)
+        {
+            //Flip direction of vertices to convert to left-handed
+            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[2].PositionIndex - 1], -1.0f * Normals[Face->Vertices[2].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], -1.0f * Normals[Face->Vertices[1].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[0].PositionIndex - 1], -1.0f * Normals[Face->Vertices[0].NormalIndex - 1]};
+        }
+        else
+        {
+            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[2].PositionIndex - 1], Normals[Face->Vertices[2].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], Normals[Face->Vertices[1].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[0].PositionIndex - 1], Normals[Face->Vertices[0].NormalIndex - 1]};
+        }
     }
     
     return Vertices;

@@ -42,8 +42,24 @@ enum game_mode
     Mode_Place
 };
 
+enum placement_mode
+{
+    Place_Null,
+    Place_Castle,
+    Place_Turret
+};
+
+enum tower_type
+{
+    Tower_Null,
+    Tower_Castle,
+    Tower_Turret
+};
+
 struct tower
 {
+    tower_type Type;
+    
     v2 P;
     u32 RegionIndex;
 };
@@ -67,6 +83,8 @@ struct game_state
     world World;
     
     game_mode Mode;
+    placement_mode PlacementMode;
+    
     editor Editor;
     
     u32 MyColorIndex;
@@ -81,7 +99,12 @@ struct game_state
     
     f64 Time;
     
+    //TODO: Do not draw models in immediate mode
     span<model_vertex> CubeVertices;
+    span<model_vertex> TurretVertices;
+    
+    m4x4 CastleTransform;
+    m4x4 TurretTransform;
 };
 
 struct map_file_header

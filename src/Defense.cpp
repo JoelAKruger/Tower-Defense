@@ -273,7 +273,11 @@ GameInitialise(allocator Allocator)
     GameState->CameraDirection = {0.0f, 1.0f, 5.5f};
     GameState->FOV = 50.0f;
     
-    GameState->CubeVertices = LoadModel(Allocator, "assets/models/castle.obj");
+    GameState->CubeVertices   = LoadModel(Allocator, "assets/models/castle.obj", false);
+    GameState->TurretVertices = LoadModel(Allocator, "assets/models/turret.obj", true);
+    
+    GameState->CastleTransform = RotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
+    GameState->TurretTransform = RotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
     
     return GameState;
 }
@@ -703,9 +707,27 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         v2 P = Tower.P;
         v4 Color = GameState->World.Colors[Region->ColorIndex];
         
+        span<model_vertex> ModelVertices = {};
+        m4x4 Transform;
+        
+        if (Tower.Type == Tower_Castle)
+        {
+            ModelVertices = GameState->CubeVertices;
+            Transform = GameState->CastleTransform;
+        }
+        else if (Tower.Type == Tower_Turret)
+        {
+            ModelVertices = GameState->TurretVertices;
+            Transform = GameState->TurretTransform;
+        }
+        else
+        {
+            Assert(0);
+        }
+        
         SetModelColor(V4(0.7f * Color.RGB, Color.A));
-        SetModelTransform(RotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f) * TranslateTransform(P.X, P.Y, 0.0f));
-        DrawVertices((f32*)GameState->CubeVertices.Memory, sizeof(model_vertex) * GameState->CubeVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
+        SetModelTransform(Transform * TranslateTransform(P.X, P.Y, 0.0f));
+        DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
     }
     
     v2 NearestPos = {};
@@ -732,13 +754,31 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         Color = V4(0.7f * Color.RGB, 1.0f);
         
-        SetModelColor(Color);
-        SetModelTransform(RotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f) * TranslateTransform(P.X, P.Y, 0.0f));
-        DrawVertices((f32*)GameState->CubeVertices.Memory, sizeof(model_vertex) * GameState->CubeVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
+        span<model_vertex> ModelVertices = {};
+        tower_type Type = {};
+        m4x4 Transform;
         
-        if (Placeable && (Input->ButtonDown & Button_LMouse))
+        if (GameState->PlacementMode == Place_Castle)
         {
-            tower Tower = {};
+            ModelVertices = GameState->CubeVertices;
+            Transform = GameState->CastleTransform;
+            Type = Tower_Castle;
+        }
+        else if (GameState->PlacementMode == Place_Turret)
+        {
+            ModelVertices = GameState->TurretVertices;
+            Transform = GameState->TurretTransform;
+            Type = Tower_Turret;
+        }
+        
+        SetModelColor(Color);
+        SetModelTransform(Transform * TranslateTransform(P.X, P.Y, 0.0f));
+        
+        DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
+        
+        if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+        {
+            tower Tower = {Type};
             
             Tower.P = P;
             Tower.RegionIndex = HoveringRegionIndex;
@@ -753,10 +793,19 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     SetTransform(IdentityTransform());
     BeginGUI(Input, RenderGroup);
     //Draw GUI
-    if (Button(V2(-0.95f, -0.8f), V2(0.6f / GlobalAspectRatio, 0.3f), String("Tower")))
+    if (Button(V2(-0.95f, -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Castle")))
     {
         GameState->Mode = Mode_Place;
+        GameState->PlacementMode = Place_Castle;
     }
+    
+    if (Button(V2(-0.95f + (0.6f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Turret")))
+    {
+        GameState->Mode = Mode_Place;
+        GameState->PlacementMode = Place_Turret;
+    }
+    
+    
     
     gui_layout Layout = DefaultLayout(-0.5f, -0.95f, Allocator.Transient);
     
