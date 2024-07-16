@@ -35,7 +35,9 @@ VS_Output vs_main(VS_Input input)
 {
 	VS_Output output;
 	output.pos = mul(mul(float4(input.pos, 1.0f), model_transform), world_transform);
-	output.normal = input.normal;
+	
+	output.normal = mul(float4(input.normal, 0.0f), model_transform);
+
 	output.color = color;
 	return output;
 }
@@ -44,9 +46,8 @@ float4 ps_main(VS_Output input) : SV_Target
 {
 	float ambient = 0.3f;
 
-	float3 light_dir = -1.0f * normalize(float3(-2.0f, 1.0f, 3.0f));
-	//float diffuse = max(dot(input.normal, light_dir), 0.0f);
-	float diffuse = 0.5f + 0.5f * dot(input.normal, light_dir);
+	float3 light_dir = 1.0f * normalize(float3(-2.0f, 1.0f, 3.0f));
+	float diffuse = 0.5f + 0.5f * dot(normalize(input.normal), light_dir);
 
 	return float4((ambient + diffuse) * input.color.rgb, input.color.a);
 }
