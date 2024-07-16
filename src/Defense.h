@@ -43,13 +43,6 @@ enum game_mode
     Mode_EditTower
 };
 
-enum placement_mode
-{
-    Place_Null,
-    Place_Castle,
-    Place_Turret
-};
-
 enum tower_type
 {
     Tower_Null,
@@ -85,8 +78,10 @@ struct game_state
     world World;
     
     game_mode Mode;
-    placement_mode PlacementMode;
+    
+    tower_type PlacementType;
     tower* SelectedTower;
+    
     
     editor Editor;
     

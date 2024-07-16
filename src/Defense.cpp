@@ -344,7 +344,7 @@ SetMode(game_state* GameState, game_mode NewMode)
     GameState->Mode = NewMode;
     
     //Reset mode-specific variables
-    GameState->PlacementMode = {};
+    GameState->PlacementType = {};
     GameState->SelectedTower = {};
 }
 
@@ -468,16 +468,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         Color = V4(0.7f * Color.RGB, 1.0f);
         
-        tower_type Type = {};
-        
-        if (GameState->PlacementMode == Place_Castle)
-        {
-            Type = Tower_Castle;
-        }
-        else if (GameState->PlacementMode == Place_Turret)
-        {
-            Type = Tower_Turret;
-        }
+        tower_type Type = GameState->PlacementType;
         
         DrawTower(GameState, Type, P, Color);
         
@@ -521,13 +512,13 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     if (Button(V2(-0.95f, -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Castle")))
     {
         SetMode(GameState, Mode_Place);
-        GameState->PlacementMode = Place_Castle;
+        GameState->PlacementType = Tower_Castle;
     }
     
     if (Button(V2(-0.95f + (0.6f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Turret")))
     {
         SetMode(GameState, Mode_Place);
-        GameState->PlacementMode = Place_Turret;
+        GameState->PlacementType = Tower_Turret;
     }
     
     
