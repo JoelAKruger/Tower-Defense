@@ -121,3 +121,9 @@ struct map_file_region
     v2 Vertices[63];
     u32 VertexCount;
 };
+
+struct render_context
+{
+    memory_arena* Arena;
+    world_region* HoveringRegion;
+};

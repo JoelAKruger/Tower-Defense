@@ -3,68 +3,9 @@
 #include "Console.cpp"
 #include "Parser.cpp"
 
-static m4x4
-IdentityTransform()
-{
-    m4x4 Result = {};
-    
-    Result.Values[0][0] = 1.0f;
-    Result.Values[1][1] = 1.0f;
-    Result.Values[2][2] = 1.0f;
-    Result.Values[3][3] = 1.0f;
-    
-    return Result;
-}
-
-static m4x4
-ScaleTransform(f32 X, f32 Y, f32 Z)
-{
-    m4x4 Result = {};
-    Result.Values[0][0] = X;
-    Result.Values[1][1] = Y;
-    Result.Values[2][2] = Z;
-    Result.Values[3][3] = 1.0f;
-    return Result;
-}
-
-static m4x4
-TranslateTransform(f32 X, f32 Y, f32 Z)
-{
-    m4x4 Result = {};
-    Result.Values[0][0] = 1.0f;
-    Result.Values[1][1] = 1.0f;
-    Result.Values[2][2] = 1.0f;
-    Result.Values[3][3] = 1.0f;
-    Result.Values[3][0] = X;
-    Result.Values[3][1] = Y;
-    Result.Values[3][2] = Z;
-    return Result;
-}
-
-static m4x4
-RotateTransform()
-{
-    m4x4 Result = {};
-    Result.Values[0][0] = 1.0f;
-    Result.Values[2][1] = 1.0f;
-    Result.Values[1][2] = -1.0f;
-    Result.Values[3][3] = 1.0f;
-    return Result;
-}
-
-/*
-static m4x4
-DefaultTransform()
-{
-    m4x4 Result = {};
-    Result.Values[0][0] = 2.0f;
-    Result.Values[1][1] = 2.0f / ScreenTop;
-    Result.Values[3][0] = -1.0f;
-    Result.Values[3][1] = -1.0f;
-    Result.Values[3][3] = 1.0f;
-    return Result;
-}
-*/
+#include "World.cpp"
+#include "Renderer.cpp"
+#include "Render.cpp"
 
 static v2
 ScreenToWorld(game_state* Game, v2 ScreenPos)
@@ -116,80 +57,6 @@ LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
     return Result;
 }
 
-static v2
-GetVertex(world_region* Region, i32 Index)
-{
-    u32 VertexIndex = (Region->VertexCount + Index) % (Region->VertexCount);
-    v2 Result = Region->Vertices[VertexIndex];
-    return Result;
-}
-
-static f32
-DistanceInsideRegion(world_region* Region, v2 P)
-{
-    f32 MinDistance = 1000.0f;
-    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
-    {
-        v2 A = GetVertex(Region, VertexIndex);
-        v2 B = GetVertex(Region, VertexIndex + 1);
-        
-        v2 AP = P - A;
-        v2 AB = B - A;
-        
-        f32 t = DotProduct(AP, AB) / DotProduct(AB, AB);
-        
-        //Check if closer to A then the edge, B will be checked at the next iteration
-        v2 ClosestPoint;
-        if (t < 0.0f)
-        {
-            ClosestPoint = A;
-        }
-        else if (t > 1.0f)
-        {
-            ClosestPoint = B;
-        }
-        else
-        {
-            ClosestPoint = A + t * AB;
-        }
-        
-        f32 Distance = Length(P - ClosestPoint);
-        
-        if (Distance < MinDistance)
-        {
-            MinDistance = Distance;
-        }
-    }
-    return MinDistance;
-}
-
-struct nearest_tower
-{
-    f32 Distance;
-    tower* Tower;
-};
-
-static nearest_tower
-NearestTowerTo(v2 P, game_state* Game, u32 RegionIndex)
-{
-    f32 NearestDistanceSq = 10000.0f;
-    tower* Nearest = 0;
-    for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
-    {
-        tower* Tower = Game->Towers + TowerIndex;
-        if (Tower->RegionIndex == RegionIndex)
-        {
-            f32 DistSq = LengthSq(Tower->P - P);
-            if (DistSq < NearestDistanceSq)
-            {
-                NearestDistanceSq = DistSq;
-                Nearest = Tower;
-            }
-        }
-    }
-    nearest_tower Result = {sqrtf(NearestDistanceSq), Nearest};
-    return Result;
-}
 
 static void
 SaveWorld(world* World, char* Path, memory_arena* Arena)
@@ -246,27 +113,6 @@ LoadWorld(world* World, char* Path, memory_arena* Arena)
     }
 }
 
-static void
-SetName(world_region* Region, string Name)
-{
-    Assert(Name.Length < ArrayCount(Region->Name));
-    memcpy(Region->Name, Name.Text, Name.Length);
-    Region->NameLength = Name.Length;
-}
-
-static void
-SetName(world_region* Region, char* Name)
-{
-    SetName(Region, String(Name));
-}
-
-static string
-GetName(world_region* Region)
-{
-    string Result = {Region->Name, Region->NameLength};
-    return Result;
-}
-
 static game_state* 
 GameInitialise(allocator Allocator)
 {
@@ -300,84 +146,6 @@ GameInitialise(allocator Allocator)
     GameState->TurretTransform = RotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
     
     return GameState;
-}
-
-static void
-DrawWorldRegion(game_state* Game, render_group* RenderGroup, world* World, world_region* Region, memory_arena* TArena, v4 Color)
-{
-    if (Region->VertexCount == 0)
-    {
-        return;
-    }
-    
-    u32 TriangleCount = Region->VertexCount;
-    span<triangle> Triangles = AllocSpan(TArena, triangle, TriangleCount);
-    
-    for (u32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
-    {
-        triangle* Tri = Triangles + TriangleIndex;
-        
-        //TODO: Use functions
-        Tri->Vertices[0].P = Region->Center;
-        Tri->Vertices[0].Col = Color;
-        
-        Tri->Vertices[1].P = GetVertex(Region, TriangleIndex);
-        Tri->Vertices[1].Col = Color;
-        
-        Tri->Vertices[2].P = GetVertex(Region, TriangleIndex + 1);
-        Tri->Vertices[2].Col = Color;
-    }
-    
-    DrawVertices((f32*)Triangles.Memory, TriangleCount * sizeof(triangle), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    
-    //Draw Outline
-    u32 VertexDrawCount = 6 * Region->VertexCount + 2;
-    color_vertex* Vertices = AllocArray(TArena, color_vertex, VertexDrawCount);
-    
-    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
-    {
-        v2 Vertex = GetVertex(Region, VertexIndex);
-        v2 PrevVertex = GetVertex(Region, VertexIndex - 1);
-        v2 NextVertex = GetVertex(Region, VertexIndex + 1);
-        
-        v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
-        v2 PerpB = UnitV(Perp(NextVertex - Vertex));
-        v2 Mid = UnitV(PerpA + PerpB);
-        
-        f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
-        
-        v2 RectSize = V2(0.005f, 0.005f);
-        
-        f32 HalfBorderThickness = 0.0035f;
-        
-        //If concave
-        if (SinAngle < 0.0f)
-        {
-            Vertices[VertexIndex * 6 + 0] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 1] = {(Vertex + HalfBorderThickness * PerpA), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 2] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 3] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 4] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 5] = {(Vertex + HalfBorderThickness * PerpB), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-        }
-        else
-        {
-            Vertices[VertexIndex * 6 + 0] = {(Vertex - HalfBorderThickness * PerpA), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 1] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 2] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 3] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 4] = {(Vertex - HalfBorderThickness * PerpB), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 5] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-        }
-        
-        if (VertexIndex == 0)
-        {
-            Vertices[VertexDrawCount - 2] = Vertices[0];
-            Vertices[VertexDrawCount - 1] = Vertices[1];
-        }
-    }
-    
-    DrawVertices((f32*)Vertices, VertexDrawCount * sizeof(color_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 }
 
 static bool
@@ -529,33 +297,6 @@ RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* 
     Layout.Label("Tower Editor");
 }
 
-static void
-SetTransform(m4x4 Transform)
-{
-    Transform = Transpose(Transform);
-    SetVertexShaderConstant(0, &Transform, sizeof(Transform));
-}
-
-static void
-SetShaderTime(f32 Time)
-{
-    f32 Constant[4] = {Time};
-    SetVertexShaderConstant(1, Constant, sizeof(Constant));
-}
-
-static void
-SetModelTransform(m4x4 Transform)
-{
-    Transform = Transpose(Transform);
-    SetVertexShaderConstant(2, &Transform, sizeof(Transform));
-}
-
-static void
-SetModelColor(v4 Color)
-{
-    SetVertexShaderConstant(3, &Color, sizeof(Color));
-}
-
 //From: 
 //https://learn.microsoft.com/en-us/windows/win32/direct3d9/projection-transform
 static m4x4
@@ -665,21 +406,10 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 10.0f);
     SetTransform(GameState->WorldTransform);
     
-    SetShader(WaterShader);
-    SetShaderTime((f32)GameState->Time);
-    DrawTexture(V2(-1.0f, -1.0f), V2(1.0f, 1.0f), V2(0.0f, 0.0f), V2(2.0f, 2.0f));
-    
-    if (GameState->ShowBackground)
-    {
-        SetShader(TextureShader);
-        SetTexture(BackgroundTexture);
-        DrawTexture(V2(0.0f, 0.0f), V2(1.0f, 0.5625f));
-    }
-    
     //Get hovered region
     v2 CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
-    world_region* HoveringRegion = 0;
     u32 HoveringRegionIndex = 0;
+    world_region* HoveringRegion = 0;
     for (u32 RegionIndex = 0; RegionIndex < GameState->World.RegionCount; RegionIndex++)
     {
         world_region* Region = GameState->World.Regions + RegionIndex;
@@ -692,37 +422,11 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         }
     }
     
-    //Draw regions
-    for (u32 RegionIndex = 0; RegionIndex < GameState->World.RegionCount; RegionIndex++)
-    {
-        SetShader(ColorShader);
-        world_region* Region = GameState->World.Regions + RegionIndex;
-        
-        bool Hovering = (Region == HoveringRegion);
-        
-        v4 Color = GameState->World.Colors[Region->ColorIndex];
-        if (Hovering)
-        {
-            Color.RGB = 0.8f * Color.RGB;
-        }
-        
-        DrawWorldRegion(GameState, RenderGroup, &GameState->World, Region, Allocator.Transient, Color);
-        
-        //Draw name
-        if (Region->VertexCount > 0)
-        {
-            f32 TextSize = 0.04f;
-            string Name = GetName(Region);
-            
-            f32 NameWidth = PlatformTextWidth(Name, TextSize);
-            v2 P = Region->Center;
-            P.X -= 0.5f * NameWidth;
-            P.Y -= 0.25f * TextSize;
-            
-            SetShader(FontShader);
-            DrawString(Name, P, V4(1.0f, 1.0f, 1.0f, 1.0f), TextSize);
-        }
-    }
+    render_context RenderContext = {};
+    RenderContext.Arena = Allocator.Transient;
+    RenderContext.HoveringRegion = HoveringRegion;
+    
+    DrawWorld(GameState, &RenderContext);
     
     f32 TowerRadius = 0.03f;
     //Select tower
@@ -742,45 +446,6 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     //Draw Towers
     SetDepthTest(true);
     SetShader(ModelShader);
-    
-    //Draw existing towers
-    for (u32 TowerIndex = 0; TowerIndex < GameState->TowerCount; TowerIndex++)
-    {
-        tower* Tower = GameState->Towers + TowerIndex;
-        world_region* Region = GameState->World.Regions + Tower->RegionIndex;
-        
-        v2 P = Tower->P;
-        v4 RegionColor = GameState->World.Colors[Region->ColorIndex];
-        
-        v4 Color = V4(0.7f * RegionColor.RGB, RegionColor.A);
-        if (Tower == GameState->SelectedTower)
-        {
-            f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
-            Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
-        }
-        
-        span<model_vertex> ModelVertices = {};
-        m4x4 Transform;
-        
-        if (Tower->Type == Tower_Castle)
-        {
-            ModelVertices = GameState->CubeVertices;
-            Transform = GameState->CastleTransform;
-        }
-        else if (Tower->Type == Tower_Turret)
-        {
-            ModelVertices = GameState->TurretVertices;
-            Transform = GameState->TurretTransform;
-        }
-        else
-        {
-            Assert(0);
-        }
-        
-        SetModelColor(Color);
-        SetModelTransform(Transform * TranslateTransform(P.X, P.Y, 0.0f));
-        DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
-    }
     
     //Draw new tower
     if (GameState->Mode == Mode_Place)
@@ -803,27 +468,18 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         Color = V4(0.7f * Color.RGB, 1.0f);
         
-        span<model_vertex> ModelVertices = {};
         tower_type Type = {};
-        m4x4 Transform;
         
         if (GameState->PlacementMode == Place_Castle)
         {
-            ModelVertices = GameState->CubeVertices;
-            Transform = GameState->CastleTransform;
             Type = Tower_Castle;
         }
         else if (GameState->PlacementMode == Place_Turret)
         {
-            ModelVertices = GameState->TurretVertices;
-            Transform = GameState->TurretTransform;
             Type = Tower_Turret;
         }
         
-        SetModelColor(Color);
-        SetModelTransform(Transform * TranslateTransform(P.X, P.Y, 0.0f));
-        
-        DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
+        DrawTower(GameState, Type, P, Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
