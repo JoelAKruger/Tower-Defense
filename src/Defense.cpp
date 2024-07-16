@@ -142,8 +142,8 @@ GameInitialise(allocator Allocator)
     GameState->CubeVertices   = LoadModel(Allocator, "assets/models/castle.obj", false);
     GameState->TurretVertices = LoadModel(Allocator, "assets/models/turret.obj", true);
     
-    GameState->CastleTransform = RotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
-    GameState->TurretTransform = RotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
+    GameState->CastleTransform = ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
+    GameState->TurretTransform = ModelRotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
     
     return GameState;
 }
@@ -293,6 +293,22 @@ RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* 
     
     gui_layout Layout = DefaultLayout(0.65f, 0.95f);
     
+    Layout.NextRow();
+    
+    if ((Tower->Type == Tower_Turret) && Layout.Button("Set Target"))
+    {
+        Game->TowerEditMode = TowerEdit_SetTarget;
+    }
+    
+    if (Game->TowerEditMode == TowerEdit_SetTarget)
+    {
+        if (Input->ButtonUp & Button_LMouse)
+        {
+            Tower->Target = ScreenToWorld(Game, Input->Cursor);
+            Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
+        }
+    }
+    
     SetShader(FontShader);
     Layout.Label("Tower Editor");
 }
@@ -346,6 +362,7 @@ SetMode(game_state* GameState, game_mode NewMode)
     //Reset mode-specific variables
     GameState->PlacementType = {};
     GameState->SelectedTower = {};
+    GameState->TowerEditMode = {};
 }
 
 static void 

@@ -64,12 +64,25 @@ TranslateTransform(f32 X, f32 Y, f32 Z)
 }
 
 static m4x4
-RotateTransform()
+ModelRotateTransform()
 {
     m4x4 Result = {};
     Result.Values[0][0] = 1.0f;
     Result.Values[2][1] = 1.0f;
     Result.Values[1][2] = -1.0f;
+    Result.Values[3][3] = 1.0f;
+    return Result;
+}
+
+static m4x4 
+RotateTransform(f32 Radians)
+{
+    m4x4 Result = {};
+    Result.Values[0][0] = cosf(Radians);
+    Result.Values[0][1] = -sinf(Radians);
+    Result.Values[1][0] = sinf(Radians);
+    Result.Values[1][1] = cosf(Radians);
+    Result.Values[2][2] = 1.0f;
     Result.Values[3][3] = 1.0f;
     return Result;
 }

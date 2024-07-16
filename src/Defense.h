@@ -57,12 +57,21 @@ struct tower
     v2 P;
     u32 RegionIndex;
     f32 Health;
+    
+    v2 Target;
+    f32 Rotation;
 };
 
 struct model_vertex
 {
     v3 Position;
     v3 Normal;
+};
+
+enum tower_edit_mode
+{
+    TowerEdit_Null,
+    TowerEdit_SetTarget
 };
 
 struct game_state
@@ -79,9 +88,12 @@ struct game_state
     
     game_mode Mode;
     
-    tower_type PlacementType;
-    tower* SelectedTower;
+    //Valid when mode is Mode_Place
+    tower_type PlacementType; 
     
+    //Valid when mode is Mode_EditTower
+    tower* SelectedTower;     
+    tower_edit_mode TowerEditMode;
     
     editor Editor;
     

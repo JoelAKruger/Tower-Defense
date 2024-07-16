@@ -130,7 +130,7 @@ DrawRegions(game_state* Game, render_context* Context)
 }
 
 static void
-DrawTower(game_state* Game, tower_type Type, v2 P, v4 Color)
+DrawTower(game_state* Game, tower_type Type, v2 P, v4 Color, f32 Angle = 0.0f)
 {
     span<model_vertex> ModelVertices = {};
     m4x4 Transform;
@@ -143,7 +143,7 @@ DrawTower(game_state* Game, tower_type Type, v2 P, v4 Color)
     else if (Type == Tower_Turret)
     {
         ModelVertices = Game->TurretVertices;
-        Transform = Game->TurretTransform;
+        Transform = Game->TurretTransform * RotateTransform(-1.0f * Angle); //idk why it is -1.0f
     }
     else
     {
@@ -172,7 +172,7 @@ DrawTowers(game_state* Game)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(Game, Tower->Type, Tower->P, Color);
+        DrawTower(Game, Tower->Type, Tower->P, Color, Tower->Rotation);
     }
 }
 
