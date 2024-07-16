@@ -57,6 +57,12 @@ inline v3 V3(f32 X, f32 Y, f32 Z)
     return Result;
 }
 
+inline v3 V3(v2 A, f32 B)
+{
+    v3 Result = {A.X, A.Y, B};
+    return Result;
+}
+
 inline v4 V4(f32 X, f32 Y, f32 Z, f32 W)
 {
     v4 Result = {X, Y, Z, W};

@@ -87,12 +87,19 @@ ScreenToWorld(game_state* Game, v2 ScreenPos)
 }
 
 static v2
-WorldToScreen(game_state* GameState, v2 WorldPos)
+WorldToScreen(game_state* GameState, v3 WorldPos)
 {
-    v4 P = V4(WorldPos, 0.0f, 1.0f);
+    v4 P = V4(WorldPos, 1.0f);
     v4 ClipSpace = P * GameState->WorldTransform;
     v2 Result = {ClipSpace.X, ClipSpace.Y};
     Result = Result* (1.0f / ClipSpace.W);
+    return Result;
+}
+
+static v2
+WorldToScreen(game_state* GameState, v2 WorldPos)
+{
+    v2 Result = WorldToScreen(GameState, V3(WorldPos, 0.0f));
     return Result;
 }
 
@@ -172,8 +179,12 @@ NearestTowerTo(v2 P, game_state* Game, u32 RegionIndex)
         tower* Tower = Game->Towers + TowerIndex;
         if (Tower->RegionIndex == RegionIndex)
         {
-            NearestDistanceSq = Min(NearestDistanceSq, LengthSq(Tower->P - P));
-            Nearest = Tower;
+            f32 DistSq = LengthSq(Tower->P - P);
+            if (DistSq < NearestDistanceSq)
+            {
+                NearestDistanceSq = DistSq;
+                Nearest = Tower;
+            }
         }
     }
     nearest_tower Result = {sqrtf(NearestDistanceSq), Nearest};
@@ -586,6 +597,16 @@ ViewTransform(v3 Eye, v3 At)
     return Transpose(Result);
 }
 
+static void
+SetMode(game_state* GameState, game_mode NewMode)
+{
+    GameState->Mode = NewMode;
+    
+    //Reset mode-specific variables
+    GameState->PlacementMode = {};
+    GameState->SelectedTower = {};
+}
+
 static void 
 GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
@@ -597,17 +618,17 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     {
         if (GameState->Mode == Mode_Edit)
         {
-            GameState->Mode = Mode_Normal;
+            SetMode(GameState, Mode_Normal);
         }
         else if (GameState->Mode == Mode_Normal)
         {
-            GameState->Mode = Mode_Edit;
+            SetMode(GameState, Mode_Edit);
         }
     }
     
     if (Input->ButtonDown & Button_Escape)
     {
-        GameState->Mode = Mode_Normal;
+        SetMode(GameState, Mode_Normal);
     }
     
     if (GameState->Mode == Mode_Normal)
@@ -703,6 +724,21 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         }
     }
     
+    f32 TowerRadius = 0.03f;
+    //Select tower
+    if (GameState->Mode == Mode_Normal)
+    {
+        if (Input->ButtonDown & Button_LMouse)
+        {
+            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, GameState, HoveringRegionIndex);
+            if (NearestTower.Distance < TowerRadius)
+            {
+                SetMode(GameState, Mode_EditTower);
+                GameState->SelectedTower = NearestTower.Tower;
+            }
+        }
+    }
+    
     //Draw Towers
     SetDepthTest(true);
     SetShader(ModelShader);
@@ -710,21 +746,28 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     //Draw existing towers
     for (u32 TowerIndex = 0; TowerIndex < GameState->TowerCount; TowerIndex++)
     {
-        tower Tower = GameState->Towers[TowerIndex];
-        world_region* Region = GameState->World.Regions + Tower.RegionIndex;
+        tower* Tower = GameState->Towers + TowerIndex;
+        world_region* Region = GameState->World.Regions + Tower->RegionIndex;
         
-        v2 P = Tower.P;
-        v4 Color = GameState->World.Colors[Region->ColorIndex];
+        v2 P = Tower->P;
+        v4 RegionColor = GameState->World.Colors[Region->ColorIndex];
+        
+        v4 Color = V4(0.7f * RegionColor.RGB, RegionColor.A);
+        if (Tower == GameState->SelectedTower)
+        {
+            f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
+            Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
+        }
         
         span<model_vertex> ModelVertices = {};
         m4x4 Transform;
         
-        if (Tower.Type == Tower_Castle)
+        if (Tower->Type == Tower_Castle)
         {
             ModelVertices = GameState->CubeVertices;
             Transform = GameState->CastleTransform;
         }
-        else if (Tower.Type == Tower_Turret)
+        else if (Tower->Type == Tower_Turret)
         {
             ModelVertices = GameState->TurretVertices;
             Transform = GameState->TurretTransform;
@@ -734,26 +777,10 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
             Assert(0);
         }
         
-        SetModelColor(V4(0.7f * Color.RGB, Color.A));
+        SetModelColor(Color);
         SetModelTransform(Transform * TranslateTransform(P.X, P.Y, 0.0f));
         DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
     }
-    
-    f32 TowerRadius = 0.03f;
-    //Select tower
-    if (GameState->Mode == Mode_Normal)
-    {
-        if (Input->ButtonUp & Button_LMouse)
-        {
-            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, GameState, HoveringRegionIndex);
-            if (NearestTower.Distance < TowerRadius)
-            {
-                GameState->Mode = Mode_EditTower;
-                GameState->EditTower = NearestTower.Tower;
-            }
-        }
-    }
-    
     
     //Draw new tower
     if (GameState->Mode == Mode_Place)
@@ -804,6 +831,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
             
             Tower.P = P;
             Tower.RegionIndex = HoveringRegionIndex;
+            Tower.Health = 1.0f;
             
             GameState->Towers[GameState->TowerCount++] = Tower;
             Assert(GameState->TowerCount < ArrayCount(GameState->Towers));
@@ -813,17 +841,36 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     SetDepthTest(false);
     
     SetTransform(IdentityTransform());
+    
+    //Draw health bars
+    if (GameState->CameraP.Z > -0.5f)
+    {
+        SetShader(ColorShader);
+        for (u32 TowerIndex = 0; TowerIndex < GameState->TowerCount; TowerIndex++)
+        {
+            tower* Tower = GameState->Towers + TowerIndex;
+            v3 DrawP = V3(Tower->P, 0.0f) + V3(0.0f, 0.0f, -0.07f);
+            v2 ScreenP = WorldToScreen(GameState, DrawP);
+            
+            f32 HealthBarEdge = 0.02f;
+            v2 HealthBarSize = {0.4f / GlobalAspectRatio, 0.08f};
+            v2 HealthBarInnerSize = HealthBarSize - V2(HealthBarEdge / GlobalAspectRatio, HealthBarEdge);
+            DrawRectangle(ScreenP - 0.5f * HealthBarSize, HealthBarSize, V4(0.5f, 0.5f, 0.5f, 1.0f));
+            DrawRectangle(ScreenP - 0.5f * HealthBarInnerSize, HealthBarInnerSize, V4(1.0f, 0.0f, 0.0f, 1.0f));
+        }
+    }
+    
     BeginGUI(Input, RenderGroup);
     //Draw GUI
     if (Button(V2(-0.95f, -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Castle")))
     {
-        GameState->Mode = Mode_Place;
+        SetMode(GameState, Mode_Place);
         GameState->PlacementMode = Place_Castle;
     }
     
     if (Button(V2(-0.95f + (0.6f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Turret")))
     {
-        GameState->Mode = Mode_Place;
+        SetMode(GameState, Mode_Place);
         GameState->PlacementMode = Place_Turret;
     }
     
@@ -835,7 +882,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     if (GameState->Mode == Mode_EditTower)
     {
-        RunTowerEditor(GameState, GameState->EditTower, Input, Allocator.Transient);
+        RunTowerEditor(GameState, GameState->SelectedTower, Input, Allocator.Transient);
     }
     
     string String = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 

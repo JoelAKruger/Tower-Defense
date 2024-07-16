@@ -63,6 +63,7 @@ struct tower
     
     v2 P;
     u32 RegionIndex;
+    f32 Health;
 };
 
 struct model_vertex
@@ -85,7 +86,7 @@ struct game_state
     
     game_mode Mode;
     placement_mode PlacementMode;
-    tower* EditTower;
+    tower* SelectedTower;
     
     editor Editor;
     
