@@ -39,7 +39,8 @@ enum game_mode
 {
     Mode_Normal,
     Mode_Edit,
-    Mode_Place
+    Mode_Place,
+    Mode_EditTower
 };
 
 enum placement_mode
@@ -84,6 +85,7 @@ struct game_state
     
     game_mode Mode;
     placement_mode PlacementMode;
+    tower* EditTower;
     
     editor Editor;
     

@@ -103,8 +103,6 @@ struct gui_layout
 	f32 RowHeight;
     f32 ColumnWidth;
     
-    memory_arena* Arena;
-    
 	bool Button(const char* Text);
 	bool Button(string String);
 	void Label(const char* Text);
@@ -113,7 +111,7 @@ struct gui_layout
 };
 
 static gui_layout 
-DefaultLayout(f32 X, f32 Y, memory_arena* Arena)
+DefaultLayout(f32 X, f32 Y)
 {
 	gui_layout Result = {};
     
@@ -123,7 +121,6 @@ DefaultLayout(f32 X, f32 Y, memory_arena* Arena)
 	Result.X = X + Result.XPad;
 	Result.Y = Y - 0.01f - Result.RowHeight;
     Result.ColumnWidth = 0.04f;
-    Result.Arena = Arena;
     
 	return Result;
 }

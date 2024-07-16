@@ -156,19 +156,28 @@ DistanceInsideRegion(world_region* Region, v2 P)
     return MinDistance;
 }
 
-static f32
-DistanceToNearestTower(game_state* Game, u32 RegionIndex, v2 P)
+struct nearest_tower
+{
+    f32 Distance;
+    tower* Tower;
+};
+
+static nearest_tower
+NearestTowerTo(v2 P, game_state* Game, u32 RegionIndex)
 {
     f32 NearestDistanceSq = 10000.0f;
+    tower* Nearest = 0;
     for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
     {
         tower* Tower = Game->Towers + TowerIndex;
         if (Tower->RegionIndex == RegionIndex)
         {
             NearestDistanceSq = Min(NearestDistanceSq, LengthSq(Tower->P - P));
+            Nearest = Tower;
         }
     }
-    return sqrtf(NearestDistanceSq);
+    nearest_tower Result = {sqrtf(NearestDistanceSq), Nearest};
+    return Result;
 }
 
 static void
@@ -395,7 +404,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     PushRectangle(Render, V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
     Game->Dragging = false;
     
-    gui_layout Layout = DefaultLayout(0.6f, 1.0f, Arena);
+    gui_layout Layout = DefaultLayout(0.6f, 1.0f);
     
     SetShader(FontShader);
     Layout.Label("Regions");
@@ -497,6 +506,18 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     }
 }
 
+static void 
+RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* Arena)
+{
+    SetShader(ColorShader);
+    DrawRectangle(V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
+    
+    gui_layout Layout = DefaultLayout(0.65f, 0.95f);
+    
+    SetShader(FontShader);
+    Layout.Label("Tower Editor");
+}
+
 static void
 SetTransform(m4x4 Transform)
 {
@@ -589,20 +610,9 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         GameState->Mode = Mode_Normal;
     }
     
-    if (Input->ButtonDown & Button_Jump)
-    {
-        if (GameState->Mode == Mode_Place)
-        {
-            GameState->Mode = Mode_Normal;
-        }
-        else if (GameState->Mode == Mode_Normal)
-        {
-            GameState->Mode = Mode_Place;
-        }
-    }
-    
     if (GameState->Mode == Mode_Normal)
     {
+        //Handle moving the camera
         if ((Input->Button & Button_LMouse) == 0)
         {
             GameState->Dragging = false;
@@ -610,7 +620,6 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
-            //TODO
             GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
             GameState->Dragging = true;
         }
@@ -730,17 +739,30 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
     }
     
-    v2 NearestPos = {};
+    f32 TowerRadius = 0.03f;
+    //Select tower
+    if (GameState->Mode == Mode_Normal)
+    {
+        if (Input->ButtonUp & Button_LMouse)
+        {
+            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, GameState, HoveringRegionIndex);
+            if (NearestTower.Distance < TowerRadius)
+            {
+                GameState->Mode = Mode_EditTower;
+                GameState->EditTower = NearestTower.Tower;
+            }
+        }
+    }
+    
     
     //Draw new tower
-    f32 TowerRadius = 0.03f;
     if (GameState->Mode == Mode_Place)
     {
         v2 P = CursorWorldPos;
         
         bool Placeable = (HoveringRegion &&
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
-                          DistanceToNearestTower(GameState, HoveringRegionIndex, P) > 2.0f * TowerRadius);
+                          NearestTowerTo(P, GameState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
@@ -806,12 +828,14 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     }
     
     
-    
-    gui_layout Layout = DefaultLayout(-0.5f, -0.95f, Allocator.Transient);
-    
     if (GameState->Mode == Mode_Edit)
     {
         RunEditor(RenderGroup, GameState, Input, Allocator.Transient);
+    }
+    
+    if (GameState->Mode == Mode_EditTower)
+    {
+        RunTowerEditor(GameState, GameState->EditTower, Input, Allocator.Transient);
     }
     
     string String = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 
