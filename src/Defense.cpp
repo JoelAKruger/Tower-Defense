@@ -288,6 +288,36 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
 static void 
 RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* Arena)
 {
+    //Draw target
+    if (Tower->Type == Tower_Turret)
+    {
+        SetShader(TextureShader);
+        SetTexture(TargetTexture);
+        SetTransform(Game->WorldTransform);
+        v2 TargetSize = {0.1f, 0.1f};
+        DrawTexture(Tower->Target - 0.5f * TargetSize, Tower->Target + 0.5f * TargetSize);
+    }
+    
+    if (Game->TowerEditMode == TowerEdit_SetTarget)
+    {
+        v2 CursorP = ScreenToWorld(Game, Input->Cursor);
+        
+        SetShader(TextureShader);
+        SetTexture(TargetTexture);
+        SetTransform(Game->WorldTransform);
+        v2 TargetSize = {0.1f, 0.1f};
+        DrawTexture(CursorP - 0.5f * TargetSize, CursorP + 0.5f * TargetSize);
+        
+        if (Input->ButtonUp & Button_LMouse)
+        {
+            Tower->Target = CursorP;
+            Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
+        }
+        
+        SetTransform(IdentityTransform());
+    }
+    
+    SetTransform(IdentityTransform());
     SetShader(ColorShader);
     DrawRectangle(V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
     
@@ -300,14 +330,6 @@ RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* 
         Game->TowerEditMode = TowerEdit_SetTarget;
     }
     
-    if (Game->TowerEditMode == TowerEdit_SetTarget)
-    {
-        if (Input->ButtonUp & Button_LMouse)
-        {
-            Tower->Target = ScreenToWorld(Game, Input->Cursor);
-            Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
-        }
-    }
     
     SetShader(FontShader);
     Layout.Label("Tower Editor");

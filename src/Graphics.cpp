@@ -16,6 +16,7 @@ shader WaterShader;
 shader ModelShader;
 
 texture BackgroundTexture;
+texture TargetTexture;
 texture TowerTexture;
 
 f32 GlobalAspectRatio;
