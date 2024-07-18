@@ -48,14 +48,16 @@ DistanceInsideRegion(world_region* Region, v2 P)
 struct nearest_tower
 {
     f32 Distance;
+    u32 Index;
     tower* Tower;
 };
 
 static nearest_tower
-NearestTowerTo(v2 P, game_state* Game, u32 RegionIndex)
+NearestTowerTo(v2 P, global_game_state* Game, u32 RegionIndex)
 {
     f32 NearestDistanceSq = 10000.0f;
     tower* Nearest = 0;
+    u32 Index;
     for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
     {
         tower* Tower = Game->Towers + TowerIndex;
@@ -66,10 +68,11 @@ NearestTowerTo(v2 P, game_state* Game, u32 RegionIndex)
             {
                 NearestDistanceSq = DistSq;
                 Nearest = Tower;
+                Index = TowerIndex;
             }
         }
     }
-    nearest_tower Result = {sqrtf(NearestDistanceSq), Nearest};
+    nearest_tower Result = {sqrtf(NearestDistanceSq), Index, Nearest};
     return Result;
 }
 

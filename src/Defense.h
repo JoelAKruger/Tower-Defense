@@ -38,8 +38,8 @@ struct console;
 enum game_mode
 {
     Mode_Null,
+    Mode_Waiting,
     Mode_MyTurn,
-    Mode_GamePlay,
     Mode_Edit,
     Mode_Place,
     Mode_EditTower
@@ -89,7 +89,10 @@ struct global_game_state
 enum player_request_type
 {
     Request_Null,
-    Request_PlaceTower
+    Request_Reset,
+    Request_PlaceTower,
+    Request_EndTurn,
+    Request_TargetTower
 };
 
 struct player_request
@@ -100,6 +103,10 @@ struct player_request
     tower_type TowerType;
     u32        TowerRegionIndex;
     v2         TowerP;
+    
+    //Type == AimTower
+    u32 TowerIndex;
+    v2 TargetP;
 };
 
 struct game_state
@@ -113,8 +120,6 @@ struct game_state
     
     m4x4 WorldTransform;
     
-    world World;
-    
     game_mode Mode;
     
     //Valid when mode is Mode_Place
@@ -122,14 +127,13 @@ struct game_state
     
     //Valid when mode is Mode_EditTower
     tower* SelectedTower;     
+    u32    SelectedTowerIndex;
     tower_edit_mode TowerEditMode;
     
     global_game_state GlobalState;
+    u32 MyPlayerIndex;
     
     u32 MyColorIndex;
-    
-    tower Towers[64];
-    u32 TowerCount;
     
     bool ShowBackground;
     
@@ -162,4 +166,5 @@ struct render_context
 {
     memory_arena* Arena;
     world_region* HoveringRegion;
+    tower* SelectedTower;
 };

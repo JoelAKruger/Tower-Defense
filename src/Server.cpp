@@ -1,4 +1,3 @@
-static global_game_state ServerState;
 
 static void
 ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request)
@@ -20,13 +19,32 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
                 Tower.RegionIndex = Request->TowerRegionIndex;
                 Tower.Health = 1.0f;
                 
-                GameState->Towers[GameState->TowerCount++] = Tower;
+                Game->Towers[Game->TowerCount++] = Tower;
             }
             else
             {
                 //TODO: Handle this case
             }
         } break;
+        case Request_Reset:
+        {
+            Game->TowerCount = 0;
+        } break;
+        case Request_EndTurn:
+        {
+            Game->PlayerTurnIndex++;
+        } break;
+        case Request_TargetTower:
+        {
+            //TODO: Use getters
+            tower* Tower = Game->Towers + Request->TowerIndex;
+            Tower->Target = Request->TargetP;
+            Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
+        } break;
+        default:
+        {
+            Assert(0);
+        }
     }
 }
 
@@ -41,5 +59,5 @@ static void
 UpdateNewState(global_game_state* LocalState)
 {
     //TODO: Check for received packet
-    LocalState = ServerState;
+    *LocalState = ServerState;
 }

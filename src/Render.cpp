@@ -97,20 +97,20 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
 static void
 DrawRegions(game_state* Game, render_context* Context)
 {
-    for (u32 RegionIndex = 0; RegionIndex < Game->World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < Game->GlobalState.World.RegionCount; RegionIndex++)
     {
         SetShader(ColorShader);
-        world_region* Region = Game->World.Regions + RegionIndex;
+        world_region* Region = Game->GlobalState.World.Regions + RegionIndex;
         
         bool Hovering = (Region == Context->HoveringRegion);
         
-        v4 Color = Game->World.Colors[Region->ColorIndex];
+        v4 Color = Game->GlobalState.World.Colors[Region->ColorIndex];
         if (Hovering)
         {
             Color.RGB = 0.8f * Color.RGB;
         }
         
-        DrawWorldRegion(Game, &Game->World, Region, Context->Arena, Color);
+        DrawWorldRegion(Game, &Game->GlobalState.World, Region, Context->Arena, Color);
         
         //Draw name
         if (Region->VertexCount > 0)
@@ -156,17 +156,17 @@ DrawTower(game_state* Game, tower_type Type, v2 P, v4 Color, f32 Angle = 0.0f)
 }
 
 static void
-DrawTowers(game_state* Game)
+DrawTowers(game_state* Game, render_context* Context)
 {
-    for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
+    for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
-        tower* Tower = Game->Towers + TowerIndex;
-        world_region* Region = Game->World.Regions + Tower->RegionIndex;
+        tower* Tower = Game->GlobalState.Towers + TowerIndex;
+        world_region* Region = Game->GlobalState.World.Regions + Tower->RegionIndex;
         
-        v4 RegionColor = Game->World.Colors[Region->ColorIndex];
+        v4 RegionColor = Game->GlobalState.World.Colors[Region->ColorIndex];
         
         v4 Color = V4(0.7f * RegionColor.RGB, RegionColor.A);
-        if (Tower == Game->SelectedTower)
+        if (Tower == Context->SelectedTower)
         {
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)Game->Time);
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -190,5 +190,5 @@ DrawWorld(game_state* Game, render_context* Context)
     
     SetDepthTest(true);
     SetShader(ModelShader);
-    DrawTowers(Game);
+    DrawTowers(Game, Context);
 }

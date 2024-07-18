@@ -1,4 +1,7 @@
 #include "Defense.h"
+
+static global_game_state ServerState;
+
 #include "GUI.cpp"
 #include "Console.cpp"
 #include "Parser.cpp"
@@ -6,6 +9,7 @@
 #include "World.cpp"
 #include "Renderer.cpp"
 #include "Render.cpp"
+#include "Server.cpp"
 
 static v2
 ScreenToWorld(game_state* Game, v2 ScreenPos)
@@ -129,11 +133,13 @@ GameInitialise(allocator Allocator)
     Region.Vertices[3] = {-0.5f, 0.0f};
     SetName(&Region, "Niaga");
     
-    GameState->World.Regions[0] = Region;
-    GameState->World.RegionCount = 1;
+    ServerState.World.Regions[0] = Region;
+    ServerState.World.RegionCount = 1;
     
-    GameState->World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
-    GameState->World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
+    ServerState.World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
+    ServerState.World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
+    
+    GameState->Mode = Mode_Waiting;
     
     GameState->CameraP = {0.0f, -1.0f, -0.5f};
     GameState->CameraDirection = {0.0f, 1.0f, 5.5f};
@@ -190,8 +196,8 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Layout.Button("Add"))
     {
-        Game->Editor.SelectedRegionIndex = (Game->World.RegionCount++);
-        Assert(Game->World.RegionCount < ArrayCount(Game->World.Regions));
+        Game->Editor.SelectedRegionIndex = (ServerState.World.RegionCount++);
+        Assert(ServerState.World.RegionCount < ArrayCount(ServerState.World.Regions));
     }
     
     Layout.NextRow();
@@ -205,7 +211,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Layout.Button("Add"))
     {
-        world_region* Region = Game->World.Regions + Game->Editor.SelectedRegionIndex;
+        world_region* Region = ServerState.World.Regions + Game->Editor.SelectedRegionIndex;
         
         v2 NewVertex = {};
         
@@ -223,7 +229,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Layout.Button("Remove"))
     {
-        world_region* Region = Game->World.Regions + Game->Editor.SelectedRegionIndex;
+        world_region* Region = ServerState.World.Regions + Game->Editor.SelectedRegionIndex;
         
         if (Region->VertexCount > 0)
         {
@@ -234,9 +240,9 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     f32 VertexDisplaySize = 0.01f;
     
     SetShader(ColorShader);
-    for (u32 RegionIndex = 0; RegionIndex < Game->World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
     {
-        world_region* Region = Game->World.Regions + RegionIndex;
+        world_region* Region = ServerState.World.Regions + RegionIndex;
         
         for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
         {
@@ -258,9 +264,9 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
     {
-        for (u32 RegionIndex = 0; RegionIndex < Game->World.RegionCount; RegionIndex++)
+        for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
         {
-            world_region* Region = Game->World.Regions + RegionIndex;
+            world_region* Region = ServerState.World.Regions + RegionIndex;
             
             for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
             {
@@ -280,7 +286,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Game->Editor.DraggingVertex)
     {
-        world_region* Region = Game->World.Regions + Game->Editor.SelectedRegionIndex;
+        world_region* Region = ServerState.World.Regions + Game->Editor.SelectedRegionIndex;
         Region->Positions[Game->Editor.SelectedVertexIndex] = ScreenToWorld(Game, Input->Cursor);
     }
 }
@@ -312,8 +318,10 @@ DrawExplosion(v2 P, u32 Frame)
 }
 
 static void 
-RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* Arena)
+RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena* Arena)
 {
+    tower* Tower = Game->GlobalState.Towers + TowerIndex;
+    
     //Draw target
     v2 TargetSize = {0.075f, 0.075f};
     
@@ -337,8 +345,10 @@ RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* 
         
         if (Input->ButtonUp & Button_LMouse)
         {
-            Tower->Target = CursorP;
-            Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
+            player_request Request = {Request_TargetTower};
+            Request.TowerIndex = TowerIndex;
+            Request.TargetP = CursorP;
+            SendPacket(&Request);
         }
         
         SetTransform(IdentityTransform());
@@ -411,6 +421,7 @@ SetMode(game_state* GameState, game_mode NewMode)
     //Reset mode-specific variables
     GameState->PlacementType = {};
     GameState->SelectedTower = {};
+    GameState->SelectedTowerIndex = {};
     GameState->TowerEditMode = {};
 }
 
@@ -420,6 +431,21 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, SecondsPerFrame);
     
     GameState->Time += SecondsPerFrame;
+    
+    UpdateNewState(&GameState->GlobalState);
+    
+    //Update modes based on server state
+    if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyPlayerIndex) &&
+        (GameState->Mode == Mode_Waiting))
+    {
+        SetMode(GameState, Mode_MyTurn);
+    }
+    
+    if ((GameState->GlobalState.PlayerTurnIndex != GameState->MyPlayerIndex) &&
+        (GameState->Mode != Mode_Waiting))
+    {
+        SetMode(GameState, Mode_Waiting);
+    }
     
     if (Input->ButtonDown & Button_Interact)
     {
@@ -438,7 +464,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         SetMode(GameState, Mode_MyTurn);
     }
     
-    if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_GamePlay)
+    if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_Waiting)
     {
         //Handle moving the camera
         if ((Input->Button & Button_LMouse) == 0)
@@ -476,9 +502,9 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     v2 CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
     u32 HoveringRegionIndex = 0;
     world_region* HoveringRegion = 0;
-    for (u32 RegionIndex = 0; RegionIndex < GameState->World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
     {
-        world_region* Region = GameState->World.Regions + RegionIndex;
+        world_region* Region = ServerState.World.Regions + RegionIndex;
         bool Hovering = InRegion(Region, CursorWorldPos, Input);
         if (Hovering)
         {
@@ -491,6 +517,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     render_context RenderContext = {};
     RenderContext.Arena = Allocator.Transient;
     RenderContext.HoveringRegion = HoveringRegion;
+    RenderContext.SelectedTower = GameState->SelectedTower;
     
     DrawWorld(GameState, &RenderContext);
     
@@ -505,11 +532,12 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     {
         if (Input->ButtonDown & Button_LMouse)
         {
-            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, GameState, HoveringRegionIndex);
+            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, &GameState->GlobalState, HoveringRegionIndex);
             if (NearestTower.Distance < TowerRadius)
             {
                 SetMode(GameState, Mode_EditTower);
                 GameState->SelectedTower = NearestTower.Tower;
+                GameState->SelectedTowerIndex = NearestTower.Index;
             }
         }
     }
@@ -524,13 +552,13 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         bool Placeable = (HoveringRegion &&
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
-                          NearestTowerTo(P, GameState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+                          NearestTowerTo(P, &GameState->GlobalState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
         if (Placeable)
         {
-            v4 RegionColor = GameState->World.Colors[HoveringRegion->ColorIndex];
+            v4 RegionColor = ServerState.World.Colors[HoveringRegion->ColorIndex];
             
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -544,14 +572,13 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
-            tower Tower = {Type};
+            player_request Request = {Request_PlaceTower};
             
-            Tower.P = P;
-            Tower.RegionIndex = HoveringRegionIndex;
-            Tower.Health = 1.0f;
+            Request.TowerP = P;
+            Request.TowerRegionIndex = HoveringRegionIndex;
+            Request.TowerType = Type;
             
-            GameState->Towers[GameState->TowerCount++] = Tower;
-            Assert(GameState->TowerCount < ArrayCount(GameState->Towers));
+            SendPacket(&Request);
         }
     }
     
@@ -563,9 +590,9 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     if (GameState->CameraP.Z > -0.5f)
     {
         SetShader(ColorShader);
-        for (u32 TowerIndex = 0; TowerIndex < GameState->TowerCount; TowerIndex++)
+        for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
         {
-            tower* Tower = GameState->Towers + TowerIndex;
+            tower* Tower = GameState->GlobalState.Towers + TowerIndex;
             v3 DrawP = V3(Tower->P, 0.0f) + V3(0.0f, 0.0f, -0.07f);
             v2 ScreenP = WorldToScreen(GameState, DrawP);
             
@@ -595,7 +622,8 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         if (Button(V2(-0.95f + (1.2f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("End Turn")))
         {
-            SetMode(GameState, Mode_GamePlay);
+            player_request Request = {Request_EndTurn};
+            SendPacket(&Request);
         }
     }
     
@@ -606,7 +634,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     if (GameState->Mode == Mode_EditTower)
     {
-        RunTowerEditor(GameState, GameState->SelectedTower, Input, Allocator.Transient);
+        RunTowerEditor(GameState, GameState->SelectedTowerIndex, Input, Allocator.Transient);
     }
     
     string String = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 
@@ -645,22 +673,23 @@ void Command_name(int ArgCount, string* Args, console* Console, game_state* Game
         u32 RegionIndex = StringToU32(Args[1]);
         string Name = Args[2];
         
-        world_region* Region = GameState->World.Regions + RegionIndex;
+        world_region* Region = ServerState.World.Regions + RegionIndex;
         SetName(Region, Name);
     }
 }
 
 void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
-    GameState->TowerCount = 0;
+    player_request Request = {Request_Reset};
+    SendPacket(&Request);
 }
 
 void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
 {
-    u32 ColorCount = ArrayCount(Game->World.Colors);
+    u32 ColorCount = ArrayCount(ServerState.World.Colors);
     
-    for (u32 RegionIndex = 0; RegionIndex < Game->World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
     {
-        Game->World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
+        ServerState.World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
     }
 }
