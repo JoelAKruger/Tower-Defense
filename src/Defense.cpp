@@ -285,19 +285,47 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     }
 }
 
+static void
+DrawExplosion(v2 P, u32 Frame)
+{
+    u32 FrameCount = 22;
+    Frame = Frame % FrameCount;
+    
+    u32 TexturesAcross = 6;
+    u32 TexturesHigh = 4;
+    
+    u32 I = Frame % TexturesAcross;
+    u32 J = Frame / TexturesAcross;
+    
+    f32 ExplosionRadius = 0.075f;
+    v2 ExplosionTextureSize = ExplosionRadius * V2(16.0f / 9.0f, 1.0f); //This matches the texture
+    
+    SetTexture(ExplosionTexture);
+    
+    v2 P0 = P - 0.5f * ExplosionTextureSize;
+    v2 P1 = P + 0.5f * ExplosionTextureSize;
+    
+    v2 UV0 = {(f32)I / TexturesAcross, (f32)(TexturesHigh - 1 - J) / TexturesHigh};
+    v2 UV1 = UV0 + V2(1.0f / TexturesAcross, 1.0f / TexturesHigh);
+    
+    DrawTexture(P0, P1, UV0, UV1);
+}
+
 static void 
 RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* Arena)
 {
     //Draw target
+    v2 TargetSize = {0.075f, 0.075f};
+    
     if (Tower->Type == Tower_Turret)
     {
         SetShader(TextureShader);
         SetTexture(TargetTexture);
         SetTransform(Game->WorldTransform);
-        v2 TargetSize = {0.1f, 0.1f};
         DrawTexture(Tower->Target - 0.5f * TargetSize, Tower->Target + 0.5f * TargetSize);
     }
     
+    //Draw new target
     if (Game->TowerEditMode == TowerEdit_SetTarget)
     {
         v2 CursorP = ScreenToWorld(Game, Input->Cursor);
@@ -305,7 +333,6 @@ RunTowerEditor(game_state* Game, tower* Tower, game_input* Input, memory_arena* 
         SetShader(TextureShader);
         SetTexture(TargetTexture);
         SetTransform(Game->WorldTransform);
-        v2 TargetSize = {0.1f, 0.1f};
         DrawTexture(CursorP - 0.5f * TargetSize, CursorP + 0.5f * TargetSize);
         
         if (Input->ButtonUp & Button_LMouse)
@@ -398,9 +425,9 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     {
         if (GameState->Mode == Mode_Edit)
         {
-            SetMode(GameState, Mode_Normal);
+            SetMode(GameState, Mode_MyTurn);
         }
-        else if (GameState->Mode == Mode_Normal)
+        else if (GameState->Mode == Mode_MyTurn)
         {
             SetMode(GameState, Mode_Edit);
         }
@@ -408,10 +435,10 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     if (Input->ButtonDown & Button_Escape)
     {
-        SetMode(GameState, Mode_Normal);
+        SetMode(GameState, Mode_MyTurn);
     }
     
-    if (GameState->Mode == Mode_Normal)
+    if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_GamePlay)
     {
         //Handle moving the camera
         if ((Input->Button & Button_LMouse) == 0)
@@ -467,9 +494,14 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     DrawWorld(GameState, &RenderContext);
     
+    SetDepthTest(false);
+    SetShader(TextureShader);
+    static u32 Frame = 0;
+    DrawExplosion(V2(0.0f, 0.0f), (Frame++) / 8);
+    
     f32 TowerRadius = 0.03f;
     //Select tower
-    if (GameState->Mode == Mode_Normal)
+    if (GameState->Mode == Mode_MyTurn)
     {
         if (Input->ButtonDown & Button_LMouse)
         {
@@ -482,7 +514,6 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         }
     }
     
-    //Draw Towers
     SetDepthTest(true);
     SetShader(ModelShader);
     
@@ -548,18 +579,25 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     BeginGUI(Input, RenderGroup);
     //Draw GUI
-    if (Button(V2(-0.95f, -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Castle")))
+    if (GameState->Mode == Mode_MyTurn)
     {
-        SetMode(GameState, Mode_Place);
-        GameState->PlacementType = Tower_Castle;
+        if (Button(V2(-0.95f, -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Castle")))
+        {
+            SetMode(GameState, Mode_Place);
+            GameState->PlacementType = Tower_Castle;
+        }
+        
+        if (Button(V2(-0.95f + (0.6f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Turret")))
+        {
+            SetMode(GameState, Mode_Place);
+            GameState->PlacementType = Tower_Turret;
+        }
+        
+        if (Button(V2(-0.95f + (1.2f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("End Turn")))
+        {
+            SetMode(GameState, Mode_GamePlay);
+        }
     }
-    
-    if (Button(V2(-0.95f + (0.6f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Turret")))
-    {
-        SetMode(GameState, Mode_Place);
-        GameState->PlacementType = Tower_Turret;
-    }
-    
     
     if (GameState->Mode == Mode_Edit)
     {

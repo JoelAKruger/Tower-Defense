@@ -536,8 +536,9 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     texture Texture = CreateTexture("assets/world.png");
     BackgroundTexture = Texture;
     
-    TowerTexture = CreateTexture("assets/tower.png");
-    TargetTexture = CreateTexture("assets/target.png");
+    TowerTexture     = CreateTexture("assets/tower.png");
+    TargetTexture    = CreateTexture("assets/target.png");
+    ExplosionTexture = CreateTexture("assets/explosion.png");
     
     font_texture FontTexture = CreateFontTexture(Allocator, "assets/LiberationMono-Regular.ttf");
     DefaultFont = &FontTexture;

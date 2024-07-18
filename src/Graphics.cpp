@@ -18,6 +18,7 @@ shader ModelShader;
 texture BackgroundTexture;
 texture TargetTexture;
 texture TowerTexture;
+texture ExplosionTexture;
 
 f32 GlobalAspectRatio;
 

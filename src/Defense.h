@@ -37,7 +37,9 @@ struct console;
 
 enum game_mode
 {
-    Mode_Normal,
+    Mode_Null,
+    Mode_MyTurn,
+    Mode_GamePlay,
     Mode_Edit,
     Mode_Place,
     Mode_EditTower
@@ -74,9 +76,36 @@ enum tower_edit_mode
     TowerEdit_SetTarget
 };
 
+struct global_game_state
+{
+    u32 PlayerTurnIndex;
+    
+    world World;
+    
+    tower Towers[64];
+    u32 TowerCount;
+};
+
+enum player_request_type
+{
+    Request_Null,
+    Request_PlaceTower
+};
+
+struct player_request
+{
+    player_request_type Type;
+    
+    //Type == PlaceTower
+    tower_type TowerType;
+    u32        TowerRegionIndex;
+    v2         TowerP;
+};
+
 struct game_state
 {
     console* Console;
+    editor Editor;
     
     v3 CameraP;
     v3 CameraDirection;
@@ -95,7 +124,7 @@ struct game_state
     tower* SelectedTower;     
     tower_edit_mode TowerEditMode;
     
-    editor Editor;
+    global_game_state GlobalState;
     
     u32 MyColorIndex;
     
