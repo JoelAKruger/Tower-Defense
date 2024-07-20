@@ -1,7 +1,28 @@
+static void
+InitialiseServerState(global_game_state* Game)
+{
+    world_region Region = {};
+    
+    Region.VertexCount = 4;
+    Region.Center = {0.0f, 0.0f};
+    Region.Vertices[0] = {0.0f, 0.5f};
+    Region.Vertices[1] = {0.5f, 0.0f};
+    Region.Vertices[2] = {0.0f, -0.5f};
+    Region.Vertices[3] = {-0.5f, 0.0f};
+    SetName(&Region, "Niaga");
+    
+    Game->World.Regions[0] = Region;
+    Game->World.RegionCount = 1;
+    
+    Game->World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
+    Game->World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
+}
 
 static void
 ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request)
 {
+    LOG("Request!\n");
+    
     //TODO: This is not strictly necessary (e.g. a player typing in chat)
     Assert(SenderIndex == Game->PlayerTurnIndex);
     
@@ -36,7 +57,7 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         } break;
         case Request_TargetTower:
         {
-            //TODO: Use getters
+            //TODO: Use getters that check for permission
             tower* Tower = Game->Towers + Request->TowerIndex;
             Tower->Target = Request->TargetP;
             Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
@@ -52,12 +73,6 @@ static void
 SendPacket(player_request* Request)
 {
     //TODO: Send packet
-    ServerHandleRequest(&ServerState, 0, Request);
-}
-
-static void
-UpdateNewState(global_game_state* LocalState)
-{
-    //TODO: Check for received packet
-    *LocalState = ServerState;
+    //ServerHandleRequest(&ServerState, 0, Request);
+    PlatformSend((u8*)Request, sizeof(*Request));
 }

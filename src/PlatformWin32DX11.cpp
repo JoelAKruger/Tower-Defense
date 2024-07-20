@@ -3,6 +3,8 @@
 #pragma comment(lib, "d3dcompiler.lib")
 
 #define UNICODE
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <Windows.h>
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
@@ -190,6 +192,8 @@ static ID3D11DeviceContext* D3D11DeviceContext;
 static ID3D11DepthStencilView* DepthBufferView;
 memory_arena GraphicsArena;
 
+#include "Defense.h"
+#include "Win32Network.cpp"
 #include "Graphics.cpp"
 #include "Defense.cpp"
 

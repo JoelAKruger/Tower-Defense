@@ -168,3 +168,5 @@ struct render_context
     world_region* HoveringRegion;
     tower* SelectedTower;
 };
+
+void InitialiseServerState(global_game_state* Game);

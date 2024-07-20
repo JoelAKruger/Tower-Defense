@@ -145,12 +145,12 @@ void LoadWorld(world* World, char* Path, memory_arena* Arena);
 
 void Command_load(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
-    LoadWorld(&ServerState.World, "map.map", Arena);
+    LoadWorld(&ServerState_->World, "map.map", Arena);
 }
 
 void Command_save(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
-    SaveWorld(&ServerState.World, "map.map", Arena);
+    SaveWorld(&ServerState_->World, "map.map", Arena);
 }
 
 static void
@@ -165,6 +165,8 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
         CONSOLE_COMMAND(Console, name);
         CONSOLE_COMMAND(Console, reset);
         CONSOLE_COMMAND(Console, color);
+        CONSOLE_COMMAND(Console, create_server);
+        CONSOLE_COMMAND(Console, connect);
     }
     
     //Check if toggled

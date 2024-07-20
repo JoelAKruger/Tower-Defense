@@ -1,7 +1,3 @@
-#include "Defense.h"
-
-static global_game_state ServerState;
-
 #include "GUI.cpp"
 #include "Console.cpp"
 #include "Parser.cpp"
@@ -123,22 +119,6 @@ GameInitialise(allocator Allocator)
     game_state* GameState = AllocStruct(Allocator.Permanent, game_state);
     GameState->Console = AllocStruct(Allocator.Permanent, console);
     
-    world_region Region = {};
-    
-    Region.VertexCount = 4;
-    Region.Center = {0.0f, 0.0f};
-    Region.Vertices[0] = {0.0f, 0.5f};
-    Region.Vertices[1] = {0.5f, 0.0f};
-    Region.Vertices[2] = {0.0f, -0.5f};
-    Region.Vertices[3] = {-0.5f, 0.0f};
-    SetName(&Region, "Niaga");
-    
-    ServerState.World.Regions[0] = Region;
-    ServerState.World.RegionCount = 1;
-    
-    ServerState.World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
-    ServerState.World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
-    
     GameState->Mode = Mode_Waiting;
     
     GameState->CameraP = {0.0f, -1.0f, -0.5f};
@@ -182,7 +162,7 @@ InRegion(world_region* Region, v2 WorldPos, game_input* Input)
 }
 
 static void
-RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_arena* Arena)
+RunEditor(render_group* Render, game_state* Game, world* World, game_input* Input, memory_arena* Arena)
 {
     Assert(Arena->Type == TRANSIENT);
     
@@ -196,8 +176,8 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Layout.Button("Add"))
     {
-        Game->Editor.SelectedRegionIndex = (ServerState.World.RegionCount++);
-        Assert(ServerState.World.RegionCount < ArrayCount(ServerState.World.Regions));
+        Game->Editor.SelectedRegionIndex = (World->RegionCount++);
+        Assert(World->RegionCount < ArrayCount(World->Regions));
     }
     
     Layout.NextRow();
@@ -211,7 +191,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Layout.Button("Add"))
     {
-        world_region* Region = ServerState.World.Regions + Game->Editor.SelectedRegionIndex;
+        world_region* Region = World->Regions + Game->Editor.SelectedRegionIndex;
         
         v2 NewVertex = {};
         
@@ -229,7 +209,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Layout.Button("Remove"))
     {
-        world_region* Region = ServerState.World.Regions + Game->Editor.SelectedRegionIndex;
+        world_region* Region = World->Regions + Game->Editor.SelectedRegionIndex;
         
         if (Region->VertexCount > 0)
         {
@@ -240,9 +220,9 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     f32 VertexDisplaySize = 0.01f;
     
     SetShader(ColorShader);
-    for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
     {
-        world_region* Region = ServerState.World.Regions + RegionIndex;
+        world_region* Region = World->Regions + RegionIndex;
         
         for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
         {
@@ -264,9 +244,9 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
     {
-        for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
+        for (u32 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
         {
-            world_region* Region = ServerState.World.Regions + RegionIndex;
+            world_region* Region = World->Regions + RegionIndex;
             
             for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
             {
@@ -286,7 +266,7 @@ RunEditor(render_group* Render, game_state* Game, game_input* Input, memory_aren
     
     if (Game->Editor.DraggingVertex)
     {
-        world_region* Region = ServerState.World.Regions + Game->Editor.SelectedRegionIndex;
+        world_region* Region = World->Regions + Game->Editor.SelectedRegionIndex;
         Region->Positions[Game->Editor.SelectedVertexIndex] = ScreenToWorld(Game, Input->Cursor);
     }
 }
@@ -432,8 +412,6 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     GameState->Time += SecondsPerFrame;
     
-    UpdateNewState(&GameState->GlobalState);
-    
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyPlayerIndex) &&
         (GameState->Mode == Mode_Waiting))
@@ -502,9 +480,9 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     v2 CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
     u32 HoveringRegionIndex = 0;
     world_region* HoveringRegion = 0;
-    for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < GameState->GlobalState.World.RegionCount; RegionIndex++)
     {
-        world_region* Region = ServerState.World.Regions + RegionIndex;
+        world_region* Region = GameState->GlobalState.World.Regions + RegionIndex;
         bool Hovering = InRegion(Region, CursorWorldPos, Input);
         if (Hovering)
         {
@@ -558,7 +536,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         if (Placeable)
         {
-            v4 RegionColor = ServerState.World.Colors[HoveringRegion->ColorIndex];
+            v4 RegionColor = GameState->GlobalState.World.Colors[HoveringRegion->ColorIndex];
             
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -629,7 +607,8 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     if (GameState->Mode == Mode_Edit)
     {
-        RunEditor(RenderGroup, GameState, Input, Allocator.Transient);
+        //Use actual world, not local world
+        RunEditor(RenderGroup, GameState, &ServerState_->World, Input, Allocator.Transient);
     }
     
     if (GameState->Mode == Mode_EditTower)
@@ -637,10 +616,18 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         RunTowerEditor(GameState, GameState->SelectedTowerIndex, Input, Allocator.Transient);
     }
     
-    string String = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 
-                               GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
+    string PosString = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 
+                                  GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
     SetShader(FontShader);
-    DrawGUIString(String, V2(-0.95f, -0.95f));
+    DrawGUIString(PosString, V2(-0.95f, -0.95f));
+    
+    char* Message = "Not connected";
+    if (CheckForServerUpdate(&GameState->GlobalState))
+    {
+        Message = "Connected";
+    }
+    
+    DrawGUIString(String(Message), V2(-0.95f, -0.5f));
     
     DrawConsole(GameState->Console, RenderGroup, Allocator.Transient);
 }
@@ -673,7 +660,7 @@ void Command_name(int ArgCount, string* Args, console* Console, game_state* Game
         u32 RegionIndex = StringToU32(Args[1]);
         string Name = Args[2];
         
-        world_region* Region = ServerState.World.Regions + RegionIndex;
+        world_region* Region = ServerState_->World.Regions + RegionIndex;
         SetName(Region, Name);
     }
 }
@@ -686,10 +673,20 @@ void Command_reset(int ArgCount, string* Args, console* Console, game_state* Gam
 
 void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
 {
-    u32 ColorCount = ArrayCount(ServerState.World.Colors);
+    u32 ColorCount = ArrayCount(ServerState_->World.Colors);
     
-    for (u32 RegionIndex = 0; RegionIndex < ServerState.World.RegionCount; RegionIndex++)
+    for (u32 RegionIndex = 0; RegionIndex < ServerState_->World.RegionCount; RegionIndex++)
     {
-        ServerState.World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
+        ServerState_->World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
     }
+}
+
+void Command_create_server(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+{
+    Host();
+}
+
+void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+{
+    ConnectToServer("localhost");
 }
