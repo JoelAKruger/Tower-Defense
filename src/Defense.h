@@ -109,6 +109,24 @@ struct player_request
     v2 TargetP;
 };
 
+struct multiplayer_context
+{
+    u32 MyClientID;
+};
+
+enum server_message_type
+{
+    Message_Null,
+    Message_Initialise
+};
+
+struct server_message
+{
+    server_message_type Type;
+    
+    u32 InitialiseClientID;
+};
+
 struct game_state
 {
     console* Console;
@@ -131,7 +149,7 @@ struct game_state
     tower_edit_mode TowerEditMode;
     
     global_game_state GlobalState;
-    u32 MyPlayerIndex;
+    multiplayer_context MultiplayerContext;
     
     u32 MyColorIndex;
     

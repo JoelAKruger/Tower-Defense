@@ -10,33 +10,49 @@ ENetHost* ServerHost;
 ENetPeer* ServerPeer;
 bool Connected;
 
+enum 
+{
+    Channel_Init,
+    Channel_WorldData,
+    Channel_Count
+};
+
 static bool
 ConnectToServer(char* Hostname)
 {
     bool Result = false;
     
-    int ChannelCount = 2;
     int ConnectionCount = 1;
     
-    ServerHost = enet_host_create(0, ConnectionCount, ChannelCount, 0, 0);
+    ServerHost = enet_host_create(0, ConnectionCount, Channel_Count, 0, 0);
     
     ENetAddress Address = {};
     enet_address_set_host(&Address, Hostname);
     Address.port = Port;
     
-    ServerPeer = enet_host_connect(ServerHost, &Address, ChannelCount, 0);
+    ServerPeer = enet_host_connect(ServerHost, &Address, Channel_Count, 0);
     
     return Result;
 }
 
 static bool
-CheckForServerUpdate(global_game_state* Game)
+CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
 {
     if (ServerHost)
     {
-        ENetEvent Event = {};
-        while (enet_host_service(ServerHost, &Event, 0) > 0)
+        
+        while (true)
         {
+            ENetEvent Event = {};
+            int ENetResult = enet_host_service(ServerHost, &Event, 0);
+            
+            if (ENetResult == 0)
+            {
+                break;
+            }
+            
+            Assert(ENetResult > 0);
+            
             switch (Event.type)
             {
                 case ENET_EVENT_TYPE_CONNECT:
@@ -47,10 +63,27 @@ CheckForServerUpdate(global_game_state* Game)
                 {
                     ENetPacket* Packet = Event.packet;
                     
-                    Assert(Packet->dataLength == sizeof(global_game_state));
-                    *Game = *(global_game_state*)Packet->data;
-                    
-                    enet_packet_destroy(Packet);
+                    switch (Event.channelID)
+                    {
+                        case Channel_Init:
+                        {
+                            Assert(Packet->dataLength == sizeof(server_message));
+                            server_message* Message = (server_message*)Packet->data;
+                            
+                            Context->MyClientID = Message->InitialiseClientID;
+                        } break;
+                        case Channel_WorldData:
+                        {
+                            Assert(Packet->dataLength == sizeof(global_game_state));
+                            *Game = *(global_game_state*)Packet->data;
+                            
+                            enet_packet_destroy(Packet);
+                        } break;
+                        default:
+                        {
+                            Assert(0);
+                        }
+                    }
                 } break;
                 case ENET_EVENT_TYPE_DISCONNECT:
                 {
@@ -98,7 +131,7 @@ ServerMain(LPVOID)
     Address.host = ENET_HOST_ANY;
     Address.port = Port;
     
-    ENetHost* Server = enet_host_create(&Address, 8, 2, 0, 0);
+    ENetHost* Server = enet_host_create(&Address, 8, Channel_Count, 0, 0);
     LOG("Created server\n");
     
     global_game_state Game = {};
@@ -114,6 +147,8 @@ ServerMain(LPVOID)
         ENetEvent Event = {};
         int ENetResult = enet_host_service(Server, &Event, 0);
         
+        Assert(ENetResult >= 0);
+        
         if (ENetResult > 0)
         {
             switch (Event.type)
@@ -121,7 +156,8 @@ ServerMain(LPVOID)
                 case ENET_EVENT_TYPE_CONNECT:
                 {
                     ENetPeer* Peer = Event.peer;
-                    LOG("New connection from %x:%u\n", Peer->address.host, Peer->address.port);
+                    u32 Host = Peer->address.host;
+                    LOG("New connection from %u.%u.%u.%u:%u\n", (u8)(Host), (u8)(Host >> 8), (u8)(Host >> 16), (u8)(Host >> 24) , Peer->address.port);
                     
                     u32 ClientIndex = ClientCount++;
                     Assert(ClientIndex < ArrayCount(Clients));
@@ -131,10 +167,19 @@ ServerMain(LPVOID)
                     client_info* ClientInfo = new client_info{};
                     ClientInfo->ClientIndex = ClientIndex;
                     Peer->data = ClientInfo;
+                    
+                    //Send client its client index
+                    server_message Message = {};
+                    Message.Type = Message_Initialise;
+                    Message.InitialiseClientID = ClientIndex;
+                    
+                    ENetPacket* SendPacket = enet_packet_create((void*)&Message, sizeof(Message), ENET_PACKET_FLAG_RELIABLE);
+                    
+                    enet_peer_send(Peer, Channel_Init, SendPacket);
                 } break;
                 case ENET_EVENT_TYPE_RECEIVE:
                 {
-                    LOG("Received data");
+                    LOG("Received data\n");
                     ENetPacket* Packet = Event.packet;
                     client_info* ClientInfo = (client_info*)Event.peer->data;
                     
@@ -147,7 +192,7 @@ ServerMain(LPVOID)
                 } break;
                 case ENET_EVENT_TYPE_DISCONNECT:
                 {
-                    LOG("Client disconnected");
+                    LOG("Client disconnected\n");
                     
                     client_info* ClientInfo = (client_info*)Event.peer->data;
                     delete ClientInfo;
@@ -165,11 +210,10 @@ ServerMain(LPVOID)
             
             for (u32 ClientIndex = 0; ClientIndex < ClientCount; ClientIndex++)
             {
-                enet_peer_send(Clients[ClientIndex], 0, Packet);
+                enet_peer_send(Clients[ClientIndex], Channel_WorldData, Packet);
             }
             
             enet_host_flush(Server);
-            enet_packet_destroy(Packet); 
         }
         else
         {

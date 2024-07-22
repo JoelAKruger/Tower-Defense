@@ -413,13 +413,13 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     GameState->Time += SecondsPerFrame;
     
     //Update modes based on server state
-    if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyPlayerIndex) &&
+    if ((GameState->GlobalState.PlayerTurnIndex == GameState->MultiplayerContext.MyClientID) &&
         (GameState->Mode == Mode_Waiting))
     {
         SetMode(GameState, Mode_MyTurn);
     }
     
-    if ((GameState->GlobalState.PlayerTurnIndex != GameState->MyPlayerIndex) &&
+    if ((GameState->GlobalState.PlayerTurnIndex != GameState->MultiplayerContext.MyClientID) &&
         (GameState->Mode != Mode_Waiting))
     {
         SetMode(GameState, Mode_Waiting);
@@ -621,13 +621,11 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     SetShader(FontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
-    char* Message = "Not connected";
-    if (CheckForServerUpdate(&GameState->GlobalState))
-    {
-        Message = "Connected";
-    }
+    bool Connected = CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
     
-    DrawGUIString(String(Message), V2(-0.95f, -0.5f));
+    DrawGUIString(String(Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
+    DrawGUIString(ArenaPrint(Allocator.Transient, "My client ID: %u", GameState->MultiplayerContext.MyClientID), V2(-0.95f, -0.05f));
+    DrawGUIString(ArenaPrint(Allocator.Transient, "Current Turn: %u", GameState->GlobalState.PlayerTurnIndex), V2(-0.95f, -0.10f));
     
     DrawConsole(GameState->Console, RenderGroup, Allocator.Transient);
 }
