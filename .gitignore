@@ -1,6 +1,7 @@
 *.idb
 *.pdb
 *.obj
+!assets/models/*.obj
 *.exe
 *.enc
 screenshots/
