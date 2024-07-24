@@ -80,7 +80,7 @@ enum render_type
 
 struct tri_vertex
 {
-    v2 P;
+    v3 P;
     v4 Col;
 };
 
@@ -184,7 +184,7 @@ texture CreateTexture(char* Path);
 void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio = 1.0f);
 void Win32DrawTexture(v2 P0, v2 P1, v2 UV0, v2 UV1);
 
-void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride = 6 * sizeof(f32));
+void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride = 7 * sizeof(f32));
 
 
 static ID3D11Device1* D3D11Device;
@@ -459,7 +459,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     D3D11_INPUT_ELEMENT_DESC InputElementDesc[] = 
     {
-        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
@@ -470,7 +470,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     D3D11_INPUT_ELEMENT_DESC FontShaderInputElementDesc[] = 
     {
-        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
@@ -478,7 +478,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     D3D11_INPUT_ELEMENT_DESC TextureShaderElementDesc[] = 
     {
-        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     TextureShader = CreateShader(L"assets/texture.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
@@ -1058,7 +1058,7 @@ CreateTexture(char* Path)
 
 struct char_vertex
 {
-    v2 Position;
+    v3 Position;
     v2 UV;
     v4 Color;
 };
@@ -1137,7 +1137,7 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
 
 struct texture_vertex
 {
-    v2 Position;
+    v3 Position;
     v2 UV;
 };
 
@@ -1145,10 +1145,10 @@ static void
 Win32DrawTexture(v2 P0, v2 P1, v2 UV0, v2 UV1)
 {
     texture_vertex VertexData[4] = {
-        {V2(P0.X, P0.Y), V2(UV0.X, UV0.Y)},
-        {V2(P0.X, P1.Y), V2(UV0.X, UV1.Y)},
-        {V2(P1.X, P0.Y), V2(UV1.X, UV0.Y)},
-        {V2(P1.X, P1.Y), V2(UV1.X, UV1.Y)}
+        {V3(P0.X, P0.Y, 0.0f), V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, 0.0f), V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, 0.0f), V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, 0.0f), V2(UV1.X, UV1.Y)}
     };
     
     DrawVertices((f32*) VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(texture_vertex));

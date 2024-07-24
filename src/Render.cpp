@@ -31,13 +31,13 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
         triangle* Tri = Triangles + TriangleIndex;
         
         //TODO: Use functions
-        Tri->Vertices[0].P = Region->Center;
+        Tri->Vertices[0].P = V3(Region->Center, 0.0f);
         Tri->Vertices[0].Col = Color;
         
-        Tri->Vertices[1].P = GetVertex(Region, TriangleIndex);
+        Tri->Vertices[1].P = V3(GetVertex(Region, TriangleIndex), 0.0f);
         Tri->Vertices[1].Col = Color;
         
-        Tri->Vertices[2].P = GetVertex(Region, TriangleIndex + 1);
+        Tri->Vertices[2].P = V3(GetVertex(Region, TriangleIndex + 1), 0.0f);
         Tri->Vertices[2].Col = Color;
     }
     
@@ -66,21 +66,21 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
         //If concave
         if (SinAngle < 0.0f)
         {
-            Vertices[VertexIndex * 6 + 0] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 1] = {(Vertex + HalfBorderThickness * PerpA), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 2] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 3] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 4] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 5] = {(Vertex + HalfBorderThickness * PerpB), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
         }
         else
         {
-            Vertices[VertexIndex * 6 + 0] = {(Vertex - HalfBorderThickness * PerpA), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 1] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 2] = {(Vertex - HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 3] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 4] = {(Vertex - HalfBorderThickness * PerpB), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 5] = {(Vertex + HalfBorderThickness * Mid), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
         }
         
         if (VertexIndex == 0)

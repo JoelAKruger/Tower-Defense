@@ -1,6 +1,6 @@
 struct VS_Input
 {
-	float2 pos : POS;
+	float3 pos : POS;
 	float2 uv : TEX;
 };
 
@@ -23,7 +23,7 @@ cbuffer Time : register(b1)
 VS_Output vs_main(VS_Input input)
 {
 	VS_Output output;
-	output.pos = mul(float4(input.pos, 0.0f, 1.0f), transform);
+	output.pos = mul(float4(input.pos, 1.0f), transform);
 	return output;
 }
 

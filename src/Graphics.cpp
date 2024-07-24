@@ -1,6 +1,6 @@
 struct color_vertex
 {
-    v2 Position;
+    v3 Position;
     v4 Color;
 };
 
@@ -26,10 +26,10 @@ static void
 DrawQuad(v2 A, v2 B, v2 C, v2 D, v4 Color)
 {
     f32 VertexData[] = {
-        A.X, A.Y, Color.R, Color.G, Color.B, Color.A,
-        B.X, B.Y, Color.R, Color.G, Color.B, Color.A,
-        C.X, C.Y, Color.R, Color.G, Color.B, Color.A,
-        D.X, D.Y, Color.R, Color.G, Color.B, Color.A
+        A.X, A.Y, 0.0f, Color.R, Color.G, Color.B, Color.A,
+        B.X, B.Y, 0.0f, Color.R, Color.G, Color.B, Color.A,
+        C.X, C.Y, 0.0f, Color.R, Color.G, Color.B, Color.A,
+        D.X, D.Y, 0.0f, Color.R, Color.G, Color.B, Color.A
     };
     
     DrawVertices(VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
