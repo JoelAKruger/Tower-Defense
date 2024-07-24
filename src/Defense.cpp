@@ -272,7 +272,7 @@ RunEditor(render_group* Render, game_state* Game, world* World, game_input* Inpu
 }
 
 static void
-DrawExplosion(v2 P, u32 Frame)
+DrawExplosion(v2 P, f32 ExplosionRadius, u32 Frame)
 {
     u32 FrameCount = 22;
     Frame = Frame % FrameCount;
@@ -283,7 +283,6 @@ DrawExplosion(v2 P, u32 Frame)
     u32 I = Frame % TexturesAcross;
     u32 J = Frame / TexturesAcross;
     
-    f32 ExplosionRadius = 0.075f;
     v2 ExplosionTextureSize = ExplosionRadius * V2(16.0f / 9.0f, 1.0f); //This matches the texture
     
     SetTexture(ExplosionTexture);
@@ -405,12 +404,83 @@ SetMode(game_state* GameState, game_mode NewMode)
     GameState->TowerEditMode = {};
 }
 
+static void
+BeginAnimation(game_state* Game, v2 P, f32 Radius)
+{
+    if (Game->AnimationCount < ArrayCount(Game->Animations))
+    {
+        animation* Animation = Game->Animations + (Game->AnimationCount++);
+        Animation->P = P;
+        Animation->Radius = Radius;
+        Animation->Duration = 0.6f;
+        Animation->t = 0.0f;
+    }
+    else
+    {
+        LOG("Animation could not be started\n");
+    }
+}
+
+static void
+TickAnimations(game_state* Game, f32 DeltaTime)
+{
+    SetDepthTest(false);
+    SetShader(TextureShader);
+    
+    for (u32 AnimationIndex = 0; AnimationIndex < Game->AnimationCount; AnimationIndex++)
+    {
+        animation* Animation = Game->Animations + AnimationIndex;
+        
+        u32 FrameCount = 22;
+        u32 Frame = (u32)(Animation->t * FrameCount);
+        
+        DrawExplosion(Animation->P, Animation->Radius, Frame);
+        Animation->t += (DeltaTime / Animation->Duration);
+        
+        if (Animation->t >= 1.0f)
+        {
+            //Delete animation (move last to current)
+            *Animation = Game->Animations[Game->AnimationCount - 1];
+            Game->AnimationCount--;
+            AnimationIndex--;
+        }
+    }
+}
+
+static void
+HandleServerMessage(server_message* Message, game_state* GameState)
+{
+    switch (Message->Type)
+    {
+        case Message_Initialise:
+        {
+            GameState->MultiplayerContext.MyClientID = Message->InitialiseClientID;
+        } break;
+        case Message_PlayAnimation:
+        {
+            BeginAnimation(GameState, Message->AnimationP, Message->AnimationRadius);
+        } break;
+        default:
+        {
+            Assert(0);
+        }
+    }
+}
+
 static void 
 GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
     UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, SecondsPerFrame);
     
     GameState->Time += SecondsPerFrame;
+    
+    server_message_queue MessageQueue = {};
+    bool Connected = CheckForServerUpdate(&MessageQueue, &GameState->GlobalState, &GameState->MultiplayerContext);
+    
+    for (u32 MessageIndex = 0; MessageIndex < MessageQueue.MessageCount; MessageIndex++)
+    {
+        HandleServerMessage(MessageQueue.Messages + MessageIndex, GameState);
+    }
     
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MultiplayerContext.MyClientID) &&
@@ -499,10 +569,8 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     DrawWorld(GameState, &RenderContext);
     
-    SetDepthTest(false);
-    SetShader(TextureShader);
-    static u32 Frame = 0;
-    DrawExplosion(V2(0.0f, 0.0f), (Frame++) / 8);
+    //Draw animations
+    TickAnimations(GameState, SecondsPerFrame);
     
     f32 TowerRadius = 0.03f;
     //Select tower
@@ -577,8 +645,11 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
             f32 HealthBarEdge = 0.02f;
             v2 HealthBarSize = {0.4f / GlobalAspectRatio, 0.08f};
             v2 HealthBarInnerSize = HealthBarSize - V2(HealthBarEdge / GlobalAspectRatio, HealthBarEdge);
+            
+            v2 HealthBarInner = V2(HealthBarInnerSize.X * Tower->Health, HealthBarInnerSize.Y);
+            
             DrawRectangle(ScreenP - 0.5f * HealthBarSize, HealthBarSize, V4(0.5f, 0.5f, 0.5f, 1.0f));
-            DrawRectangle(ScreenP - 0.5f * HealthBarInnerSize, HealthBarInnerSize, V4(1.0f, 0.0f, 0.0f, 1.0f));
+            DrawRectangle(ScreenP - 0.5f * HealthBarInnerSize, HealthBarInner, V4(1.0f, 0.0f, 0.0f, 1.0f));
         }
     }
     
@@ -620,8 +691,6 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
                                   GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
     SetShader(FontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
-    
-    bool Connected = CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
     
     DrawGUIString(String(Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
     DrawGUIString(ArenaPrint(Allocator.Transient, "My client ID: %u", GameState->MultiplayerContext.MyClientID), V2(-0.95f, -0.05f));

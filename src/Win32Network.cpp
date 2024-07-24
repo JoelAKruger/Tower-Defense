@@ -12,8 +12,9 @@ bool Connected;
 
 enum 
 {
-    Channel_Init,
+    Channel_Message,
     Channel_WorldData,
+    
     Channel_Count
 };
 
@@ -35,12 +36,13 @@ ConnectToServer(char* Hostname)
     return Result;
 }
 
+static void AddMessage(server_message_queue* Queue, server_message Message);
+
 static bool
-CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
+CheckForServerUpdate(server_message_queue* Queue, global_game_state* Game, multiplayer_context* Context)
 {
     if (ServerHost)
     {
-        
         while (true)
         {
             ENetEvent Event = {};
@@ -65,19 +67,18 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
                     
                     switch (Event.channelID)
                     {
-                        case Channel_Init:
-                        {
-                            Assert(Packet->dataLength == sizeof(server_message));
-                            server_message* Message = (server_message*)Packet->data;
-                            
-                            Context->MyClientID = Message->InitialiseClientID;
-                        } break;
                         case Channel_WorldData:
                         {
                             Assert(Packet->dataLength == sizeof(global_game_state));
                             *Game = *(global_game_state*)Packet->data;
                             
                             enet_packet_destroy(Packet);
+                        } break;
+                        case Channel_Message:
+                        {
+                            Assert(Packet->dataLength == sizeof(server_message));
+                            server_message* Message = (server_message*)Packet->data;
+                            AddMessage(Queue, *Message);
                         } break;
                         default:
                         {
@@ -118,7 +119,7 @@ struct client_info
     u32 ClientIndex;
 };
 
-void ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request);
+void ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue);
 
 global_game_state* ServerState_;
 
@@ -141,6 +142,8 @@ ServerMain(LPVOID)
     
     ENetPeer* Clients[8];
     u32 ClientCount = 0;
+    
+    server_message_queue MessageQueue = {};
     
     while (true)
     {
@@ -175,7 +178,9 @@ ServerMain(LPVOID)
                     
                     ENetPacket* SendPacket = enet_packet_create((void*)&Message, sizeof(Message), ENET_PACKET_FLAG_RELIABLE);
                     
-                    enet_peer_send(Peer, Channel_Init, SendPacket);
+                    enet_peer_send(Peer, Channel_Message, SendPacket);
+                    
+                    Game.PlayerCount = ClientCount;
                 } break;
                 case ENET_EVENT_TYPE_RECEIVE:
                 {
@@ -186,7 +191,7 @@ ServerMain(LPVOID)
                     Assert(Packet->dataLength == sizeof(player_request));
                     player_request* Request = (player_request*)Packet->data;
                     
-                    ServerHandleRequest(&Game, ClientInfo->ClientIndex, Request);
+                    ServerHandleRequest(&Game, ClientInfo->ClientIndex, Request, &MessageQueue);
                     
                     enet_packet_destroy(Packet);
                 } break;
@@ -205,13 +210,27 @@ ServerMain(LPVOID)
             
             //Send new state to clients
             //TODO: Check if this is necessary
-            
-            ENetPacket* Packet = enet_packet_create((void*)&Game, sizeof(Game), ENET_PACKET_FLAG_RELIABLE);
+            ENetPacket* WorldPacket = enet_packet_create((void*)&Game, sizeof(Game), ENET_PACKET_FLAG_RELIABLE);
             
             for (u32 ClientIndex = 0; ClientIndex < ClientCount; ClientIndex++)
             {
-                enet_peer_send(Clients[ClientIndex], Channel_WorldData, Packet);
+                enet_peer_send(Clients[ClientIndex], Channel_WorldData, WorldPacket);
             }
+            
+            for (u32 MessageIndex = 0; MessageIndex < MessageQueue.MessageCount; MessageIndex++)
+            {
+                server_message* Message = MessageQueue.Messages + MessageIndex;
+                ENetPacket* Packet = enet_packet_create((void*)Message, sizeof(*Message), ENET_PACKET_FLAG_RELIABLE);
+                
+                for (u32 ClientIndex = 0; ClientIndex < ClientCount; ClientIndex++)
+                {
+                    enet_peer_send(Clients[ClientIndex], Channel_Message, Packet);
+                }
+            }
+            
+            //Send messages to clients
+            
+            MessageQueue.MessageCount = 0;
             
             enet_host_flush(Server);
         }

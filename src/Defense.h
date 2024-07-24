@@ -78,6 +78,7 @@ enum tower_edit_mode
 
 struct global_game_state
 {
+    u32 PlayerCount;
     u32 PlayerTurnIndex;
     
     world World;
@@ -117,14 +118,34 @@ struct multiplayer_context
 enum server_message_type
 {
     Message_Null,
-    Message_Initialise
+    Message_Initialise,
+    Message_PlayAnimation,
 };
 
 struct server_message
 {
     server_message_type Type;
     
+    //Message type = Initialise
     u32 InitialiseClientID;
+    
+    //Message type = PlayAnimation
+    v2 AnimationP;
+    f32 AnimationRadius;
+};
+
+struct server_message_queue
+{
+    server_message Messages[32];
+    u32 MessageCount;
+};
+
+struct animation
+{
+    v2 P;
+    f32 Radius;
+    f32 Duration;
+    f32 t; // [0, 1]
 };
 
 struct game_state
@@ -150,6 +171,9 @@ struct game_state
     
     global_game_state GlobalState;
     multiplayer_context MultiplayerContext;
+    
+    animation Animations[16];
+    u32 AnimationCount;
     
     u32 MyColorIndex;
     

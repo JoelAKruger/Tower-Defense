@@ -18,8 +18,57 @@ InitialiseServerState(global_game_state* Game)
     Game->World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
 }
 
+static inline void
+AddMessage(server_message_queue* Queue, server_message Message)
+{
+    if (Queue->MessageCount < ArrayCount(Queue->Messages))
+    {
+        Queue->Messages[Queue->MessageCount++] = Message;
+    }
+}
+
 static void
-ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request)
+DoExplosion(global_game_state* Game, v2 P, f32 Radius)
+{
+    for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
+    {
+        tower* Tower = Game->Towers + TowerIndex;
+        f32 Distance = Length(P - Tower->P);
+        
+        f32 NormalisedDistance = Distance / Radius;
+        
+        if (NormalisedDistance < 1.0f)
+        {
+            f32 Damage = (1.0f - NormalisedDistance);
+            Tower->Health -= Damage;
+        }
+    }
+}
+
+static void
+PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
+{
+    for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
+    {
+        tower* Tower = Game->Towers + TowerIndex;
+        
+        if (Tower->Type == Tower_Turret)
+        {
+            v2 P = Tower->Target;
+            f32 Radius = 0.1f;
+            
+            DoExplosion(Game, P, Radius);
+            
+            server_message Message = {Message_PlayAnimation};
+            Message.AnimationP = P;
+            Message.AnimationRadius = Radius;
+            AddMessage(MessageQueue, Message);
+        }
+    }
+}
+
+static void
+ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue)
 {
     LOG("Request!\n");
     
@@ -53,7 +102,8 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         } break;
         case Request_EndTurn:
         {
-            Game->PlayerTurnIndex++;
+            PlayRound(Game, MessageQueue);
+            Game->PlayerTurnIndex = (Game->PlayerTurnIndex + 1) % Game->PlayerCount;
         } break;
         case Request_TargetTower:
         {

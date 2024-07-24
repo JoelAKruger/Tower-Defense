@@ -145,12 +145,18 @@ void LoadWorld(world* World, char* Path, memory_arena* Arena);
 
 void Command_load(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
-    LoadWorld(&ServerState_->World, "map.map", Arena);
+    if (ServerState_)
+    {
+        LoadWorld(&ServerState_->World, "map.map", Arena);
+    }
 }
 
 void Command_save(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
-    SaveWorld(&ServerState_->World, "map.map", Arena);
+    if (ServerState_)
+    {
+        SaveWorld(&ServerState_->World, "map.map", Arena);
+    }
 }
 
 static void
