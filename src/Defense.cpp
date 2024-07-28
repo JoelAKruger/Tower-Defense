@@ -757,3 +757,7 @@ void Command_connect(int ArgCount, string* Args, console* Console, game_state* G
 {
     ConnectToServer("localhost");
 }
+
+void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+{
+}

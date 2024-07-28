@@ -45,9 +45,13 @@ DrawRectangle(v2 Position, v2 Size, v4 Color)
 }
 
 static void
-Drawline(v2 Start, v2 End, v4 Color, v3 Thickness)
+DrawLine(v2 Start, v2 End, v4 Color, f32 Thickness)
 {
-    Assert(0);
+    v2 XAxis = End - Start;
+    v2 YAxis = UnitV(Perp(XAxis)) * Thickness;
+    v2 Origin = Start - 0.5f * YAxis;
+    
+    DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Color);
 }
 
 static void

@@ -96,3 +96,236 @@ GetName(world_region* Region)
     string Result = {Region->Name, Region->NameLength};
     return Result;
 }
+
+#define STB_PERLIN_IMPLEMENTATION
+#include "stb_perlin.h"
+
+enum triangulation_type : u8
+{
+    Null,
+    TopLeftToBottomRight,
+    BottomLeftToTopRight
+};
+
+struct world_grid
+{
+    u32 Rows;
+    u32 Cols;
+    
+    v2* Positions;
+    
+    //2D array of dimension (Rows - 1) x (Cols - 1)
+    triangulation_type* TriTypes;
+};
+
+static world_grid
+CreateWorldGrid()
+{
+    world_grid Result = {};
+    
+    f32 X0 = -1.0f;
+    f32 Y0 = -1.0f;
+    f32 Width  = 2.0f;
+    f32 Height = 2.0f;
+    
+    u32 Rows = 13;
+    u32 Cols = 13;
+    
+    Result.Rows = Rows;
+    Result.Cols = Cols;
+    
+    Result.Positions = (v2*)malloc(sizeof(v2) * Rows * Cols);
+    Result.TriTypes = (triangulation_type*) malloc(sizeof(triangulation_type) * (Rows - 1) * (Cols - 1));
+    
+    f32 Jitter = 0.05f;
+    for (u32 Y = 0; Y < Rows; Y++)
+    {
+        for (u32 X = 0; X < Cols; X++)
+        {
+            f32 dX = Jitter * (Random() - 0.5f);
+            f32 dY = Jitter * (Random() - 0.5f);
+            
+            Result.Positions[Cols * Y + X] = {
+                Width * (f32)(X + 0.5f) / Cols + X0 + dX, 
+                Height * (f32)(Y + 0.5f) / Rows + Y0 + dY
+            };
+        }
+    }
+    
+    //Get triangulation types
+    for (u32 Y = 0; Y < Rows - 1; Y++)
+    {
+        for (u32 X = 0; X < Cols - 1; X++)
+        {
+            triangulation_type Type = {};
+            if (rand() % 2 == 0)
+            {
+                Type = TopLeftToBottomRight;
+            }
+            else
+            {
+                Type = BottomLeftToTopRight;
+            }
+            
+            Result.TriTypes[Y * (Cols - 1) + X] = Type;
+        }
+    }
+    return Result;
+}
+
+static v2
+GetPos(world_grid* Grid, u32 X, u32 Y)
+{
+    Assert(Y < Grid->Rows);
+    Assert(X < Grid->Cols);
+    
+    v2 Result = Grid->Positions[Grid->Cols * Y + X];
+    return Result;
+}
+
+static triangulation_type
+GetTriType(world_grid* Grid, u32 X, u32 Y)
+{
+    Assert(Y < Grid->Rows - 1);
+    Assert(X < Grid->Cols - 1);
+    
+    triangulation_type Result = Grid->TriTypes[(Grid->Cols - 1) * Y + X];
+    return Result;
+}
+
+static v2
+CenterOf(v2 P0, v2 P1, v2 P2)
+{
+    v2 Result = (1.0f / 3.0f) * (P0 + P1 + P2);
+    return Result;
+}
+
+static void
+AddVertex(world_region* Region, v2 Vertex)
+{
+    Region->Vertices[Region->VertexCount++] = Vertex;
+    Assert(Region->VertexCount <= ArrayCount(Region->Vertices));
+}
+
+static f32
+GetWorldHeight(v2 P, u32 Seed)
+{
+    f32 WaveLength = 0.02f;
+    
+    f32 NoiseValue = 0.5f + 0.5f * stb_perlin_noise3_seed(P.X / WaveLength , P.Y / WaveLength, 0.0f, 0, 0, 0, Seed++);
+    f32 SquareDistance = Max(Abs(P.X), Abs(P.Y));
+    
+    f32 Mix = 0.5f;
+    f32 Result = LinearInterpolate(NoiseValue, 1.0f - SquareDistance, Mix);
+    
+    return Result;
+}
+
+static void
+CreateWorld(world* World)
+{
+    static u32 Seed = 1;
+    Seed++;
+    
+    World->Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
+    World->Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
+    
+    world_grid Grid = CreateWorldGrid();
+    
+    //TODO: Get rid of manual memory management here
+    triangulation_type* TriangleTypes = (triangulation_type*) malloc(sizeof(triangulation_type) * (Grid.Rows - 1) * (Grid.Cols - 1));
+    
+    for (u32 GridY = 1; GridY < Grid.Rows - 1; GridY++)
+    {
+        for (u32 GridX = 1; GridX < Grid.Cols - 1; GridX++)
+        {
+            v2 Mid = GetPos(&Grid, GridX, GridY);
+            if (GetWorldHeight(Mid, Seed) < 0.5f)
+            {
+                continue;
+            }
+            
+            /*
+P6 P7 P8
+P3 P4 P5
+P0 P1 P2
+    */
+            
+            v2 P0 = GetPos(&Grid, GridX - 1, GridY - 1);
+            v2 P1 = GetPos(&Grid, GridX    , GridY - 1);
+            v2 P2 = GetPos(&Grid, GridX + 1, GridY - 1);
+            v2 P3 = GetPos(&Grid, GridX - 1, GridY);
+            v2 P4 = GetPos(&Grid, GridX    , GridY);
+            v2 P5 = GetPos(&Grid, GridX + 1, GridY);
+            v2 P6 = GetPos(&Grid, GridX - 1, GridY + 1);
+            v2 P7 = GetPos(&Grid, GridX    , GridY + 1);
+            v2 P8 = GetPos(&Grid, GridX + 1, GridY + 1);
+            
+            world_region* Region = World->Regions + (World->RegionCount++);
+            Region->Center = P4;
+            
+            if (GetTriType(&Grid, GridX - 1, GridY - 1) == TopLeftToBottomRight)
+            {
+                AddVertex(Region, CenterOf(P1, P3, P4));
+            }
+            else
+            {
+                AddVertex(Region, CenterOf(P0, P1, P4));
+                AddVertex(Region, CenterOf(P0, P3, P4));
+            }
+            
+            if (GetTriType(&Grid, GridX - 1, GridY) == TopLeftToBottomRight)
+            {
+                AddVertex(Region, CenterOf(P3, P4, P6));
+                AddVertex(Region, CenterOf(P4, P6, P7));
+            }
+            else
+            {
+                AddVertex(Region, CenterOf(P3, P4, P7));
+            }
+            
+            if (GetTriType(&Grid, GridX, GridY) == TopLeftToBottomRight)
+            {
+                AddVertex(Region, CenterOf(P4, P5, P7));
+            }
+            else
+            {
+                AddVertex(Region, CenterOf(P4, P7, P8));
+                AddVertex(Region, CenterOf(P4, P5, P8));
+            }
+            
+            if (GetTriType(&Grid, GridX, GridY - 1) == TopLeftToBottomRight)
+            {
+                AddVertex(Region, CenterOf(P2, P4, P5));
+                AddVertex(Region, CenterOf(P1, P2, P4));
+            }
+            else
+            {
+                AddVertex(Region, CenterOf(P1, P4, P5));
+            }
+        }
+    }
+    
+    //TODO: Get rid of this manual memory management
+    free(Grid.Positions);
+    free(Grid.TriTypes);
+}
+
+
+v4 HeightToColor(f32 Height)
+{
+    v4 Green = V4(0.0f, 1.0f, 0.0f, 1.0f);
+    v4 Blue  = V4(0.0f, 0.0f, 1.0f, 1.0f);
+    
+    
+    //v4 Result = LinearInterpolate(Blue, Green, Height);
+    
+    v4 Result = Green;
+    if (Height < 0.5)
+    {
+        Result = Blue;
+    }
+    
+    
+    return Result;
+}

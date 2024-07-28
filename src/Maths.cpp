@@ -380,6 +380,12 @@ LinearInterpolate(v2 X0, v2 X1, float T)
 	return T * X1 + (1 - T) * X0;
 }
 
+static inline v4
+LinearInterpolate(v4 X0, v4 X1, f32 T)
+{
+    return T * X1 + (1 - T) * X0;
+}
+
 static inline bool
 CompareEpsilon(f32 A, f32 B, f32 Epsilon)
 {

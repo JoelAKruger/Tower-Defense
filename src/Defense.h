@@ -6,23 +6,23 @@ struct world_region
         struct
         {
             v2 Center;
-            v2 Vertices[63];
+            v2 Vertices[15];
         };
-        v2 Positions[64];
+        v2 Positions[16];
     };
     
     u32 VertexCount;
     
     u32 ColorIndex;
     
-    char Name[128];
+    char Name[64];
     u32 NameLength;
 };
 
 struct world
 {
     v4 Colors[2];
-    world_region Regions[32];
+    world_region Regions[256];
     u32 RegionCount;
 };
 

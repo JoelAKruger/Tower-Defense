@@ -1,6 +1,9 @@
 static void
 InitialiseServerState(global_game_state* Game)
 {
+    CreateWorld(&Game->World);
+    
+    /*
     world_region Region = {};
     
     Region.VertexCount = 4;
@@ -16,6 +19,7 @@ InitialiseServerState(global_game_state* Game)
     
     Game->World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
     Game->World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
+*/
 }
 
 static inline void
