@@ -10,10 +10,12 @@ struct world_region
         };
         v2 Positions[16];
     };
-    
     u32 VertexCount;
     
-    u32 ColorIndex;
+    u32 OwnerIndex;
+    
+    bool IsWaterTile;
+    v4 Color;
     
     char Name[64];
     u32 NameLength;

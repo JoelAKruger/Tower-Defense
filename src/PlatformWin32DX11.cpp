@@ -274,8 +274,8 @@ IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
     DXGIAdapter->Release();
     
     DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = {};
-    SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-    SwapChainDesc.SampleDesc.Count = 1;
+    SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    SwapChainDesc.SampleDesc.Count = 4;
     SwapChainDesc.SampleDesc.Quality = 0;
     SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     SwapChainDesc.BufferCount = 2;
@@ -633,7 +633,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         {
             TimeBlock("Clear");
-            FLOAT Color[4] = {0.1f, 0.2f, 0.3f, 1.0f};
+            FLOAT Color[4] = {0.2f, 0.4f, 0.6f, 1.0f};
             D3D11DeviceContext->ClearRenderTargetView(FrameBufferView, Color);
             D3D11DeviceContext->ClearDepthStencilView(DepthBufferView, D3D11_CLEAR_DEPTH, 1.0f, 0);
             

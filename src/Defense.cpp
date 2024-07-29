@@ -604,7 +604,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         if (Placeable)
         {
-            v4 RegionColor = GameState->GlobalState.World.Colors[HoveringRegion->ColorIndex];
+            v4 RegionColor = HoveringRegion->Color;
             
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -744,7 +744,7 @@ void Command_color(int ArgCount, string* Args, console* Console, game_state* Gam
     
     for (u32 RegionIndex = 0; RegionIndex < ServerState_->World.RegionCount; RegionIndex++)
     {
-        ServerState_->World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
+        //ServerState_->World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
     }
 }
 

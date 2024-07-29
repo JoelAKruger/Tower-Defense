@@ -26,71 +26,79 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
     u32 TriangleCount = Region->VertexCount;
     span<triangle> Triangles = AllocSpan(TArena, triangle, TriangleCount);
     
+    f32 Z = Region->IsWaterTile ? 0.001f : 0.0f;
+    bool DrawOutline = (Region->IsWaterTile == false);
+    
     for (u32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
     {
         triangle* Tri = Triangles + TriangleIndex;
         
         //TODO: Use functions
-        Tri->Vertices[0].P = V3(Region->Center, 0.0f);
+        Tri->Vertices[0].P = V3(Region->Center, Z);
         Tri->Vertices[0].Col = Color;
         
-        Tri->Vertices[1].P = V3(GetVertex(Region, TriangleIndex), 0.0f);
+        Tri->Vertices[1].P = V3(GetVertex(Region, TriangleIndex), Z);
         Tri->Vertices[1].Col = Color;
         
-        Tri->Vertices[2].P = V3(GetVertex(Region, TriangleIndex + 1), 0.0f);
+        Tri->Vertices[2].P = V3(GetVertex(Region, TriangleIndex + 1), Z);
         Tri->Vertices[2].Col = Color;
     }
     
     DrawVertices((f32*)Triangles.Memory, TriangleCount * sizeof(triangle), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
-    //Draw Outline
-    u32 VertexDrawCount = 6 * Region->VertexCount + 2;
-    color_vertex* Vertices = AllocArray(TArena, color_vertex, VertexDrawCount);
+    //Outline Z (slightly higher)
+    Z = -0.001f;
     
-    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+    if (DrawOutline)
     {
-        v2 Vertex = GetVertex(Region, VertexIndex);
-        v2 PrevVertex = GetVertex(Region, VertexIndex - 1);
-        v2 NextVertex = GetVertex(Region, VertexIndex + 1);
+        u32 VertexDrawCount = 6 * Region->VertexCount + 2;
+        color_vertex* Vertices = AllocArray(TArena, color_vertex, VertexDrawCount);
         
-        v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
-        v2 PerpB = UnitV(Perp(NextVertex - Vertex));
-        v2 Mid = UnitV(PerpA + PerpB);
-        
-        f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
-        
-        v2 RectSize = V2(0.005f, 0.005f);
-        
-        f32 HalfBorderThickness = 0.0035f;
-        
-        //If concave
-        if (SinAngle < 0.0f)
+        for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
         {
-            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-        }
-        else
-        {
-            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, 0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
-            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   0.0f), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            v2 Vertex = GetVertex(Region, VertexIndex);
+            v2 PrevVertex = GetVertex(Region, VertexIndex - 1);
+            v2 NextVertex = GetVertex(Region, VertexIndex + 1);
+            
+            v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
+            v2 PerpB = UnitV(Perp(NextVertex - Vertex));
+            v2 Mid = UnitV(PerpA + PerpB);
+            
+            f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
+            
+            v2 RectSize = V2(0.005f, 0.005f);
+            
+            f32 HalfBorderThickness = 0.0035f;
+            
+            //If concave
+            if (SinAngle < 0.0f)
+            {
+                Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            }
+            else
+            {
+                Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+                Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   Z), V4(1.0f, 1.0f, 1.0f, 1.0f)};
+            }
+            
+            if (VertexIndex == 0)
+            {
+                Vertices[VertexDrawCount - 2] = Vertices[0];
+                Vertices[VertexDrawCount - 1] = Vertices[1];
+            }
         }
         
-        if (VertexIndex == 0)
-        {
-            Vertices[VertexDrawCount - 2] = Vertices[0];
-            Vertices[VertexDrawCount - 1] = Vertices[1];
-        }
+        DrawVertices((f32*)Vertices, VertexDrawCount * sizeof(color_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     }
-    
-    DrawVertices((f32*)Vertices, VertexDrawCount * sizeof(color_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 }
 
 
@@ -104,7 +112,7 @@ DrawRegions(game_state* Game, render_context* Context)
         
         bool Hovering = (Region == Context->HoveringRegion);
         
-        v4 Color = Game->GlobalState.World.Colors[Region->ColorIndex];
+        v4 Color = Region->Color;
         if (Hovering)
         {
             Color.RGB = 0.8f * Color.RGB;
@@ -163,7 +171,7 @@ DrawTowers(game_state* Game, render_context* Context)
         tower* Tower = Game->GlobalState.Towers + TowerIndex;
         world_region* Region = Game->GlobalState.World.Regions + Tower->RegionIndex;
         
-        v4 RegionColor = Game->GlobalState.World.Colors[Region->ColorIndex];
+        v4 RegionColor = Region->Color;
         
         v4 Color = V4(0.7f * RegionColor.RGB, RegionColor.A);
         if (Tower == Context->SelectedTower)
@@ -179,16 +187,16 @@ DrawTowers(game_state* Game, render_context* Context)
 static void
 DrawWorld(game_state* Game, render_context* Context)
 {
-    DrawWater(Game);
+    //DrawWater(Game);
     
     if (Game->ShowBackground)
     {
         DrawBackground();
     }
     
+    SetDepthTest(true);
     DrawRegions(Game, Context);
     
-    SetDepthTest(true);
     SetShader(ModelShader);
     DrawTowers(Game, Context);
 }

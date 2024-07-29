@@ -29,5 +29,5 @@ VS_Output vs_main(VS_Input input)
 
 float4 ps_main(VS_Output input) : SV_Target
 {
-	return float4(0.0f, 0.0f, 1.0f, 1.0f);
+	return float4(0.055f, 0.075f, 0.15f, 1.0f);
 }

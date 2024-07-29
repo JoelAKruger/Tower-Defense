@@ -216,9 +216,29 @@ GetWorldHeight(v2 P, u32 Seed)
     f32 SquareDistance = Max(Abs(P.X), Abs(P.Y));
     
     f32 Mix = 0.5f;
-    f32 Result = LinearInterpolate(NoiseValue, 1.0f - SquareDistance, Mix);
+    f32 Result = LinearInterpolate(NoiseValue, 1.8f - expf(0.8f * SquareDistance), Mix);
     
     return Result;
+}
+
+static v4
+GetRandomPlayerColor()
+{
+    v4 PlayerColors[] = {
+        V4(0.5f, 0.9f, 0.45f, 1.0f),
+        V4(0.4f, 0.6f, 0.7f, 1.0f)
+    };
+    
+    v4 Result = PlayerColors[rand() % ArrayCount(PlayerColors)];
+    return Result;
+}
+
+static v4
+GetWaterColor(f32 Height)
+{
+    v3 WaterColor = V3(0.17f, 0.23f, 0.46f);
+    v3 Color = WaterColor + 2.0f * (Height - 0.5f) * WaterColor;
+    return V4(Color, 1.0f);
 }
 
 static void
@@ -239,12 +259,6 @@ CreateWorld(world* World)
     {
         for (u32 GridX = 1; GridX < Grid.Cols - 1; GridX++)
         {
-            v2 Mid = GetPos(&Grid, GridX, GridY);
-            if (GetWorldHeight(Mid, Seed) < 0.5f)
-            {
-                continue;
-            }
-            
             /*
 P6 P7 P8
 P3 P4 P5
@@ -263,6 +277,18 @@ P0 P1 P2
             
             world_region* Region = World->Regions + (World->RegionCount++);
             Region->Center = P4;
+            
+            f32 RegionHeight = GetWorldHeight(Region->Center, Seed);
+            
+            if (RegionHeight < 0.5f)
+            {
+                Region->IsWaterTile = true;
+                Region->Color = GetWaterColor(RegionHeight);
+            }
+            else
+            {
+                Region->Color = GetRandomPlayerColor();
+            }
             
             if (GetTriType(&Grid, GridX - 1, GridY - 1) == TopLeftToBottomRight)
             {
@@ -309,23 +335,4 @@ P0 P1 P2
     //TODO: Get rid of this manual memory management
     free(Grid.Positions);
     free(Grid.TriTypes);
-}
-
-
-v4 HeightToColor(f32 Height)
-{
-    v4 Green = V4(0.0f, 1.0f, 0.0f, 1.0f);
-    v4 Blue  = V4(0.0f, 0.0f, 1.0f, 1.0f);
-    
-    
-    //v4 Result = LinearInterpolate(Blue, Green, Height);
-    
-    v4 Result = Green;
-    if (Height < 0.5)
-    {
-        Result = Blue;
-    }
-    
-    
-    return Result;
 }
