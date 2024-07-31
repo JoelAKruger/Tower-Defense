@@ -238,7 +238,8 @@ GetWaterColor(f32 Height)
 {
     v3 WaterColor = V3(0.17f, 0.23f, 0.46f);
     v3 Color = WaterColor + 2.0f * (Height - 0.5f) * WaterColor;
-    return V4(Color, 1.0f);
+    //return V4(Color, 1.0f);
+    return V4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 static void

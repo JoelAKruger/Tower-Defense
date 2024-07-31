@@ -24,10 +24,33 @@ VS_Output vs_main(VS_Input input)
 {
 	VS_Output output;
 	output.pos = mul(float4(input.pos, 1.0f), transform);
+	output.uv = input.uv;
 	return output;
 }
 
-float4 ps_main(VS_Output input) : SV_Target
+float Grid(float2 UV, float Period, float HalfWidth)
 {
-	return float4(0.055f, 0.075f, 0.15f, 1.0f);
+	float2 P = UV;
+	float2 Size = float2(HalfWidth, HalfWidth);
+	
+	float2 A0 = fmod(P - Size, Period);
+	float2 A1 = fmod(P + Size, Period);
+
+	float2 A = A1 - A0;
+
+	float G = min(A.x, A.y);
+
+	float Result = clamp(G, 0, 1);
+	return Result;
+}
+
+float4 ps_main(VS_Output Input) : SV_Target
+{
+	float4 Color = float4(0.11f, 0.4f, 0.8f, 1.0f);
+
+	float Intensity = 0.7f;
+
+	Color /= clamp(Grid(1000.0f * Input.uv, 20.0f, 1.0f) * Grid(1000.0f * Input.uv, 100.0f, 2.0f) , Intensity, 1.0f);
+
+	return Color;
 }

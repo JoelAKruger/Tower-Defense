@@ -3,7 +3,7 @@ DrawWater(game_state* Game)
 {
     SetShader(WaterShader);
     SetShaderTime((f32)Game->Time);
-    DrawTexture(V2(-1.0f, -1.0f), V2(1.0f, 1.0f), V2(0.0f, 0.0f), V2(2.0f, 2.0f));
+    DrawTexture(V2(-0.8f, -0.8f), V2(0.8f, 0.8f), V2(0.0f, 0.0f), V2(1.0f, 1.0f));
 }
 
 static void
@@ -187,7 +187,7 @@ DrawTowers(game_state* Game, render_context* Context)
 static void
 DrawWorld(game_state* Game, render_context* Context)
 {
-    //DrawWater(Game);
+    DrawWater(Game);
     
     if (Game->ShowBackground)
     {
