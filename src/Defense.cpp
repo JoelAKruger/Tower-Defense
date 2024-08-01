@@ -614,7 +614,8 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         
         tower_type Type = GameState->PlacementType;
         
-        DrawTower(GameState, Type, P, Color);
+        //Draw slightly above a normal tower to prevent z-fighting
+        DrawTower(GameState, Type, V3(P, 0.001f), Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {

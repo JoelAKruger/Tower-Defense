@@ -138,7 +138,7 @@ DrawRegions(game_state* Game, render_context* Context)
 }
 
 static void
-DrawTower(game_state* Game, tower_type Type, v2 P, v4 Color, f32 Angle = 0.0f)
+DrawTower(game_state* Game, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
 {
     span<model_vertex> ModelVertices = {};
     m4x4 Transform;
@@ -159,7 +159,7 @@ DrawTower(game_state* Game, tower_type Type, v2 P, v4 Color, f32 Angle = 0.0f)
     }
     
     SetModelColor(Color);
-    SetModelTransform(Transform * TranslateTransform(P.X, P.Y, 0.0f));
+    SetModelTransform(Transform * TranslateTransform(P.X, P.Y, P.Z));
     DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
 }
 
@@ -180,7 +180,7 @@ DrawTowers(game_state* Game, render_context* Context)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(Game, Tower->Type, Tower->P, Color, Tower->Rotation);
+        DrawTower(Game, Tower->Type, V3(Tower->P, 0.0f), Color, Tower->Rotation);
     }
 }
 
