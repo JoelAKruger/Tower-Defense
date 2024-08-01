@@ -3,7 +3,6 @@
 #include "Parser.cpp"
 
 #include "World.cpp"
-#include "Renderer.cpp"
 #include "Render.cpp"
 #include "Server.cpp"
 
@@ -121,7 +120,8 @@ GameInitialise(allocator Allocator)
     
     GameState->Mode = Mode_Waiting;
     
-    GameState->CameraP = {0.0f, -1.0f, -0.5f};
+    GameState->CameraP = {0.0f, -0.25, 0.0f};
+    GameState->CameraTargetZ = -1.25f;
     GameState->CameraDirection = {0.0f, 1.0f, 5.5f};
     GameState->FOV = 50.0f;
     
@@ -327,7 +327,7 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
             player_request Request = {Request_TargetTower};
             Request.TowerIndex = TowerIndex;
             Request.TargetP = CursorP;
-            SendPacket(&Request);
+            SendPacket(&Game->MultiplayerContext, &Request);
         }
         
         SetTransform(IdentityTransform());
@@ -475,7 +475,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     GameState->Time += SecondsPerFrame;
     
     server_message_queue MessageQueue = {};
-    bool Connected = CheckForServerUpdate(&MessageQueue, &GameState->GlobalState, &GameState->MultiplayerContext);
+    CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
     
     for (u32 MessageIndex = 0; MessageIndex < MessageQueue.MessageCount; MessageIndex++)
     {
@@ -540,7 +540,11 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     
     GameState->CameraP.X += SecondsPerFrame * Input->Movement.X;
     GameState->CameraP.Y += SecondsPerFrame * Input->Movement.Y;
-    GameState->CameraP.Z += 0.1f * Input->ScrollDelta;
+    
+    GameState->CameraTargetZ = Clamp(GameState->CameraTargetZ + 0.25f * Input->ScrollDelta, -1.25f, -0.25f);
+    
+    f32 CameraSpeed = 15.0f;
+    GameState->CameraP.Z = LinearInterpolate(GameState->CameraP.Z, GameState->CameraTargetZ, CameraSpeed * SecondsPerFrame);
     
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 10.0f);
@@ -625,7 +629,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
             Request.TowerRegionIndex = HoveringRegionIndex;
             Request.TowerType = Type;
             
-            SendPacket(&Request);
+            SendPacket(&GameState->MultiplayerContext, &Request);
         }
     }
     
@@ -673,7 +677,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         if (Button(V2(-0.95f + (1.2f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("End Turn")))
         {
             player_request Request = {Request_EndTurn};
-            SendPacket(&Request);
+            SendPacket(&GameState->MultiplayerContext, &Request);
         }
     }
     
@@ -693,7 +697,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     SetShader(FontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
-    DrawGUIString(String(Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
+    DrawGUIString(String(GameState->MultiplayerContext.Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
     DrawGUIString(ArenaPrint(Allocator.Transient, "My client ID: %u", GameState->MultiplayerContext.MyClientID), V2(-0.95f, -0.05f));
     DrawGUIString(ArenaPrint(Allocator.Transient, "Current Turn: %u", GameState->GlobalState.PlayerTurnIndex), V2(-0.95f, -0.10f));
     
@@ -736,7 +740,7 @@ void Command_name(int ArgCount, string* Args, console* Console, game_state* Game
 void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
 {
     player_request Request = {Request_Reset};
-    SendPacket(&Request);
+    SendPacket(&GameState->MultiplayerContext, &Request);
 }
 
 void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
@@ -756,7 +760,7 @@ void Command_create_server(int ArgCount, string* Args, console* Console, game_st
 
 void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
 {
-    ConnectToServer("localhost");
+    ConnectToServer(&Game->MultiplayerContext, "localhost");
 }
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)

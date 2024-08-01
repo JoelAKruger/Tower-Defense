@@ -2,13 +2,7 @@
 #pragma comment(lib, "Winmm.lib")
 #pragma comment(lib, "lib/enet64.lib")
 
-#include <enet/enet.h>
-
 static u16 Port = 22333;
-
-ENetHost* ServerHost;
-ENetPeer* ServerPeer;
-bool Connected;
 
 enum 
 {
@@ -18,35 +12,39 @@ enum
     Channel_Count
 };
 
-static bool
-ConnectToServer(char* Hostname)
+static void
+ConnectToServer(multiplayer_context* Context, char* Hostname)
 {
-    bool Result = false;
-    
     int ConnectionCount = 1;
     
-    ServerHost = enet_host_create(0, ConnectionCount, Channel_Count, 0, 0);
+    Context->Platform.ServerHost = enet_host_create(0, ConnectionCount, Channel_Count, 0, 0);
     
     ENetAddress Address = {};
     enet_address_set_host(&Address, Hostname);
     Address.port = Port;
     
-    ServerPeer = enet_host_connect(ServerHost, &Address, Channel_Count, 0);
+    Context->Platform.ServerPeer = enet_host_connect(Context->Platform.ServerHost, &Address, Channel_Count, 0);
+    Context->Connected = true;
+}
+
+
+static void
+DisconnectFromServer()
+{
     
-    return Result;
 }
 
 static void AddMessage(server_message_queue* Queue, server_message Message);
 
-static bool
-CheckForServerUpdate(server_message_queue* Queue, global_game_state* Game, multiplayer_context* Context)
+static void
+CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
 {
-    if (ServerHost)
+    if (Context->Platform.ServerHost)
     {
         while (true)
         {
             ENetEvent Event = {};
-            int ENetResult = enet_host_service(ServerHost, &Event, 0);
+            int ENetResult = enet_host_service(Context->Platform.ServerHost, &Event, 0);
             
             if (ENetResult == 0)
             {
@@ -59,7 +57,7 @@ CheckForServerUpdate(server_message_queue* Queue, global_game_state* Game, multi
             {
                 case ENET_EVENT_TYPE_CONNECT:
                 {
-                    Connected = true;
+                    Context->Connected = true;
                 } break;
                 case ENET_EVENT_TYPE_RECEIVE:
                 {
@@ -78,7 +76,7 @@ CheckForServerUpdate(server_message_queue* Queue, global_game_state* Game, multi
                         {
                             Assert(Packet->dataLength == sizeof(server_message));
                             server_message* Message = (server_message*)Packet->data;
-                            AddMessage(Queue, *Message);
+                            AddMessage(&Context->MessageQueue, *Message);
                         } break;
                         default:
                         {
@@ -88,7 +86,7 @@ CheckForServerUpdate(server_message_queue* Queue, global_game_state* Game, multi
                 } break;
                 case ENET_EVENT_TYPE_DISCONNECT:
                 {
-                    Connected = false;
+                    Context->Connected = false;
                 } break;
                 default:
                 {
@@ -97,18 +95,16 @@ CheckForServerUpdate(server_message_queue* Queue, global_game_state* Game, multi
             }
         }
     }
-    
-    return Connected;
 }
 
 static bool
-PlatformSend(u8* Data, u32 Length)
+PlatformSend(multiplayer_context* Context, u8* Data, u32 Length)
 {
     ENetPacket* Packet = enet_packet_create((void*)Data, Length, ENET_PACKET_FLAG_RELIABLE);
     
-    enet_peer_send(ServerPeer, 0, Packet);
+    enet_peer_send(Context->Platform.ServerPeer, 0, Packet);
     
-    enet_host_flush(ServerHost);
+    enet_host_flush(Context->Platform.ServerHost);
     enet_packet_destroy(Packet); 
     
     return true;

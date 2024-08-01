@@ -124,9 +124,7 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
 }
 
 static void
-SendPacket(player_request* Request)
+SendPacket(multiplayer_context* Context, player_request* Request)
 {
-    //TODO: Send packet
-    //ServerHandleRequest(&ServerState, 0, Request);
-    PlatformSend((u8*)Request, sizeof(*Request));
+    PlatformSend(Context, (u8*)Request, sizeof(*Request));
 }

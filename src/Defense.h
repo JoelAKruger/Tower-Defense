@@ -1,3 +1,5 @@
+#include <enet/enet.h>
+
 struct world_region
 {
     //Defined relative to world
@@ -112,11 +114,6 @@ struct player_request
     v2 TargetP;
 };
 
-struct multiplayer_context
-{
-    u32 MyClientID;
-};
-
 enum server_message_type
 {
     Message_Null,
@@ -142,6 +139,21 @@ struct server_message_queue
     u32 MessageCount;
 };
 
+struct platform_multiplayer_context
+{
+    ENetHost* ServerHost;
+    ENetPeer* ServerPeer;
+};
+
+struct multiplayer_context
+{
+    bool Connected;
+    platform_multiplayer_context Platform;
+    
+    server_message_queue MessageQueue;
+    u32 MyClientID;
+};
+
 struct animation
 {
     v2 P;
@@ -156,6 +168,7 @@ struct game_state
     editor Editor;
     
     v3 CameraP;
+    f32 CameraTargetZ;
     v3 CameraDirection;
     f32 FOV;
     
