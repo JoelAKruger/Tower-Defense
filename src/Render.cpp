@@ -121,6 +121,7 @@ DrawRegions(game_state* Game, render_context* Context)
         DrawWorldRegion(Game, &Game->GlobalState.World, Region, Context->Arena, Color);
         
         //Draw name
+        /*
         if (Region->VertexCount > 0)
         {
             f32 TextSize = 0.04f;
@@ -134,6 +135,7 @@ DrawRegions(game_state* Game, render_context* Context)
             SetShader(FontShader);
             DrawString(Name, P, V4(1.0f, 1.0f, 1.0f, 1.0f), TextSize);
         }
+*/
     }
 }
 
@@ -194,8 +196,9 @@ DrawWorld(game_state* Game, render_context* Context)
         DrawBackground();
     }
     
-    SetDepthTest(true);
+    SetDepthTest(false);
     DrawRegions(Game, Context);
+    SetDepthTest(true);
     
     SetShader(ModelShader);
     DrawTowers(Game, Context);

@@ -112,6 +112,11 @@ struct world_grid
     u32 Rows;
     u32 Cols;
     
+    f32 Width;
+    f32 Height;
+    f32 X0;
+    f32 Y0;
+    
     v2* Positions;
     
     //2D array of dimension (Rows - 1) x (Cols - 1)
@@ -133,6 +138,10 @@ CreateWorldGrid()
     
     Result.Rows = Rows;
     Result.Cols = Cols;
+    Result.Width = Width;
+    Result.Height = Height;
+    Result.X0 = X0;
+    Result.Y0 = Y0;
     
     Result.Positions = (v2*)malloc(sizeof(v2) * Rows * Cols);
     Result.TriTypes = (triangulation_type*) malloc(sizeof(triangulation_type) * (Rows - 1) * (Cols - 1));
@@ -146,8 +155,8 @@ CreateWorldGrid()
             f32 dY = Jitter * (Random() - 0.5f);
             
             Result.Positions[Cols * Y + X] = {
-                Width * (f32)(X + 0.5f) / Cols + X0 + dX, 
-                Height * (f32)(Y + 0.5f) / Rows + Y0 + dY
+                Width * (X + 0.5f) / Cols + X0 + dX, 
+                Height * (Y + 0.5f) / Rows + Y0 + dY
             };
         }
     }
@@ -174,12 +183,22 @@ CreateWorldGrid()
 }
 
 static v2
-GetPos(world_grid* Grid, u32 X, u32 Y)
+GetGeneratedPos(world_grid* Grid, u32 X, u32 Y)
 {
     Assert(Y < Grid->Rows);
     Assert(X < Grid->Cols);
     
     v2 Result = Grid->Positions[Grid->Cols * Y + X];
+    return Result;
+}
+
+static v2
+GetActualPos(world_grid* Grid, u32 X, u32 Y)
+{
+    Assert(Y < Grid->Rows);
+    Assert(X < Grid->Cols);
+    
+    v2 Result = {Grid->Width * (X + 0.5f) / Grid->Cols + Grid->X0, Grid->Height * (Y + 0.5f) / Grid->Rows + Grid->Y0};
     return Result;
 }
 
@@ -242,6 +261,24 @@ GetWaterColor(f32 Height)
     return V4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
+static v2
+CalculateRegionCenter(world_region* Region)
+{
+    v2 Result = {};
+    
+    if (Region->VertexCount > 0)
+    {
+        
+        for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+        {
+            Result += Region->Vertices[VertexIndex];
+        }
+        
+        Result = Result * (1.0f / Region->VertexCount);
+    }
+    return Result;
+}
+
 static void
 CreateWorld(world* World)
 {
@@ -266,20 +303,19 @@ P3 P4 P5
 P0 P1 P2
     */
             
-            v2 P0 = GetPos(&Grid, GridX - 1, GridY - 1);
-            v2 P1 = GetPos(&Grid, GridX    , GridY - 1);
-            v2 P2 = GetPos(&Grid, GridX + 1, GridY - 1);
-            v2 P3 = GetPos(&Grid, GridX - 1, GridY);
-            v2 P4 = GetPos(&Grid, GridX    , GridY);
-            v2 P5 = GetPos(&Grid, GridX + 1, GridY);
-            v2 P6 = GetPos(&Grid, GridX - 1, GridY + 1);
-            v2 P7 = GetPos(&Grid, GridX    , GridY + 1);
-            v2 P8 = GetPos(&Grid, GridX + 1, GridY + 1);
+            v2 P0 = GetGeneratedPos(&Grid, GridX - 1, GridY - 1);
+            v2 P1 = GetGeneratedPos(&Grid, GridX    , GridY - 1);
+            v2 P2 = GetGeneratedPos(&Grid, GridX + 1, GridY - 1);
+            v2 P3 = GetGeneratedPos(&Grid, GridX - 1, GridY);
+            v2 P4 = GetGeneratedPos(&Grid, GridX    , GridY);
+            v2 P5 = GetGeneratedPos(&Grid, GridX + 1, GridY);
+            v2 P6 = GetGeneratedPos(&Grid, GridX - 1, GridY + 1);
+            v2 P7 = GetGeneratedPos(&Grid, GridX    , GridY + 1);
+            v2 P8 = GetGeneratedPos(&Grid, GridX + 1, GridY + 1);
             
             world_region* Region = World->Regions + (World->RegionCount++);
-            Region->Center = P4;
             
-            f32 RegionHeight = GetWorldHeight(Region->Center, Seed);
+            f32 RegionHeight = GetWorldHeight(P4, Seed);
             
             if (RegionHeight < 0.5f)
             {
@@ -330,6 +366,12 @@ P0 P1 P2
             {
                 AddVertex(Region, CenterOf(P1, P4, P5));
             }
+            
+            char Buffer[128];
+            sprintf_s(Buffer, "Region %u", World->RegionCount);
+            SetName(Region, Buffer);
+            
+            Region->Center = CalculateRegionCenter(Region);
         }
     }
     

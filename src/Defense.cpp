@@ -596,11 +596,12 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
     }
     
     SetDepthTest(false);
-    
     SetTransform(IdentityTransform());
     
+    f32 WorldInfoZThreshold = -0.51f;
+    
     //Draw health bars
-    if (GameState->CameraP.Z > -0.5f)
+    if (GameState->CameraP.Z > WorldInfoZThreshold)
     {
         SetShader(ColorShader);
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
@@ -618,6 +619,30 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
             DrawRectangle(ScreenP - 0.5f * HealthBarSize, HealthBarSize, V4(0.5f, 0.5f, 0.5f, 1.0f));
             DrawRectangle(ScreenP - 0.5f * HealthBarInnerSize, HealthBarInner, V4(1.0f, 0.0f, 0.0f, 1.0f));
         }
+    }
+    
+    //Draw region names
+    SetShader(FontShader);
+    if (GameState->CameraP.Z > WorldInfoZThreshold)
+    {
+        for (u32 RegionIndex = 0; RegionIndex < GameState->GlobalState.World.RegionCount; RegionIndex++)
+        {
+            world_region* Region = GameState->GlobalState.World.Regions + RegionIndex;
+            
+            if (!Region->IsWaterTile)
+            {
+                f32 TextSize = 0.1f;
+                string Name = GetName(Region);
+                
+                f32 NameWidth = GUIStringWidth(Name, TextSize);
+                v2 P = WorldToScreen(GameState, Region->Center);
+                P.X -= 0.5f * NameWidth;
+                P.Y -= 0.25f * TextSize;
+                
+                DrawGUIString(Name, P, V4(1.0f, 1.0f, 1.0f, 1.0f), TextSize);
+            }
+        }
+        
     }
     
     BeginGUI(Input, RenderGroup);
