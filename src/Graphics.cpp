@@ -268,3 +268,45 @@ RotateTransform(f32 Radians)
     Result.Values[3][3] = 1.0f;
     return Result;
 }
+
+
+//From: 
+//https://learn.microsoft.com/en-us/windows/win32/direct3d9/projection-transform
+static m4x4
+PerspectiveTransform(f32 FOV, f32 Near, f32 Far)
+{
+    f32 FOVRadians = 3.14159f / 180.0f * FOV;
+    f32 W = 1.0f / (GlobalAspectRatio * tanf(0.5f * FOVRadians));
+    f32 H = 1.0f / tanf(0.5f * FOVRadians);
+    f32 Q = Far / (Far - Near);
+    
+    m4x4 Result = {};
+    Result.Values[0][0] = W;
+    Result.Values[1][1] = H;
+    Result.Values[2][2] = Q;
+    Result.Values[2][3] = 1.0f;
+    Result.Values[3][2] = -Near*Q;
+    
+    return Result;
+}
+
+//From:
+//https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixlookatlh
+static m4x4
+ViewTransform(v3 Eye, v3 At)
+{
+    v3 Up = V3(0.0f, 0.0f, -1.0f);
+    
+    v3 ZAxis = UnitV(At - Eye);
+    v3 XAxis = UnitV(CrossProduct(Up, ZAxis));
+    v3 YAxis = CrossProduct(ZAxis, XAxis);
+    
+    m4x4 Result = {};
+    
+    Result.Vectors[0] = V4(XAxis, -DotProduct(XAxis, Eye));
+    Result.Vectors[1] = V4(YAxis, -DotProduct(YAxis, Eye));;
+    Result.Vectors[2] = V4(ZAxis, -DotProduct(ZAxis, Eye));;
+    Result.Vectors[3] = V4(0.0f, 0.0f, 0.0f, 1.0f);
+    
+    return Transpose(Result);
+}
