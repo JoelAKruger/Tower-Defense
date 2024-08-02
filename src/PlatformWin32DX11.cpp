@@ -182,7 +182,7 @@ memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);
 font_texture CreateFontTexture(allocator Allocator, char* Path);
 texture CreateTexture(char* Path);
 void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio = 1.0f);
-void Win32DrawTexture(v2 P0, v2 P1, v2 UV0, v2 UV1);
+void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
 
 void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride = 7 * sizeof(f32));
 
@@ -766,7 +766,7 @@ void DirectX11Render(render_group* Group, allocator Allocator, d3d11_shader Quad
                 D3D11DeviceContext->IASetInputLayout(TextureShader.InputLayout);
                 D3D11DeviceContext->VSSetShader(TextureShader.VertexShader, 0, 0);
                 D3D11DeviceContext->PSSetShader(TextureShader.PixelShader, 0, 0);
-                Win32DrawTexture(Shape.Texture.P0, Shape.Texture.P1, Shape.Texture.UV0, Shape.Texture.UV1);
+                Win32DrawTexture(V3(Shape.Texture.P0, 0.0f), V3(Shape.Texture.P1, 0.0f), Shape.Texture.UV0, Shape.Texture.UV1);
             } break;
             default: Assert(0);
         }
@@ -1142,13 +1142,15 @@ struct texture_vertex
 };
 
 static void
-Win32DrawTexture(v2 P0, v2 P1, v2 UV0, v2 UV1)
+Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
+    Assert(P0.Z == P1.Z);
+    
     texture_vertex VertexData[4] = {
-        {V3(P0.X, P0.Y, 0.0f), V2(UV0.X, UV0.Y)},
-        {V3(P0.X, P1.Y, 0.0f), V2(UV0.X, UV1.Y)},
-        {V3(P1.X, P0.Y, 0.0f), V2(UV1.X, UV0.Y)},
-        {V3(P1.X, P1.Y, 0.0f), V2(UV1.X, UV1.Y)}
+        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
     };
     
     DrawVertices((f32*) VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(texture_vertex));

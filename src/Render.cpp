@@ -3,7 +3,7 @@ DrawWater(game_state* Game)
 {
     SetShader(WaterShader);
     SetShaderTime((f32)Game->Time);
-    DrawTexture(V2(-0.8f, -0.8f), V2(0.8f, 0.8f), V2(0.0f, 0.0f), V2(1.0f, 1.0f));
+    DrawTexture(V3(-0.8f, -0.8f, 0.0f), V3(0.8f, 0.8f, 0.0f), V2(0.0f, 0.0f), V2(1.0f, 1.0f));
 }
 
 static void
@@ -11,7 +11,7 @@ DrawBackground()
 {
     SetShader(TextureShader);
     SetTexture(BackgroundTexture);
-    DrawTexture(V2(0.0f, 0.0f), V2(1.0f, 0.5625f));
+    DrawTexture(V3(0.0f, 0.0f, 0.0f), V3(1.0f, 0.5625f, 0.0f));
 }
 
 

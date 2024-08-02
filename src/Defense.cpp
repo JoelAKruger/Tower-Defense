@@ -131,6 +131,8 @@ GameInitialise(allocator Allocator)
     GameState->CastleTransform = ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
     GameState->TurretTransform = ModelRotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
     
+    GameState->ApproxTowerZ = -0.06f;
+    
     return GameState;
 }
 
@@ -272,7 +274,7 @@ RunEditor(render_group* Render, game_state* Game, world* World, game_input* Inpu
 }
 
 static void
-DrawExplosion(v2 P, f32 ExplosionRadius, u32 Frame)
+DrawExplosion(v2 P, f32 Z, f32 ExplosionRadius, u32 Frame)
 {
     u32 FrameCount = 22;
     Frame = Frame % FrameCount;
@@ -293,7 +295,7 @@ DrawExplosion(v2 P, f32 ExplosionRadius, u32 Frame)
     v2 UV0 = {(f32)I / TexturesAcross, (f32)(TexturesHigh - 1 - J) / TexturesHigh};
     v2 UV1 = UV0 + V2(1.0f / TexturesAcross, 1.0f / TexturesHigh);
     
-    DrawTexture(P0, P1, UV0, UV1);
+    DrawTexture(V3(P0, Z), V3(P1, Z), UV0, UV1);
 }
 
 static void 
@@ -303,13 +305,14 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     
     //Draw target
     v2 TargetSize = {0.075f, 0.075f};
+    f32 TargetZ = Game->ApproxTowerZ;
     
     if (Tower->Type == Tower_Turret)
     {
         SetShader(TextureShader);
         SetTexture(TargetTexture);
         SetTransform(Game->WorldTransform);
-        DrawTexture(Tower->Target - 0.5f * TargetSize, Tower->Target + 0.5f * TargetSize);
+        DrawTexture(V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
     }
     
     //Draw new target
@@ -320,7 +323,7 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
         SetShader(TextureShader);
         SetTexture(TargetTexture);
         SetTransform(Game->WorldTransform);
-        DrawTexture(CursorP - 0.5f * TargetSize, CursorP + 0.5f * TargetSize);
+        DrawTexture(V3(CursorP - 0.5f * TargetSize, TargetZ), V3(CursorP + 0.5f * TargetSize, TargetZ));
         
         if (Input->ButtonUp & Button_LMouse)
         {
@@ -393,7 +396,7 @@ TickAnimations(game_state* Game, f32 DeltaTime)
         u32 FrameCount = 22;
         u32 Frame = (u32)(Animation->t * FrameCount);
         
-        DrawExplosion(Animation->P, Animation->Radius, Frame);
+        DrawExplosion(Animation->P, Game->ApproxTowerZ, Animation->Radius, Frame);
         Animation->t += (DeltaTime / Animation->Duration);
         
         if (Animation->t >= 1.0f)
@@ -578,7 +581,7 @@ GameUpdateAndRender(render_group* RenderGroup, game_state* GameState, f32 Second
         tower_type Type = GameState->PlacementType;
         
         //Draw slightly above a normal tower to prevent z-fighting
-        DrawTower(GameState, Type, V3(P, 0.001f), Color);
+        DrawTower(GameState, Type, V3(P, -0.001f), Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {

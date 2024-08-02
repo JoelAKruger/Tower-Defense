@@ -55,7 +55,7 @@ DrawLine(v2 Start, v2 End, v4 Color, f32 Thickness)
 }
 
 static void
-DrawTexture(v2 P0, v2 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
+DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
 {
     Win32DrawTexture(P0, P1, UV0, UV1);
 }

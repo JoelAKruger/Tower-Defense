@@ -205,6 +205,9 @@ struct game_state
     
     m4x4 CastleTransform;
     m4x4 TurretTransform;
+    
+    //These are constants
+    f32 ApproxTowerZ;
 };
 
 struct map_file_header
