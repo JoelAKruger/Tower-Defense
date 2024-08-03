@@ -229,4 +229,17 @@ struct render_context
     tower* SelectedTower;
 };
 
+enum app_screen
+{
+    Screen_MainMenu,
+    Screen_Game
+};
+
+struct app_state
+{
+    app_screen CurrentScreen;
+    
+    game_state GameState;
+};
+
 void InitialiseServerState(global_game_state* Game);

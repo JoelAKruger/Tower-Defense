@@ -12,10 +12,9 @@ struct gui_state
 
 gui_state GlobalGUIState;
 u32 GlobalGUIIdentifierCounter;
-render_group* GlobalRenderGroup;
 
 static void
-BeginGUI(game_input* Input, render_group* RenderGroup)
+BeginGUI(game_input* Input)
 {
 	//Check if buttons no longer exist
 	if (GlobalGUIState.Hot >= GlobalGUIIdentifierCounter)
@@ -29,8 +28,6 @@ BeginGUI(game_input* Input, render_group* RenderGroup)
 	GlobalGUIState.InputHandled = false;
     
 	GlobalGUIIdentifierCounter = 1;
-    
-    GlobalRenderGroup = RenderGroup;
 }
 
 static inline bool

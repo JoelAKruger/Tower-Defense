@@ -274,7 +274,7 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
     }
 }
 static void
-DrawConsole(console* Console, render_group* RenderGroup, memory_arena* Arena)
+DrawConsole(console* Console, memory_arena* Arena)
 {
     SetShader(ColorShader);
     f32 ScreenTop = 0.5625;

@@ -89,53 +89,6 @@ struct triangle
     tri_vertex Vertices[3];
 };
 
-struct render_shape
-{
-    render_type Type;
-    v4 Color;
-    union
-    {
-        struct
-        {
-            v2 Position;
-            v2 Size;
-        } Rectangle;
-        struct
-        {
-            v2 Position;
-            f32 Radius;
-        } Circle;
-        struct 
-        {
-            v2 Start;
-            v2 End;
-            f32 Thickness;
-        } Line;
-        struct
-        {
-            v2 Position;
-            f32 Size;
-            string String;
-        } Text;
-        span<triangle> TriangleList;
-        struct
-        {
-            v2 P0;
-            v2 P1;
-            v2 UV0;
-            v2 UV1;
-        } Texture;
-    };
-};
-
-struct render_group
-{
-    u32 ShapeCount;
-    render_shape Shapes[2048];
-};
-
-f32 const ScreenTop = 0.5625f;
-
 struct texture
 {
     ID3D11SamplerState* SamplerState;
@@ -198,8 +151,6 @@ memory_arena GraphicsArena;
 #include "Defense.cpp"
 
 static bool GlobalWindowDidResize;
-
-void DirectX11Render(render_group* Group, allocator Allocator, d3d11_shader QuadShader, d3d11_shader TextShader, d3d11_shader BackgroundShader, d3d11_shader TextureShader, font_texture Font, texture Texture);
 
 static void
 CreateD3D11Device()
@@ -530,9 +481,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     game_input PreviousInput = {};
     
-    render_group RenderGroup;
-    RenderGroup.ShapeCount = 0;
-    
     game_state* GameState = GameInitialise(Allocator);
     
     memory_arena PerFrameDebugInfoArena = CreateSubArena(&PermanentArena, Kilobytes(4), TRANSIENT);
@@ -646,29 +594,25 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         {
             TimeBlock("Game Update");
-            GameUpdateAndRender(&RenderGroup, GameState, SecondsPerFrame, &Input, Allocator);
+            GameUpdateAndRender(GameState, SecondsPerFrame, &Input, Allocator);
         }
         
         // Draw profiling information
+        SetShader(FontShader);
         f32 X = -0.99f;
         f32 Y = 0.95f;
         for (string Text : Profile)
         {
-            PushText(&RenderGroup, Text, V2(X, Y), V4(0.5f, 0.5f, 0.5f, 1.0f));
+            DrawGUIString(Text, V2(X, Y), V4(0.5f, 0.5f, 0.5f, 1.0f));
             Y -= 0.06f;
         }
         
-        //..........................
-        {
-            DirectX11Render(&RenderGroup, Allocator, Shader, FontShader, BackgroundShader, TextureShader, FontTexture, Texture);
-        }
         {
             TimeBlock("Present");
             SwapChain->Present(0, 0);
         }
         //---------------------------
         
-        RenderGroup.ShapeCount = 0;
         GlobalTextInput.clear();
         
         LARGE_INTEGER PerformanceCount;
@@ -697,82 +641,7 @@ void SetShader(d3d11_shader Shader)
     D3D11DeviceContext->PSSetShader(Shader.PixelShader, 0, 0);
 }
 
-void DirectX11Render(render_group* Group, allocator Allocator, d3d11_shader QuadShader, d3d11_shader TextShader, d3d11_shader BackgroundShader, d3d11_shader TextureShader, font_texture Font, texture Texture)
-{
-    for (u32 Index = 0; Index < Group->ShapeCount; Index++)
-    {
-        render_shape Shape = Group->Shapes[Index];
-        
-        switch (Shape.Type)
-        {
-            case Render_Rectangle:
-            {
-                v2 Origin = Shape.Rectangle.Position;
-                v2 XAxis = V2(Shape.Rectangle.Size.X, 0.0f);
-                v2 YAxis = V2(0.0f, Shape.Rectangle.Size.Y);
-                
-                D3D11DeviceContext->IASetInputLayout(QuadShader.InputLayout);
-                D3D11DeviceContext->VSSetShader(QuadShader.VertexShader, 0, 0);
-                D3D11DeviceContext->PSSetShader(QuadShader.PixelShader, 0, 0);
-                DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Shape.Color);
-            } break;
-            case Render_Circle:
-            {
-            } break;
-            case Render_Line:
-            {
-                v2 XAxis = Shape.Line.End - Shape.Line.Start;
-                v2 YAxis = UnitV(Perp(XAxis)) * Shape.Line.Thickness;
-                v2 Origin = Shape.Line.Start - 0.5f * YAxis;
-                
-                D3D11DeviceContext->IASetInputLayout(QuadShader.InputLayout);
-                D3D11DeviceContext->VSSetShader(QuadShader.VertexShader, 0, 0);
-                D3D11DeviceContext->PSSetShader(QuadShader.PixelShader, 0, 0);
-                DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Shape.Color);
-            } break;
-            case Render_Text:
-            {
-                if (Shape.Text.String.Length == 0)
-                {
-                    break;
-                }
-                
-                D3D11DeviceContext->IASetInputLayout(TextShader.InputLayout);
-                D3D11DeviceContext->VSSetShader(TextShader.VertexShader, 0, 0);
-                D3D11DeviceContext->PSSetShader(TextShader.PixelShader, 0, 0);
-                Win32DrawText(Font, Shape.Text.String, Shape.Text.Position, Shape.Color, Shape.Text.Size, GlobalAspectRatio);
-            } break;
-            case Render_Background:
-            {
-                v2 Origin = Shape.Rectangle.Position;
-                v2 XAxis = V2(Shape.Rectangle.Size.X, 0.0f);
-                v2 YAxis = V2(0.0f, Shape.Rectangle.Size.Y);
-                
-                D3D11DeviceContext->IASetInputLayout(BackgroundShader.InputLayout);
-                D3D11DeviceContext->VSSetShader(BackgroundShader.VertexShader, 0, 0);
-                D3D11DeviceContext->PSSetShader(BackgroundShader.PixelShader, 0, 0);
-                DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Shape.Color);
-            } break;
-            case Render_Triangles:
-            {
-                D3D11DeviceContext->IASetInputLayout(QuadShader.InputLayout);
-                D3D11DeviceContext->VSSetShader(QuadShader.VertexShader, 0, 0);
-                D3D11DeviceContext->PSSetShader(QuadShader.PixelShader, 0, 0);
-                span<triangle> Tris = Shape.TriangleList;
-                DrawTris((f32*)Tris.Memory, Tris.Count * sizeof(triangle));
-            } break;
-            case Render_Texture:
-            {
-                D3D11DeviceContext->IASetInputLayout(TextureShader.InputLayout);
-                D3D11DeviceContext->VSSetShader(TextureShader.VertexShader, 0, 0);
-                D3D11DeviceContext->PSSetShader(TextureShader.PixelShader, 0, 0);
-                Win32DrawTexture(V3(Shape.Texture.P0, 0.0f), V3(Shape.Texture.P1, 0.0f), Shape.Texture.UV0, Shape.Texture.UV1);
-            } break;
-            default: Assert(0);
-        }
-        
-    }
-}
+
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 {
     LRESULT Result = 0;

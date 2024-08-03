@@ -61,59 +61,6 @@ DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
 }
 
 static void
-PushRectangle(render_group* Group, v2 Position, v2 Size, v4 Color)
-{
-    render_shape Shape = {Render_Rectangle};
-    Shape.Rectangle.Position = Position;
-    Shape.Rectangle.Size = Size;
-    Shape.Color = Color;
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
-}
-
-static void
-PushRectangle(render_group* Group, rect Rect, v4 Color)
-{
-    PushRectangle(Group, Rect.MinCorner, Rect.MaxCorner - Rect.MinCorner, Color);
-}
-
-static void
-PushRectangleOutline(render_group* Group, rect Rect, v4 Color, f32 Thickness = 0.01f)
-{
-    v2 MinCorner = Rect.MinCorner;
-    v2 MaxCorner = Rect.MaxCorner;
-    v2 Size = MaxCorner - MinCorner;
-    
-    PushRectangle(Group, V2(MinCorner.X, MaxCorner.Y), V2(Size.X, Thickness), Color);
-    PushRectangle(Group, V2(MinCorner.X, MinCorner.Y - Thickness), V2(Size.X, Thickness), Color);
-    PushRectangle(Group, V2(MinCorner.X - Thickness, MinCorner.Y), V2(Thickness, Size.Y), Color);
-    PushRectangle(Group, V2(MaxCorner.X, MinCorner.Y), V2(Thickness, Size.Y), Color);
-}
-
-static void
-PushCircle(render_group* Group, v2 Position, f32 Radius, v4 Color)
-{
-    render_shape Shape = {Render_Circle};
-    Shape.Circle.Position = Position;
-    Shape.Circle.Radius = Radius;
-    Shape.Color = Color;
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
-}
-
-static void
-PushLine(render_group* Group, v2 Start, v2 End, v4 Color, f32 Thickness)
-{
-    render_shape Shape = {Render_Line};
-    Shape.Line.Start = Start;
-    Shape.Line.End = End;
-    Shape.Line.Thickness = Thickness;
-    Shape.Color = Color;
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
-}
-
-static void
 DrawString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f, f32 AspectRatio = 1.0f)
 {
     if (String.Length > 0)
@@ -134,50 +81,6 @@ GUIStringWidth(string String, f32 FontSize)
 {
     f32 Result = PlatformTextWidth(String, FontSize, GlobalAspectRatio);
     return Result;
-}
-
-static void
-PushText(render_group* Group, string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f)
-{
-    render_shape Shape = {Render_Text};
-    Shape.Text.String = String;
-    Shape.Text.Position = Position;
-    Shape.Text.Size = Size;
-    Shape.Color = Color;
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
-}
-
-static void
-PushBackground(render_group* Group, v2 Position, v2 Size, v4 Color)
-{
-    render_shape Shape = {Render_Background};
-    Shape.Rectangle.Position = Position;
-    Shape.Rectangle.Size = Size;
-    Shape.Color = Color;
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
-}
-
-static void
-PushTris(render_group* Group, span<triangle> Triangles)
-{
-    render_shape Shape = {Render_Triangles};
-    Shape.TriangleList = Triangles;
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
-}
-
-static void
-PushTexture(render_group* Group, v2 P0, v2 P1)
-{
-    render_shape Shape = {Render_Texture};
-    Shape.Texture.P0 = P0;
-    Shape.Texture.P1 = P1;
-    Shape.Texture.UV0 = V2(0.0f, 0.0f);
-    Shape.Texture.UV1 = V2(1.0f, 1.0f);
-    Group->Shapes[Group->ShapeCount++] = Shape;
-    Assert(Group->ShapeCount <= ArrayCount(Group->Shapes));
 }
 
 static void
@@ -310,3 +213,4 @@ ViewTransform(v3 Eye, v3 At)
     
     return Transpose(Result);
 }
+
