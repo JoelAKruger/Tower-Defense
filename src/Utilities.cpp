@@ -163,7 +163,12 @@ ArenaPrint(memory_arena* Arena, char* Format, ...)
 	string Result = {};
 	char* Buffer = (char*)(Arena->Buffer + Arena->Used);
     
-    int MaxChars = 4096;
+    u64 MaxChars = 4096;
+    if (Arena->Size - Arena->Used < MaxChars)
+    {
+        MaxChars = Arena->Size - Arena->Used;
+    }
+    
 	int CharsWritten = vsprintf_s(Buffer, MaxChars, Format, Args);
 	Arena->Used += CharsWritten + 1; //TODO: Arena used should be rounded up to a nice number
     

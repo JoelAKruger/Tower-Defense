@@ -239,7 +239,7 @@ struct app_state
 {
     app_screen CurrentScreen;
     
-    game_state GameState;
+    game_state* GameState;
 };
 
 void InitialiseServerState(global_game_state* Game);

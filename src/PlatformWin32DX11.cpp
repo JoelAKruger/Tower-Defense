@@ -481,8 +481,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     game_input PreviousInput = {};
     
-    game_state* GameState = GameInitialise(Allocator);
-    
     memory_arena PerFrameDebugInfoArena = CreateSubArena(&PermanentArena, Kilobytes(4), TRANSIENT);
     
     texture Texture = CreateTexture("assets/world.png");
@@ -496,6 +494,8 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     DefaultFont = &FontTexture;
     
     dynamic_array<string> Profile = {};
+    
+    app_state AppState = {};
     
     while (true)
     {
@@ -593,17 +593,18 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         }
         
         {
-            TimeBlock("Game Update");
-            GameUpdateAndRender(GameState, SecondsPerFrame, &Input, Allocator);
+            TimeBlock("Update & Render");
+            UpdateAndRender(&AppState, SecondsPerFrame, &Input, Allocator);
         }
         
         // Draw profiling information
+        SetTransform(IdentityTransform());
         SetShader(FontShader);
         f32 X = -0.99f;
         f32 Y = 0.95f;
         for (string Text : Profile)
         {
-            DrawGUIString(Text, V2(X, Y), V4(0.5f, 0.5f, 0.5f, 1.0f));
+            DrawGUIString(Text, V2(X, Y), V4(0.75f, 0.75f, 0.75f, 1.0f));
             Y -= 0.06f;
         }
         
