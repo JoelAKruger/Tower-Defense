@@ -74,7 +74,7 @@ PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
 static void
 ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue)
 {
-    LOG("Request!\n");
+    LOG("Server: Request!\n");
     
     //TODO: This is not strictly necessary (e.g. a player typing in chat)
     Assert(SenderIndex == Game->PlayerTurnIndex);

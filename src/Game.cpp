@@ -430,13 +430,13 @@ GameUpdateAndRender(game_state* GameState, f32 SecondsPerFrame, game_input* Inpu
     
     GameState->Time += SecondsPerFrame;
     
-    server_message_queue MessageQueue = {};
     CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
     
-    for (u32 MessageIndex = 0; MessageIndex < MessageQueue.MessageCount; MessageIndex++)
+    for (u32 MessageIndex = 0; MessageIndex < GameState->MultiplayerContext.MessageQueue.MessageCount; MessageIndex++)
     {
-        HandleServerMessage(MessageQueue.Messages + MessageIndex, GameState);
+        HandleServerMessage(GameState->MultiplayerContext.MessageQueue.Messages + MessageIndex, GameState);
     }
+    GameState->MultiplayerContext.MessageQueue.MessageCount = 0;
     
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MultiplayerContext.MyClientID) &&

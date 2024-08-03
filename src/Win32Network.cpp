@@ -67,6 +67,7 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
                     {
                         case Channel_WorldData:
                         {
+                            LOG("Client: received world data\n");
                             Assert(Packet->dataLength == sizeof(global_game_state));
                             *Game = *(global_game_state*)Packet->data;
                             
@@ -74,6 +75,7 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
                         } break;
                         case Channel_Message:
                         {
+                            LOG("Client: received message\n");
                             Assert(Packet->dataLength == sizeof(server_message));
                             server_message* Message = (server_message*)Packet->data;
                             AddMessage(&Context->MessageQueue, *Message);
@@ -180,7 +182,7 @@ ServerMain(LPVOID)
                 } break;
                 case ENET_EVENT_TYPE_RECEIVE:
                 {
-                    LOG("Received data\n");
+                    LOG("Server: Received data from client\n");
                     ENetPacket* Packet = Event.packet;
                     client_info* ClientInfo = (client_info*)Event.peer->data;
                     
