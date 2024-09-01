@@ -313,13 +313,16 @@ P0 P1 P2
             v2 P7 = GetGeneratedPos(&Grid, GridX    , GridY + 1);
             v2 P8 = GetGeneratedPos(&Grid, GridX + 1, GridY + 1);
             
+            char Name[128];
+            sprintf_s(Name, "Region %u", World->RegionCount);
+            
             world_region* Region = World->Regions + (World->RegionCount++);
             
             f32 RegionHeight = GetWorldHeight(P4, Seed);
             
             if (RegionHeight < 0.5f)
             {
-                Region->IsWaterTile = true;
+                Region->IsWater = true;
                 Region->Color = GetWaterColor(RegionHeight);
             }
             else
@@ -367,9 +370,7 @@ P0 P1 P2
                 AddVertex(Region, CenterOf(P1, P4, P5));
             }
             
-            char Buffer[128];
-            sprintf_s(Buffer, "Region %u", World->RegionCount);
-            SetName(Region, Buffer);
+            SetName(Region, Name);
             
             Region->Center = CalculateRegionCenter(Region);
         }

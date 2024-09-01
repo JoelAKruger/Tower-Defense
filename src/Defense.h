@@ -16,7 +16,7 @@ struct world_region
     
     u32 OwnerIndex;
     
-    bool IsWaterTile;
+    bool IsWater;
     v4 Color;
     
     char Name[64];
