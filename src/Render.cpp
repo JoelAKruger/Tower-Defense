@@ -45,8 +45,8 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
     u32 TriangleCount = Region->VertexCount;
     span<triangle> Triangles = AllocSpan(TArena, triangle, TriangleCount);
     
-    f32 Z = Region->IsWaterTile ? 0.001f : 0.0f;
-    bool DrawOutline = (Region->IsWaterTile == false);
+    f32 Z = Region->IsWater ? 0.001f : 0.0f;
+    bool DrawOutline = (Region->IsWater == false);
     
     for (u32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
     {

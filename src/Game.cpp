@@ -557,8 +557,12 @@ GameUpdateAndRender(game_state* GameState, f32 SecondsPerFrame, game_input* Inpu
         v2 P = CursorWorldPos;
         
         bool Placeable = (HoveringRegion &&
+                          !HoveringRegion->IsWater &&
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+        
+        LOG("Placeable: %u\n", Placeable);
+        LOG("Hovering region index: %u\n", HoveringRegionIndex);
         
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
@@ -623,7 +627,7 @@ GameUpdateAndRender(game_state* GameState, f32 SecondsPerFrame, game_input* Inpu
         {
             world_region* Region = GameState->GlobalState.World.Regions + RegionIndex;
             
-            if (!Region->IsWaterTile)
+            if (!Region->IsWater)
             {
                 f32 TextSize = 0.1f;
                 string Name = GetName(Region);
