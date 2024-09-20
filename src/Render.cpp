@@ -3,8 +3,28 @@ DrawWater(game_state* Game)
 {
     SetShader(WaterShader);
     SetShaderTime((f32)Game->Time);
-    DrawTexture(V3(-0.8f, -0.8f, 0.0f), V3(0.8f, 0.8f, 0.0f), V2(0.0f, 0.0f), V2(1.0f, 1.0f));
+    DrawTexture(V3(-0.8f, -0.8f, 0.0f), V3(0.8f, 0.8f, 0.0f));
 }
+
+/*
+static void
+PushWater(render_command_group* Group, game_state* Game)
+{
+    Push(Group, CommandSetShader(WaterShader));
+    
+    v3 P0 = V3(-0.8f, -0.8f, 0.0f);
+    v3 P1 = V3(0.8f, 0.8f, 0.0f);
+    
+    texture_vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
+    };
+    
+    Push(Group, CommandDraw((f32*)VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(texture_vertex)));
+}
+*/
 
 static void
 DrawBackground()
@@ -13,7 +33,6 @@ DrawBackground()
     SetTexture(BackgroundTexture);
     DrawTexture(V3(0.0f, 0.0f, 0.0f), V3(1.0f, 0.5625f, 0.0f));
 }
-
 
 static void
 DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_arena* TArena, v4 Color)
@@ -105,9 +124,10 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
 static void
 DrawRegions(game_state* Game, render_context* Context)
 {
+    SetShader(ColorShader);
     for (u32 RegionIndex = 0; RegionIndex < Game->GlobalState.World.RegionCount; RegionIndex++)
     {
-        SetShader(ColorShader);
+        
         world_region* Region = Game->GlobalState.World.Regions + RegionIndex;
         
         bool Hovering = (Region == Context->HoveringRegion);
@@ -191,14 +211,15 @@ DrawWorld(game_state* Game, render_context* Context)
 {
     DrawWater(Game);
     
+    SetDepthTest(true);
     if (Game->ShowBackground)
     {
         DrawBackground();
     }
     
-    SetDepthTest(false);
+    //SetDepthTest(false);
     DrawRegions(Game, Context);
-    SetDepthTest(true);
+    
     
     SetShader(ModelShader);
     DrawTowers(Game, Context);

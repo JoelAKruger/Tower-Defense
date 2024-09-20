@@ -95,6 +95,15 @@ struct texture
     ID3D11ShaderResourceView* TextureView;
 };
 
+struct render_output
+{
+    ID3D11Texture2D* Texture;
+    ID3D11RenderTargetView* RenderTargetView;
+    
+    ID3D11DepthStencilView* DepthStencilView;
+    ID3D11ShaderResourceView* DepthStencilShaderResourceView;
+};
+
 struct font_texture
 {
     stbtt_bakedchar* BakedChars;
@@ -139,9 +148,14 @@ void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
 
 void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride = 7 * sizeof(f32));
 
+void ClearOutput(render_output Output);
+void SetOutput(render_output Output);
 
 static ID3D11Device1* D3D11Device;
 static ID3D11DeviceContext* D3D11DeviceContext;
+
+render_output RenderOutput;
+
 static ID3D11DepthStencilView* DepthBufferView;
 memory_arena GraphicsArena;
 
@@ -244,8 +258,11 @@ IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
     return SwapChain;
 }
 
-ID3D11RenderTargetView* CreateRenderTarget(IDXGISwapChain1* SwapChain)
+static render_output
+CreateRenderOutput(IDXGISwapChain1* SwapChain)
 {
+    render_output Result = {};
+    
     //Get frame buffer
     ID3D11Texture2D* FrameBuffer;
     HRESULT HResult = SwapChain->GetBuffer(0, IID_PPV_ARGS(&FrameBuffer));
@@ -256,8 +273,7 @@ ID3D11RenderTargetView* CreateRenderTarget(IDXGISwapChain1* SwapChain)
     FrameBuffer->GetDesc(&FrameBufferDesc);
     GlobalAspectRatio = (f32)FrameBufferDesc.Width / (f32)FrameBufferDesc.Height;
     
-    ID3D11RenderTargetView* FrameBufferView;
-    HResult = D3D11Device->CreateRenderTargetView(FrameBuffer, 0, &FrameBufferView);
+    HResult = D3D11Device->CreateRenderTargetView(FrameBuffer, 0, &Result.RenderTargetView);
     Assert(SUCCEEDED(HResult));
     FrameBuffer->Release();
     
@@ -271,12 +287,21 @@ ID3D11RenderTargetView* CreateRenderTarget(IDXGISwapChain1* SwapChain)
     HResult = D3D11Device->CreateTexture2D(&DepthBufferDesc, 0, &DepthBuffer);
     Assert(SUCCEEDED(HResult));
     
-    HResult = D3D11Device->CreateDepthStencilView(DepthBuffer, 0, &DepthBufferView);
+    HResult = D3D11Device->CreateDepthStencilView(DepthBuffer, 0, &Result.DepthStencilView);
     Assert(SUCCEEDED(HResult));
     
     DepthBuffer->Release();
     
-    return FrameBufferView;
+    return Result;
+}
+
+static void
+ClearRenderOutput(render_output Output)
+{
+    if (Output.Texture) Output.Texture->Release();
+    if (Output.RenderTargetView) Output.RenderTargetView->Release();
+    if (Output.DepthStencilView) Output.DepthStencilView->Release();
+    if (Output.DepthStencilShaderResourceView) Output.DepthStencilShaderResourceView->Release();
 }
 
 d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementDesc, u32 InputElementDescCount)
@@ -406,7 +431,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     CreateD3D11Device();
     IDXGISwapChain1* SwapChain = CreateD3D11SwapChain(Window);
-    ID3D11RenderTargetView* FrameBufferView = CreateRenderTarget(SwapChain);
+    RenderOutput = CreateRenderOutput(SwapChain);
     
     D3D11_INPUT_ELEMENT_DESC InputElementDesc[] = 
     {
@@ -519,13 +544,15 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         if (GlobalWindowDidResize)
         {
             D3D11DeviceContext->OMSetRenderTargets(0, 0, 0);
-            FrameBufferView->Release();
-            DepthBufferView->Release();
+            ClearRenderOutput(RenderOutput);
+            //FrameBufferView->Release();
+            //DepthBufferView->Release();
             
             HRESULT Result = SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
             Assert(SUCCEEDED(Result));
             
-            FrameBufferView = CreateRenderTarget(SwapChain);
+            
+            RenderOutput = CreateRenderOutput(SwapChain);
             
             /*
             ID3D11Texture2D* FrameBuffer;
@@ -581,15 +608,13 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         {
             TimeBlock("Clear");
-            FLOAT Color[4] = {0.2f, 0.4f, 0.6f, 1.0f};
-            D3D11DeviceContext->ClearRenderTargetView(FrameBufferView, Color);
-            D3D11DeviceContext->ClearDepthStencilView(DepthBufferView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+            ClearOutput(RenderOutput);
             
             RECT WindowRect;
             GetClientRect(Window, &WindowRect);
             D3D11_VIEWPORT Viewport = { 0.0f, 0.0f, (FLOAT)(WindowRect.right - WindowRect.left), (FLOAT)(WindowRect.bottom - WindowRect.top), 0.0f, 1.0f };
             D3D11DeviceContext->RSSetViewports(1, &Viewport);
-            D3D11DeviceContext->OMSetRenderTargets(1, &FrameBufferView, DepthBufferView);
+            SetOutput(RenderOutput);
         }
         
         {
@@ -926,6 +951,39 @@ CreateTexture(char* Path)
     return Result;
 }
 
+static render_output
+CreateShadowDepthTexture(int Width, int Height)
+{
+    //Create depth map
+    D3D11_TEXTURE2D_DESC Desc = {};
+    Desc.Width = Width;
+    Desc.Height = Height;
+    Desc.MipLevels = 1;
+    Desc.ArraySize = 1;
+    Desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+    Desc.SampleDesc.Count = 1;
+    Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
+    
+    render_output Result = {};
+    D3D11Device->CreateTexture2D(&Desc, 0, &Result.Texture);
+    
+    //Create depth stencil view
+    D3D11_DEPTH_STENCIL_VIEW_DESC DepthStencilViewDesc = {};
+    DepthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    DepthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    
+    D3D11Device->CreateDepthStencilView(Result.Texture, &DepthStencilViewDesc, &Result.DepthStencilView);
+    
+    //Create shader resource view
+    D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc = {};
+    ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ShaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    ShaderResourceViewDesc.Texture2D.MipLevels = 1;
+    D3D11Device->CreateShaderResourceView(Result.Texture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
+    
+    return Result;
+}
+
 struct char_vertex
 {
     v3 Position;
@@ -1005,27 +1063,6 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
     VertexBuffer->Release();
 }
 
-struct texture_vertex
-{
-    v3 Position;
-    v2 UV;
-};
-
-static void
-Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1)
-{
-    Assert(P0.Z == P1.Z);
-    
-    texture_vertex VertexData[4] = {
-        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
-        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
-        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
-        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
-    };
-    
-    DrawVertices((f32*) VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(texture_vertex));
-}
-
 f32 Win32TextWidth(string String, f32 Size, f32 AspectRatio)
 {
     f32 Result = 0.0f;
@@ -1078,6 +1115,34 @@ SetDepthTest(bool Value)
     D3D11DeviceContext->OMSetDepthStencilState(DepthStencilState, 1);
     
     DepthStencilState->Release();
+}
+
+static void
+ClearOutput(render_output Output)
+{
+    if (Output.RenderTargetView)
+    {
+        FLOAT Color[4] = {0.2f, 0.4f, 0.6f, 1.0f};
+        D3D11DeviceContext->ClearRenderTargetView(Output.RenderTargetView, Color);
+    }
+    
+    if (Output.DepthStencilView)
+    {
+        D3D11DeviceContext->ClearDepthStencilView(Output.DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+    }
+}
+
+static void
+SetOutput(render_output Output)
+{
+    if (Output.RenderTargetView)
+    {
+        D3D11DeviceContext->OMSetRenderTargets(1, &Output.RenderTargetView, Output.DepthStencilView);
+    }
+    else
+    {
+        D3D11DeviceContext->OMSetRenderTargets(0, 0, Output.DepthStencilView);
+    }
 }
 
 static_assert(__COUNTER__ <= ArrayCount(GlobalProfileEntries), "Too many profiles");
