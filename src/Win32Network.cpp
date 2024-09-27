@@ -119,6 +119,7 @@ struct client_info
 
 void ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue);
 
+//This can be null :(
 global_game_state* ServerState_;
 
 DWORD WINAPI

@@ -118,6 +118,8 @@ GameInitialise(allocator Allocator)
     GameState->CameraDirection = {0.0f, 1.0f, 5.5f};
     GameState->FOV = 50.0f;
     
+    GameState->ShadowMap = CreateShadowDepthTexture(8192, 8192);
+    
     GameState->CubeVertices   = LoadModel(Allocator, "assets/models/castle.obj", false);
     GameState->TurretVertices = LoadModel(Allocator, "assets/models/turret.obj", true);
     
@@ -424,7 +426,7 @@ HandleServerMessage(server_message* Message, game_state* GameState)
 
 
 static void 
-GameUpdateAndRender(game_state* GameState, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
     UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, SecondsPerFrame);
     
@@ -527,7 +529,7 @@ GameUpdateAndRender(game_state* GameState, f32 SecondsPerFrame, game_input* Inpu
     RenderContext.HoveringRegion = HoveringRegion;
     RenderContext.SelectedTower = GameState->SelectedTower;
     
-    DrawWorld(GameState, &RenderContext);
+    RenderWorld(GameState, Assets, &RenderContext);
     
     //Draw animations
     TickAnimations(GameState, SecondsPerFrame);
@@ -579,7 +581,7 @@ GameUpdateAndRender(game_state* GameState, f32 SecondsPerFrame, game_input* Inpu
         tower_type Type = GameState->PlacementType;
         
         //Draw slightly above a normal tower to prevent z-fighting
-        DrawTower(GameState, Type, V3(P, -0.001f), Color);
+        //DrawTower(GameState, Type, V3(P, -0.001f), Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {

@@ -5,10 +5,16 @@
 #include "World.cpp"
 #include "Render.cpp"
 #include "Server.cpp"
+#include "Resources.cpp"
 #include "Game.cpp"
 
 static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, allocator Allocator)
 {
+    if (!App->Assets)
+    {
+        App->Assets = LoadAssets(Allocator);
+    }
+    
     switch (App->CurrentScreen)
     {
         case Screen_MainMenu:
@@ -25,7 +31,7 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
         } break;
         case Screen_Game:
         {
-            GameUpdateAndRender(App->GameState, DeltaTime, Input, Allocator);
+            GameUpdateAndRender(App->GameState, App->Assets, DeltaTime, Input, Allocator);
         } break;
         
         default: Assert(0);

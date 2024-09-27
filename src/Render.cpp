@@ -1,10 +1,12 @@
+/*
 static void
-DrawWater(game_state* Game)
+DrawWater(render_group* RenderGroup, game_state* Game)
 {
     SetShader(WaterShader);
-    SetShaderTime((f32)Game->Time);
+    //SetShaderTime((f32)Game->Time);
     DrawTexture(V3(-0.8f, -0.8f, 0.0f), V3(0.8f, 0.8f, 0.0f));
 }
+*/
 
 /*
 static void
@@ -27,15 +29,13 @@ PushWater(render_command_group* Group, game_state* Game)
 */
 
 static void
-DrawBackground()
+DrawBackground(render_group* RenderGroup)
 {
-    SetShader(TextureShader);
-    SetTexture(BackgroundTexture);
-    DrawTexture(V3(0.0f, 0.0f, 0.0f), V3(1.0f, 0.5625f, 0.0f));
+    PushTexturedRect(RenderGroup, BackgroundTexture, V3(0.0f, 0.0f, 0.0f), V3(1.0f, 0.5625f, 0.0f));
 }
 
 static void
-DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_arena* TArena, v4 Color)
+DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world_region* Region, v4 Color)
 {
     if (Region->VertexCount == 0)
     {
@@ -43,10 +43,9 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
     }
     
     u32 TriangleCount = Region->VertexCount;
-    span<triangle> Triangles = AllocSpan(TArena, triangle, TriangleCount);
+    span<triangle> Triangles = AllocSpan(RenderGroup->Arena, triangle, TriangleCount);
     
     f32 Z = Region->IsWater ? 0.001f : 0.0f;
-    bool DrawOutline = (Region->IsWater == false);
     
     for (u32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
     {
@@ -63,15 +62,17 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
         Tri->Vertices[2].Col = Color;
     }
     
-    DrawVertices((f32*)Triangles.Memory, TriangleCount * sizeof(triangle), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    PushVertices(RenderGroup, Triangles.Memory, TriangleCount * sizeof(triangle), sizeof(tri_vertex), 
+                 D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Color);
     
     //Outline Z (slightly higher)
     Z = -0.001f;
     
+    bool DrawOutline = (Region->IsWater == false);
     if (DrawOutline)
     {
         u32 VertexDrawCount = 6 * Region->VertexCount + 2;
-        color_vertex* Vertices = AllocArray(TArena, color_vertex, VertexDrawCount);
+        color_vertex* Vertices = AllocArray(RenderGroup->Arena, color_vertex, VertexDrawCount);
         
         for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
         {
@@ -116,13 +117,14 @@ DrawWorldRegion(game_state* Game, world* World, world_region* Region, memory_are
             }
         }
         
-        DrawVertices((f32*)Vertices, VertexDrawCount * sizeof(color_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(color_vertex), sizeof(color_vertex),
+                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Color);
     }
 }
 
 
 static void
-DrawRegions(game_state* Game, render_context* Context)
+DrawRegions(render_group* RenderGroup, game_state* Game, render_context* Context)
 {
     SetShader(ColorShader);
     for (u32 RegionIndex = 0; RegionIndex < Game->GlobalState.World.RegionCount; RegionIndex++)
@@ -138,7 +140,7 @@ DrawRegions(game_state* Game, render_context* Context)
             Color.RGB = 0.8f * Color.RGB;
         }
         
-        DrawWorldRegion(Game, &Game->GlobalState.World, Region, Context->Arena, Color);
+        DrawWorldRegion(RenderGroup, Game, &Game->GlobalState.World, Region, Color);
         
         //Draw name
         /*
@@ -160,8 +162,9 @@ DrawRegions(game_state* Game, render_context* Context)
 }
 
 static void
-DrawTower(game_state* Game, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
+DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
 {
+    //TODO: Use game assets
     span<model_vertex> ModelVertices = {};
     m4x4 Transform;
     
@@ -180,13 +183,15 @@ DrawTower(game_state* Game, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
         Assert(0);
     }
     
-    SetModelColor(Color);
-    SetModelTransform(Transform * TranslateTransform(P.X, P.Y, P.Z));
-    DrawVertices((f32*)ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(model_vertex));
+    m4x4 ModelTransform = Transform * TranslateTransform(P.X, P.Y, P.Z);
+    
+    PushVertices(RenderGroup, ModelVertices.Memory, sizeof(model_vertex) * ModelVertices.Count, sizeof(model_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Model);
+    PushColor(RenderGroup, Color);
+    PushModelTransform(RenderGroup, ModelTransform);
 }
 
 static void
-DrawTowers(game_state* Game, render_context* Context)
+DrawTowers(render_group* RenderGroup, game_state* Game, render_context* Context)
 {
     for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
@@ -202,25 +207,52 @@ DrawTowers(game_state* Game, render_context* Context)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(Game, Tower->Type, V3(Tower->P, 0.0f), Color, Tower->Rotation);
+        DrawTower(RenderGroup, Game, Tower->Type, V3(Tower->P, 0.0f), Color, Tower->Rotation);
     }
 }
 
 static void
-DrawWorld(game_state* Game, render_context* Context)
+DrawWorld(render_group* RenderGroup, game_state* Game, render_context* Context)
 {
-    DrawWater(Game);
+    //SetDepthTest(false);
+    //DrawWater(Game);
     
-    SetDepthTest(true);
+    //SetDepthTest(true);
+    
     if (Game->ShowBackground)
     {
-        DrawBackground();
+        DrawBackground(RenderGroup);
     }
     
     //SetDepthTest(false);
-    DrawRegions(Game, Context);
+    DrawRegions(RenderGroup, Game, Context);
+    
+    DrawTowers(RenderGroup, Game, Context);
+}
+
+static void
+RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
+{
+    v3 LightP = V3(-1.0f, -1.0f, -1.0f);
+    v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
+    m4x4 Transform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 3.0f);
+    
+    render_group RenderGroup = {};
+    RenderGroup.Arena = Context->Arena; //TODO: Fix this
+    
+    DrawWorld(&RenderGroup, Game, Context);
+    
+    SetDepthTest(true);
+    ClearOutput(Game->ShadowMap);
+    SetOutput(Game->ShadowMap);
+    SetTransform(Transform);
+    DrawRenderGroup(&RenderGroup, Assets);
+    UnsetShadowMap();
     
     
-    SetShader(ModelShader);
-    DrawTowers(Game, Context);
+    SetFrameBufferAsOutput();
+    SetTransform(Game->WorldTransform);
+    SetLightTransform(Transform);
+    SetShadowMap(Game->ShadowMap);
+    DrawRenderGroup(&RenderGroup, Assets);
 }

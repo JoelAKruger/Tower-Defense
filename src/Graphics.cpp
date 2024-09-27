@@ -3,6 +3,8 @@ void SetShader(shader Shader);
 void SetVertexShaderConstant(u32 Index, void* Data, u32 Bytes);
 void SetTexture(texture Texture);
 void SetDepthTest(bool Value);
+void SetModelTransform(m4x4 Transform);
+void SetModelColor(v4 Color);
 
 struct color_vertex
 {
@@ -10,143 +12,107 @@ struct color_vertex
     v4 Color;
 };
 
-enum render_command_type
-{
-    RenderCommand_Null,
-    
-    RenderCommand_Draw,
-    RenderCommand_SetTexture,
-    RenderCommand_SetConstant,
-    RenderCommand_SetDepthTest,
-    RenderCommand_SetShader
-};
-
 struct render_command
 {
-    render_command_type Type;
+    void* VertexData;
+    u32 VertexDataStride;
+    u32 VertexDataBytes;
     
-    union
-    {
-        //Draw
-        struct
-        {
-            f32* VertexData;
-            u64 VertexDataBytes;
-            D3D11_PRIMITIVE_TOPOLOGY Topology;
-            u64 Stride;
-        };
-        //Texture
-        struct
-        {
-            texture Texture;
-        };
-        //SetConstant
-        struct
-        {
-            u64 Index;
-            void* Data;
-            u64 Bytes;
-        };
-        //SetDepthTest
-        bool DepthTest;
-        //SetShader
-        shader Shader;
+    D3D11_PRIMITIVE_TOPOLOGY Topology;
+    shader_index Shader;
+    texture Texture;
+    m4x4 ModelTransform;
+    v4 Color;
+    bool DisableDepthTest;
+    bool DisableShadows;
+};
+
+struct render_group
+{
+    memory_arena* Arena;
+    render_command Commands[256];
+    u32 CommandCount;
+};
+
+static render_command*
+GetNextEntry(render_group* RenderGroup)
+{
+    Assert(RenderGroup->CommandCount < ArrayCount(RenderGroup->Commands));
+    
+    render_command* Result = RenderGroup->Commands + (RenderGroup->CommandCount++);
+    return Result;
+}
+
+static render_command*
+GetLastEntry(render_group* RenderGroup)
+{
+    Assert(RenderGroup->CommandCount > 0);
+    
+    render_command* Result = RenderGroup->Commands + (RenderGroup->CommandCount - 1);
+    return Result;
+}
+
+static void*
+CopyVertexData(memory_arena* Arena, void* Data, u64 Bytes)
+{
+    void* Result = Alloc(Arena, Bytes);
+    memcpy(Result, Data, Bytes);
+    return Result;
+}
+
+struct texture_vertex
+{
+    v3 Position;
+    v2 UV;
+};
+
+static void
+PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
+{
+    render_command* Command = GetNextEntry(RenderGroup);
+    
+    texture_vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
     };
-};
-
-struct render_command_group
-{
-    render_command Entries[1024];
-    u64 EntryCount;
-};
-
-//TODO: Move to platform layer
-void RunRenderCommand(render_command Command)
-{
-    switch (Command.Type)
-    {
-        case RenderCommand_Draw:
-        {
-            DrawVertices(Command.VertexData, Command.VertexDataBytes, Command.Topology, Command.Stride);
-        } break;
-        case RenderCommand_SetTexture:
-        {
-            SetTexture(Command.Texture);
-        } break;
-        case RenderCommand_SetConstant:
-        {
-            SetVertexShaderConstant(Command.Index, Command.Data, Command.Bytes);
-        } break;
-        case RenderCommand_SetDepthTest:
-        {
-            SetDepthTest(Command.DepthTest);
-        } break;
-        case RenderCommand_SetShader:
-        {
-            SetShader(Command.Shader);
-        } break;
-    }
+    
+    u64 VertexDataBytes = sizeof(VertexData);
+    
+    Command->VertexData = CopyVertexData(RenderGroup->Arena, VertexData, VertexDataBytes);
+    Command->VertexDataStride = sizeof(texture_vertex);
+    Command->VertexDataBytes = VertexDataBytes;
+    
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    Command->Shader = Shader_Background;
+    Command->Texture = Texture;
 }
 
 static void
-Push(render_command_group* Group, render_command Entry)
+PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader)
 {
-    Group->Entries[Group->EntryCount++] = Entry;
-    Assert(Group->EntryCount <= ArrayCount(Group->Entries));
+    render_command* Command = GetNextEntry(RenderGroup);
+    Command->VertexData = Data;
+    Command->VertexDataBytes = Bytes;
+    Command->VertexDataStride = Stride;
+    Command->Topology = Topology;
+    Command->Shader = Shader;
 }
 
-class render
+static void
+PushColor(render_group* RenderGroup, v4 Color)
 {
-    public:
-    
-    //If null, then is an immediate context
-    render_command_group* Group;
-    
-    void AddCommand(render_command Command)
-    {
-        if (Group)
-        {
-            Push(Group, Command);
-        }
-        else
-        {
-            RunRenderCommand(Command);
-        }
-    }
-    
-    void Draw(void* Buffer, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64 Stride)
-    {
-        render_command Command = {};
-        Command.VertexData = (f32*)Buffer;
-        Command.VertexDataBytes = Bytes;
-        Command.Topology = Topology;
-        Command.Stride = Stride;
-        AddCommand(Command);
-    }
-    
-    void SetDepthTest(bool Value)
-    {
-        render_command Command = {};
-        Command.DepthTest = Value;
-        AddCommand(Command);
-    }
-    
-    void SetShader(shader Shader)
-    {
-        render_command Command = {};
-        Command.Type = RenderCommand_SetShader;
-        Command.Shader = Shader;
-        AddCommand(Command);
-    }
-    
-    void SetTexture(texture Texture)
-    {
-        render_command Command = {};
-        Command.Type = RenderCommand_SetTexture;
-        Command.Texture = Texture;
-        AddCommand(Command);
-    }
-};
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->Color = Color;
+}
+
+static void
+PushModelTransform(render_group* RenderGroup, m4x4 Transform)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->ModelTransform = Transform;
+}
 
 shader ColorShader;
 shader FontShader;
@@ -160,54 +126,6 @@ texture TowerTexture;
 texture ExplosionTexture;
 
 f32 GlobalAspectRatio;
-
-static render_command
-CommandSetTexture(texture Texture)
-{
-    render_command Result = {};
-    Result.Type = RenderCommand_SetTexture;
-    Result.Texture = Texture;
-    return Result;
-}
-
-static render_command
-CommandSetConstant(u64 Index, void* Data, u64 Bytes)
-{
-    render_command Result = {};
-    Result.Type = RenderCommand_SetConstant;
-    Result.Index = Index;
-    Result.Data = Data;
-    Result.Bytes = Bytes;
-    return Result;
-}
-
-static void
-RunCommand(render_command Command)
-{
-    switch (Command.Type)
-    {
-        case RenderCommand_Draw:
-        {
-            DrawVertices(Command.VertexData, Command.VertexDataBytes, Command.Topology, Command.Stride);
-        } break;
-        RenderCommand_SetTexture:
-        {
-            SetTexture(Command.Texture);
-        } break;
-        RenderCommand_SetConstant:
-        {
-            SetVertexShaderConstant(Command.Index, Command.Data, Command.Bytes);
-        } break;
-        RenderCommand_SetDepthTest:
-        {
-            SetDepthTest(Command.DepthTest);
-        } break;
-        RenderCommand_SetShader:
-        {
-            SetShader(Command.Shader);
-        } break;
-    }
-}
 
 static void 
 DrawQuad(v2 A, v2 B, v2 C, v2 D, v4 Color)
@@ -240,12 +158,6 @@ DrawLine(v2 Start, v2 End, v4 Color, f32 Thickness)
     
     DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Color);
 }
-
-struct texture_vertex
-{
-    v3 Position;
-    v2 UV;
-};
 
 static void
 DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
@@ -286,10 +198,36 @@ GUIStringWidth(string String, f32 FontSize)
 }
 
 static void
+DrawRenderGroup(render_group* Group, game_assets* Assets)
+{
+    //TODO: Optimise this
+    for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
+    {
+        render_command* Command = Group->Commands + CommandIndex;
+        
+        shader Shader = Assets->Shaders[Command->Shader];
+        SetShader(Shader);
+        
+        SetTexture(Command->Texture);
+        SetModelTransform(Command->ModelTransform);
+        SetModelColor(Command->Color);
+        
+        DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
+    }
+}
+
+static void
 SetTransform(m4x4 Transform)
 {
     Transform = Transpose(Transform);
     SetVertexShaderConstant(0, &Transform, sizeof(Transform));
+}
+
+static void
+SetLightTransform(m4x4 Transform)
+{
+    Transform = Transpose(Transform);
+    SetVertexShaderConstant(4, &Transform, sizeof(Transform));
 }
 
 static void
@@ -416,3 +354,18 @@ ViewTransform(v3 Eye, v3 At)
     return Transpose(Result);
 }
 
+static m4x4
+OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f32 Far)
+{
+    m4x4 Result = {};
+    
+    Result.Values[0][0] = 2.0f / (Right - Left);
+    Result.Values[1][1] = 2.0f / (Top - Bottom);
+    Result.Values[2][2] = 1.0f / (Far - Near);
+    Result.Values[3][0] = (Left + Right) / (Left - Right);
+    Result.Values[3][1] = (Top + Bottom) / (Bottom - Top);
+    Result.Values[3][2] = Near / (Near - Far);
+    Result.Values[3][3] = 1.0f;
+    
+    return Result;
+}

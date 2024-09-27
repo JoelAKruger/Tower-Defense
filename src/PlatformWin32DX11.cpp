@@ -95,6 +95,11 @@ struct texture
     ID3D11ShaderResourceView* TextureView;
 };
 
+struct renderer_vertex_buffer
+{
+    ID3D11Buffer* Buffer;
+};
+
 struct render_output
 {
     ID3D11Texture2D* Texture;
@@ -102,6 +107,8 @@ struct render_output
     
     ID3D11DepthStencilView* DepthStencilView;
     ID3D11ShaderResourceView* DepthStencilShaderResourceView;
+    
+    i32 Width, Height;
 };
 
 struct font_texture
@@ -148,8 +155,16 @@ void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
 
 void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride = 7 * sizeof(f32));
 
+#include "Defense.h"
+
 void ClearOutput(render_output Output);
 void SetOutput(render_output Output);
+void SetFrameBufferAsOutput();
+render_output CreateShadowDepthTexture(int Width, int Height);
+void SetShadowMap(render_output Texture);
+void UnsetShadowMap();
+void LoadShaders(game_assets* Assets);
+renderer_vertex_buffer CreateVertexBuffer(void* Data, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64 Stride);
 
 static ID3D11Device1* D3D11Device;
 static ID3D11DeviceContext* D3D11DeviceContext;
@@ -159,7 +174,7 @@ render_output RenderOutput;
 static ID3D11DepthStencilView* DepthBufferView;
 memory_arena GraphicsArena;
 
-#include "Defense.h"
+
 #include "Win32Network.cpp"
 #include "Graphics.cpp"
 #include "Defense.cpp"
@@ -273,6 +288,9 @@ CreateRenderOutput(IDXGISwapChain1* SwapChain)
     FrameBuffer->GetDesc(&FrameBufferDesc);
     GlobalAspectRatio = (f32)FrameBufferDesc.Width / (f32)FrameBufferDesc.Height;
     
+    Result.Width = FrameBufferDesc.Width;
+    Result.Height = FrameBufferDesc.Height;
+    
     HResult = D3D11Device->CreateRenderTargetView(FrameBuffer, 0, &Result.RenderTargetView);
     Assert(SUCCEEDED(HResult));
     FrameBuffer->Release();
@@ -357,6 +375,30 @@ d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementD
                                              &Result.InputLayout);
     Assert(SUCCEEDED(HResult));
     VertexShaderBlob->Release();
+    
+    return Result;
+}
+
+static renderer_vertex_buffer
+CreateVertexBuffer(void* Data, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64 Stride)
+{
+    Assert(Bytes > 0);
+    Assert(Stride > 0);
+    
+    u32 VertexCount = Bytes / Stride;
+    u32 Offset = 0;
+    
+    D3D11_BUFFER_DESC VertexBufferDesc = {};
+    VertexBufferDesc.ByteWidth = Bytes;
+    VertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+    VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    
+    D3D11_SUBRESOURCE_DATA VertexSubresourceData = { Data };
+    
+    renderer_vertex_buffer Result = {};
+    
+    HRESULT HResult = D3D11Device->CreateBuffer(&VertexBufferDesc, &VertexSubresourceData, &Result.Buffer);
+    Assert(SUCCEEDED(HResult));
     
     return Result;
 }
@@ -486,6 +528,22 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     Assert(SUCCEEDED(HResult));
     D3D11DeviceContext->OMSetBlendState(BlendState, NULL, 0xFFFFFFFF);
     
+    //Set default shadow map comparison
+    D3D11_SAMPLER_DESC SamplerDesc = {};
+    SamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; //TODO: Add low graphics option (point filtering)
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS; // Shadow map comparison
+    SamplerDesc.MinLOD = 0;
+    SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    SamplerDesc.MipLODBias = 0.0f;
+    SamplerDesc.MaxAnisotropy = 1;
+    
+    ID3D11SamplerState* ShadowSamplerState;
+    D3D11Device->CreateSamplerState(&SamplerDesc, &ShadowSamplerState);
+    D3D11DeviceContext->PSSetSamplers(1, 1, &ShadowSamplerState);
+    
     SetDepthTest(false);
     
     memory_arena TransientArena = Win32CreateMemoryArena(Megabytes(16), TRANSIENT);
@@ -609,11 +667,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         {
             TimeBlock("Clear");
             ClearOutput(RenderOutput);
-            
-            RECT WindowRect;
-            GetClientRect(Window, &WindowRect);
-            D3D11_VIEWPORT Viewport = { 0.0f, 0.0f, (FLOAT)(WindowRect.right - WindowRect.left), (FLOAT)(WindowRect.bottom - WindowRect.top), 0.0f, 1.0f };
-            D3D11DeviceContext->RSSetViewports(1, &Viewport);
             SetOutput(RenderOutput);
         }
         
@@ -981,6 +1034,9 @@ CreateShadowDepthTexture(int Width, int Height)
     ShaderResourceViewDesc.Texture2D.MipLevels = 1;
     D3D11Device->CreateShaderResourceView(Result.Texture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
     
+    Result.Width = Width;
+    Result.Height = Height;
+    
     return Result;
 }
 
@@ -1093,11 +1149,44 @@ SetVertexShaderConstant(u32 Index, void* Data, u32 Bytes)
     Buffer->Release();
 }
 
+/*
+static void
+SetPixelShaderConstant(u32 Index, void* Data, u32 Bytes)
+{
+    D3D11_BUFFER_DESC ConstantBufferDesc = {};
+    ConstantBufferDesc.ByteWidth = Bytes;
+    ConstantBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+    ConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    ConstantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    
+    D3D11_SUBRESOURCE_DATA SubresourceData = {Data};
+    ID3D11Buffer* Buffer;
+    D3D11Device->CreateBuffer(&ConstantBufferDesc, &SubresourceData, &Buffer);
+    
+    D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &Buffer);
+    
+    Buffer->Release();
+}
+*/
+
 static void
 SetTexture(texture Texture)
 {
     D3D11DeviceContext->PSSetShaderResources(0, 1, &Texture.TextureView);
     D3D11DeviceContext->PSSetSamplers(0, 1, &Texture.SamplerState);
+}
+
+static void
+SetShadowMap(render_output Texture)
+{
+    D3D11DeviceContext->PSSetShaderResources(1, 1, &Texture.DepthStencilShaderResourceView);
+}
+
+static void
+UnsetShadowMap()
+{
+    ID3D11ShaderResourceView* ShaderResourceView = 0;
+    D3D11DeviceContext->PSSetShaderResources(1, 1, &ShaderResourceView);
 }
 
 static void
@@ -1133,6 +1222,12 @@ ClearOutput(render_output Output)
 }
 
 static void
+SetFrameBufferAsOutput()
+{
+    SetOutput(RenderOutput);
+}
+
+static void
 SetOutput(render_output Output)
 {
     if (Output.RenderTargetView)
@@ -1143,6 +1238,47 @@ SetOutput(render_output Output)
     {
         D3D11DeviceContext->OMSetRenderTargets(0, 0, Output.DepthStencilView);
     }
+    
+    D3D11_VIEWPORT Viewport = { 0.0f, 0.0f, (f32)Output.Width, (f32)Output.Height, 0.0f, 1.0f };
+    D3D11DeviceContext->RSSetViewports(1, &Viewport);
+}
+
+static void
+LoadShaders(game_assets* Assets)
+{
+    D3D11_INPUT_ELEMENT_DESC InputElementDesc[] = 
+    {
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    
+    D3D11_INPUT_ELEMENT_DESC FontShaderInputElementDesc[] = 
+    {
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    
+    D3D11_INPUT_ELEMENT_DESC TextureShaderElementDesc[] = 
+    {
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    
+    D3D11_INPUT_ELEMENT_DESC ModelShaderElementDesc[] = 
+    {
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    
+    Assets->Shaders[Shader_Color] = CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
+    Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
+    Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", FontShaderInputElementDesc, ArrayCount(FontShaderInputElementDesc));
+    
+    Assets->Shaders[Shader_Texture]= CreateShader(L"assets/texture.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
+    Assets->Shaders[Shader_Water]= CreateShader(L"assets/water.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
+    
+    Assets->Shaders[Shader_Model]= CreateShader(L"assets/modelshader.hlsl", ModelShaderElementDesc, ArrayCount(ModelShaderElementDesc));
 }
 
 static_assert(__COUNTER__ <= ArrayCount(GlobalProfileEntries), "Too many profiles");

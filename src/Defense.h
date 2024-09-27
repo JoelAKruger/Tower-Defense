@@ -174,6 +174,8 @@ struct game_state
     
     m4x4 WorldTransform;
     
+    render_output ShadowMap;
+    
     game_mode Mode;
     
     //Valid when mode is Mode_Place
@@ -235,11 +237,52 @@ enum app_screen
     Screen_Game
 };
 
+struct game_assets;
+
 struct app_state
 {
     app_screen CurrentScreen;
     
     game_state* GameState;
+    game_assets* Assets;
+};
+
+enum shader_index
+{
+    Shader_Null,
+    Shader_Color,
+    Shader_Font,
+    Shader_Texture,
+    Shader_Water,
+    Shader_Model,
+    Shader_Background,
+    
+    Shader_Count
+};
+
+enum vertex_buffer_index
+{
+    VertexBuffer_Null,
+    VertexBuffer_Castle,
+    VertexBuffer_Turret,
+    VertexBuffer_World,
+    
+    VertexBuffer_Count
+};
+
+struct vertex_buffer
+{
+    void* Data;
+    u64 Bytes;
 };
 
 void InitialiseServerState(global_game_state* Game);
+
+struct game_assets
+{
+    vertex_buffer VertexBuffers[VertexBuffer_Count];
+    shader Shaders[Shader_Count];
+    texture Textures[32];
+    
+    render_output ShadowMaps[1];
+};
