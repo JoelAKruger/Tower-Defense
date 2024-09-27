@@ -1,39 +1,3 @@
-
-void SetShader(shader Shader);
-void SetVertexShaderConstant(u32 Index, void* Data, u32 Bytes);
-void SetTexture(texture Texture);
-void SetDepthTest(bool Value);
-void SetModelTransform(m4x4 Transform);
-void SetModelColor(v4 Color);
-
-struct color_vertex
-{
-    v3 Position;
-    v4 Color;
-};
-
-struct render_command
-{
-    void* VertexData;
-    u32 VertexDataStride;
-    u32 VertexDataBytes;
-    
-    D3D11_PRIMITIVE_TOPOLOGY Topology;
-    shader_index Shader;
-    texture Texture;
-    m4x4 ModelTransform;
-    v4 Color;
-    bool DisableDepthTest;
-    bool DisableShadows;
-};
-
-struct render_group
-{
-    memory_arena* Arena;
-    render_command Commands[256];
-    u32 CommandCount;
-};
-
 static render_command*
 GetNextEntry(render_group* RenderGroup)
 {
@@ -67,7 +31,7 @@ struct texture_vertex
 };
 
 static void
-PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
+PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
@@ -137,7 +101,7 @@ DrawQuad(v2 A, v2 B, v2 C, v2 D, v4 Color)
         D.X, D.Y, 0.0f, Color.R, Color.G, Color.B, Color.A
     };
     
-    DrawVertices(VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    DrawVertices(VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, 7 * sizeof(f32));
 }
 
 static void
@@ -160,7 +124,7 @@ DrawLine(v2 Start, v2 End, v4 Color, f32 Thickness)
 }
 
 static void
-DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
+DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     Assert(P0.Z == P1.Z);
     
@@ -175,7 +139,7 @@ DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f})
 }
 
 static void
-DrawString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f, f32 AspectRatio = 1.0f)
+DrawString(string String, v2 Position, v4 Color, f32 Size, f32 AspectRatio)
 {
     if (String.Length > 0)
     {
@@ -185,7 +149,7 @@ DrawString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 
 
 //GUI has to account for different aspect ratios
 static void
-DrawGUIString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f)
+DrawGUIString(string String, v2 Position, v4 Color, f32 Size)
 {
     DrawString(String, Position, Color, Size, GlobalAspectRatio);
 }

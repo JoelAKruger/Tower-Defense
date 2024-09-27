@@ -270,19 +270,4 @@ enum vertex_buffer_index
     VertexBuffer_Count
 };
 
-struct vertex_buffer
-{
-    void* Data;
-    u64 Bytes;
-};
-
 void InitialiseServerState(global_game_state* Game);
-
-struct game_assets
-{
-    vertex_buffer VertexBuffers[VertexBuffer_Count];
-    shader Shaders[Shader_Count];
-    texture Textures[32];
-    
-    render_output ShadowMaps[1];
-};
