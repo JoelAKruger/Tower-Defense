@@ -380,3 +380,14 @@ P0 P1 P2
     free(Grid.Positions);
     free(Grid.TriTypes);
 }
+
+struct continent
+{
+    span<v2> Vertices;
+};
+
+static span<continent>
+GetContinents(world* World)
+{
+    
+}
