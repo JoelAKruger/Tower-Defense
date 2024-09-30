@@ -563,9 +563,6 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
-        LOG("Placeable: %u\n", Placeable);
-        LOG("Hovering region index: %u\n", HoveringRegionIndex);
-        
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
         if (Placeable)
@@ -581,7 +578,10 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         tower_type Type = GameState->PlacementType;
         
         //Draw slightly above a normal tower to prevent z-fighting
-        //DrawTower(GameState, Type, V3(P, -0.001f), Color);
+        //TODO: This is a waste
+        render_group RenderGroup = {};
+        DrawTower(&RenderGroup, GameState, Type, V3(P, -0.001f), Color);
+        DrawRenderGroup(&RenderGroup, Assets);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
