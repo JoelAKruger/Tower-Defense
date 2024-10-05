@@ -400,7 +400,7 @@ class array_2d
     u32 Rows;
     u32 Cols;
     
-    type& Get(u32 X, u32 Y)
+    type Get(u32 X, u32 Y)
     {
         Assert(X < Cols);
         Assert(Y < Rows);
@@ -414,6 +414,14 @@ class array_2d
         Assert(Y < Rows);
         type* Ptr = Memory + Y * Cols + X;
         *Ptr = Value;
+    }
+    
+    type* At(u32 X, u32 Y)
+    {
+        Assert(X < Cols);
+        Assert(Y < Rows);
+        type* Ptr = Memory + Y * Cols + X;
+        return Ptr;
     }
 };
 

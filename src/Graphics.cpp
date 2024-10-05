@@ -78,6 +78,14 @@ PushModelTransform(render_group* RenderGroup, m4x4 Transform)
     Command->ModelTransform = Transform;
 }
 
+static void
+PushNoDepthTest(render_group* RenderGroup)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->DisableDepthTest = true;
+}
+
+
 shader ColorShader;
 shader FontShader;
 shader TextureShader;
@@ -175,6 +183,7 @@ DrawRenderGroup(render_group* Group, game_assets* Assets)
         SetTexture(Command->Texture);
         SetModelTransform(Command->ModelTransform);
         SetModelColor(Command->Color);
+        SetDepthTest(!Command->DisableDepthTest);
         
         DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
     }

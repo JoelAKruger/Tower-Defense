@@ -100,118 +100,6 @@ GetName(world_region* Region)
 #define STB_PERLIN_IMPLEMENTATION
 #include "stb_perlin.h"
 
-enum triangulation_type : u8
-{
-    Null,
-    TopLeftToBottomRight,
-    BottomLeftToTopRight
-};
-
-struct world_grid
-{
-    u32 Rows;
-    u32 Cols;
-    
-    f32 Width;
-    f32 Height;
-    f32 X0;
-    f32 Y0;
-    
-    v2* Positions;
-    
-    //2D array of dimension (Rows - 1) x (Cols - 1)
-    triangulation_type* TriTypes;
-};
-
-static world_grid
-CreateWorldGrid()
-{
-    world_grid Result = {};
-    
-    f32 X0 = -1.0f;
-    f32 Y0 = -1.0f;
-    f32 Width  = 2.0f;
-    f32 Height = 2.0f;
-    
-    u32 Rows = 13;
-    u32 Cols = 13;
-    
-    Result.Rows = Rows;
-    Result.Cols = Cols;
-    Result.Width = Width;
-    Result.Height = Height;
-    Result.X0 = X0;
-    Result.Y0 = Y0;
-    
-    Result.Positions = (v2*)malloc(sizeof(v2) * Rows * Cols);
-    Result.TriTypes = (triangulation_type*) malloc(sizeof(triangulation_type) * (Rows - 1) * (Cols - 1));
-    
-    f32 Jitter = 0.05f;
-    for (u32 Y = 0; Y < Rows; Y++)
-    {
-        for (u32 X = 0; X < Cols; X++)
-        {
-            f32 dX = Jitter * (Random() - 0.5f);
-            f32 dY = Jitter * (Random() - 0.5f);
-            
-            Result.Positions[Cols * Y + X] = {
-                Width * (X + 0.5f) / Cols + X0 + dX, 
-                Height * (Y + 0.5f) / Rows + Y0 + dY
-            };
-        }
-    }
-    
-    //Get triangulation types
-    for (u32 Y = 0; Y < Rows - 1; Y++)
-    {
-        for (u32 X = 0; X < Cols - 1; X++)
-        {
-            triangulation_type Type = {};
-            if (rand() % 2 == 0)
-            {
-                Type = TopLeftToBottomRight;
-            }
-            else
-            {
-                Type = BottomLeftToTopRight;
-            }
-            
-            Result.TriTypes[Y * (Cols - 1) + X] = Type;
-        }
-    }
-    return Result;
-}
-
-static v2
-GetGeneratedPos(world_grid* Grid, u32 X, u32 Y)
-{
-    Assert(Y < Grid->Rows);
-    Assert(X < Grid->Cols);
-    
-    v2 Result = Grid->Positions[Grid->Cols * Y + X];
-    return Result;
-}
-
-static v2
-GetActualPos(world_grid* Grid, u32 X, u32 Y)
-{
-    Assert(Y < Grid->Rows);
-    Assert(X < Grid->Cols);
-    
-    v2 Result = {Grid->Width * (X + 0.5f) / Grid->Cols + Grid->X0, Grid->Height * (Y + 0.5f) / Grid->Rows + Grid->Y0};
-    return Result;
-}
-
-static triangulation_type
-GetTriType(world_grid* Grid, u32 X, u32 Y)
-{
-    Assert(Y < Grid->Rows - 1);
-    Assert(X < Grid->Cols - 1);
-    
-    triangulation_type Result = Grid->TriTypes[(Grid->Cols - 1) * Y + X];
-    return Result;
-}
-
 static v2
 CenterOf(v2 P0, v2 P1, v2 P2)
 {
@@ -257,8 +145,8 @@ GetWaterColor(f32 Height)
 {
     v3 WaterColor = V3(0.17f, 0.23f, 0.46f);
     v3 Color = WaterColor + 2.0f * (Height - 0.5f) * WaterColor;
-    //return V4(Color, 1.0f);
-    return V4(0.0f, 0.0f, 0.0f, 0.0f);
+    return V4(Color, 1.0f);
+    //return V4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 static v2
@@ -268,7 +156,6 @@ CalculateRegionCenter(world_region* Region)
     
     if (Region->VertexCount > 0)
     {
-        
         for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
         {
             Result += Region->Vertices[VertexIndex];
@@ -276,6 +163,21 @@ CalculateRegionCenter(world_region* Region)
         
         Result = Result * (1.0f / Region->VertexCount);
     }
+    return Result;
+}
+
+static v2
+WorldPosFromGridPos(world* World, int X, int Y)
+{
+    f32 dX = World->Width / World->Cols;
+    f32 dY = 0.875f * World->Height / World->Rows;
+    
+    v2 Result = {World->X0 + X * dX, World->Y0 + Y * dY};
+    if (Y % 2 == 1)
+    {
+        Result.X += 0.5f * dX;
+    }
+    
     return Result;
 }
 
@@ -288,37 +190,38 @@ CreateWorld(world* World)
     World->Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
     World->Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
     
-    world_grid Grid = CreateWorldGrid();
+    World->X0 = -1.0f;
+    World->Y0 = -1.0f;
+    World->Width  = 2.0f;
+    World->Height = 2.0f;
     
-    //TODO: Get rid of manual memory management here
-    triangulation_type* TriangleTypes = (triangulation_type*) malloc(sizeof(triangulation_type) * (Grid.Rows - 1) * (Grid.Cols - 1));
+    World->Rows = 13;
+    World->Cols = 13;
     
-    for (u32 GridY = 1; GridY < Grid.Rows - 1; GridY++)
+    f32 HexagonRadius = 0.5f * World->Height / World->Rows;
+    f32 HexagonSideLength = 1.118034f * HexagonRadius;
+    
+    int RegionIndex = 0;
+    
+    
+    for (int Y = 0; Y < World->Rows; Y++)
     {
-        for (u32 GridX = 1; GridX < Grid.Cols - 1; GridX++)
+        for (int X = 0; X < World->Cols; X++)
         {
-            /*
-P6 P7 P8
-P3 P4 P5
-P0 P1 P2
-    */
+            Assert(RegionIndex < ArrayCount(World->Regions));
+            world_region* Region = World->Regions + RegionIndex;
             
-            v2 P0 = GetGeneratedPos(&Grid, GridX - 1, GridY - 1);
-            v2 P1 = GetGeneratedPos(&Grid, GridX    , GridY - 1);
-            v2 P2 = GetGeneratedPos(&Grid, GridX + 1, GridY - 1);
-            v2 P3 = GetGeneratedPos(&Grid, GridX - 1, GridY);
-            v2 P4 = GetGeneratedPos(&Grid, GridX    , GridY);
-            v2 P5 = GetGeneratedPos(&Grid, GridX + 1, GridY);
-            v2 P6 = GetGeneratedPos(&Grid, GridX - 1, GridY + 1);
-            v2 P7 = GetGeneratedPos(&Grid, GridX    , GridY + 1);
-            v2 P8 = GetGeneratedPos(&Grid, GridX + 1, GridY + 1);
+            Region->Center = WorldPosFromGridPos(World, X, Y);
+            Region->VertexCount = 6;
+            Region->Vertices[0] = Region->Center + HexagonSideLength * V2(0.0f, 1.0f);
+            Region->Vertices[1] = Region->Center + HexagonSideLength * V2(0.86603f, 0.5f);
+            Region->Vertices[2] = Region->Center + HexagonSideLength * V2(0.86603f, -0.5f);
+            Region->Vertices[3] = Region->Center + HexagonSideLength * V2(0.0f, -1.0f);
+            Region->Vertices[4] = Region->Center + HexagonSideLength * V2(-0.86603f, -0.5f);
+            Region->Vertices[5] = Region->Center + HexagonSideLength * V2(-0.86603f, 0.5f);
             
-            char Name[128];
-            sprintf_s(Name, "Region %u", World->RegionCount);
-            
-            world_region* Region = World->Regions + (World->RegionCount++);
-            
-            f32 RegionHeight = GetWorldHeight(P4, Seed);
+            f32 RegionHeight = GetWorldHeight(Region->Center, Seed);
+            Region->Z = 0.25f * (1.0f - RegionHeight);
             
             if (RegionHeight < 0.5f)
             {
@@ -330,64 +233,9 @@ P0 P1 P2
                 Region->Color = GetRandomPlayerColor();
             }
             
-            if (GetTriType(&Grid, GridX - 1, GridY - 1) == TopLeftToBottomRight)
-            {
-                AddVertex(Region, CenterOf(P1, P3, P4));
-            }
-            else
-            {
-                AddVertex(Region, CenterOf(P0, P1, P4));
-                AddVertex(Region, CenterOf(P0, P3, P4));
-            }
-            
-            if (GetTriType(&Grid, GridX - 1, GridY) == TopLeftToBottomRight)
-            {
-                AddVertex(Region, CenterOf(P3, P4, P6));
-                AddVertex(Region, CenterOf(P4, P6, P7));
-            }
-            else
-            {
-                AddVertex(Region, CenterOf(P3, P4, P7));
-            }
-            
-            if (GetTriType(&Grid, GridX, GridY) == TopLeftToBottomRight)
-            {
-                AddVertex(Region, CenterOf(P4, P5, P7));
-            }
-            else
-            {
-                AddVertex(Region, CenterOf(P4, P7, P8));
-                AddVertex(Region, CenterOf(P4, P5, P8));
-            }
-            
-            if (GetTriType(&Grid, GridX, GridY - 1) == TopLeftToBottomRight)
-            {
-                AddVertex(Region, CenterOf(P2, P4, P5));
-                AddVertex(Region, CenterOf(P1, P2, P4));
-            }
-            else
-            {
-                AddVertex(Region, CenterOf(P1, P4, P5));
-            }
-            
-            SetName(Region, Name);
-            
-            Region->Center = CalculateRegionCenter(Region);
+            RegionIndex++;
         }
     }
     
-    //TODO: Get rid of this manual memory management
-    free(Grid.Positions);
-    free(Grid.TriTypes);
-}
-
-struct continent
-{
-    span<v2> Vertices;
-};
-
-static span<continent>
-GetContinents(world* World)
-{
-    
+    World->RegionCount = RegionIndex; 
 }

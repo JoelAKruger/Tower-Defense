@@ -13,6 +13,7 @@ struct world_region
         v2 Positions[16];
     };
     u32 VertexCount;
+    f32 Z;
     
     u32 OwnerIndex;
     
@@ -26,6 +27,12 @@ struct world_region
 struct world
 {
     v4 Colors[2];
+    
+    f32 X0, Y0;
+    f32 Width, Height;
+    
+    int Rows, Cols;
+    
     world_region Regions[256];
     u32 RegionCount;
 };

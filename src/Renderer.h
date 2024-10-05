@@ -46,7 +46,7 @@ struct render_command
 struct render_group
 {
     memory_arena* Arena;
-    render_command Commands[256];
+    render_command Commands[512];
     u32 CommandCount;
 };
 

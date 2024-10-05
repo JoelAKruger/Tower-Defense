@@ -35,17 +35,21 @@ DrawBackground(render_group* RenderGroup)
 }
 
 static void
-DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world_region* Region, v4 Color)
+DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world_region* Region, v4 Color, bool Hovering)
 {
     if (Region->VertexCount == 0)
     {
         return;
     }
+    if (Hovering)
+    {
+        Color.RGB = 0.8f * Color.RGB;
+    }
     
     u32 TriangleCount = Region->VertexCount;
     span<triangle> Triangles = AllocSpan(RenderGroup->Arena, triangle, TriangleCount);
     
-    f32 Z = Region->IsWater ? 0.001f : 0.0f;
+    f32 Z = Region->Z;
     
     for (u32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
     {
@@ -65,10 +69,9 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
     PushVertices(RenderGroup, Triangles.Memory, TriangleCount * sizeof(triangle), sizeof(tri_vertex), 
                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Color);
     
-    //Outline Z (slightly higher)
-    Z = -0.001f;
+    Z -= 0.001f; //Prevent z-fighting
     
-    bool DrawOutline = (Region->IsWater == false);
+    bool DrawOutline = Hovering;
     if (DrawOutline)
     {
         u32 VertexDrawCount = 6 * Region->VertexCount + 2;
@@ -133,14 +136,7 @@ DrawRegions(render_group* RenderGroup, game_state* Game, render_context* Context
         world_region* Region = Game->GlobalState.World.Regions + RegionIndex;
         
         bool Hovering = (Region == Context->HoveringRegion);
-        
-        v4 Color = Region->Color;
-        if (Hovering)
-        {
-            Color.RGB = 0.8f * Color.RGB;
-        }
-        
-        DrawWorldRegion(RenderGroup, Game, &Game->GlobalState.World, Region, Color);
+        DrawWorldRegion(RenderGroup, Game, &Game->GlobalState.World, Region, Region->Color, Hovering);
         
         //Draw name
         /*
