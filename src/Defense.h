@@ -75,12 +75,6 @@ struct tower
     f32 Rotation;
 };
 
-struct model_vertex
-{
-    v3 Position;
-    v3 Normal;
-};
-
 enum tower_edit_mode
 {
     TowerEdit_Null,
@@ -252,29 +246,6 @@ struct app_state
     
     game_state* GameState;
     game_assets* Assets;
-};
-
-enum shader_index
-{
-    Shader_Null,
-    Shader_Color,
-    Shader_Font,
-    Shader_Texture,
-    Shader_Water,
-    Shader_Model,
-    Shader_Background,
-    
-    Shader_Count
-};
-
-enum vertex_buffer_index
-{
-    VertexBuffer_Null,
-    VertexBuffer_Castle,
-    VertexBuffer_Turret,
-    VertexBuffer_World,
-    
-    VertexBuffer_Count
 };
 
 void InitialiseServerState(global_game_state* Game);

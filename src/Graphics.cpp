@@ -30,6 +30,33 @@ struct texture_vertex
     v2 UV;
 };
 
+void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
+{
+    render_command* Command = GetNextEntry(RenderGroup);
+    
+    model_vertex VertexData[6] = {
+        {V3(P0.X, P0.Y, P0.Z)}, 
+        {V3(P0.X, P1.Y, P0.Z)}, 
+        {V3(P1.X, P1.Y, P0.Z)},
+        {V3(P0.X, P0.Y, P0.Z)},
+        {V3(P1.X, P0.Y, P0.Z)},
+        {V3(P1.X, P1.Y, P0.Z)}
+    };
+    
+    CalculateModelVertexNormals((model_triangle*)VertexData, 2);
+    
+    //Get rid of this
+    u64 VertexDataBytes = sizeof(VertexData);
+    
+    Command->VertexData = CopyVertexData(RenderGroup->Arena, VertexData, VertexDataBytes);
+    Command->VertexDataStride = sizeof(model_vertex);
+    Command->VertexDataBytes = VertexDataBytes;
+    
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    Command->Shader = Shader_Model;
+    Command->ModelTransform = IdentityTransform();
+}
+
 static void
 PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {

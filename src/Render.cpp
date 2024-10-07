@@ -1,32 +1,11 @@
-/*
+
 static void
 DrawWater(render_group* RenderGroup, game_state* Game)
 {
-    SetShader(WaterShader);
-    //SetShaderTime((f32)Game->Time);
-    DrawTexture(V3(-0.8f, -0.8f, 0.0f), V3(0.8f, 0.8f, 0.0f));
+    PushRect(RenderGroup, V3(-1.0f, -1.0f, 0.125f), V3(1.0f, 1.0f, 0.125f));
+    PushColor(RenderGroup, V4(0.3f, 0.6f, 1.0f, 0.2f));
 }
-*/
 
-/*
-static void
-PushWater(render_command_group* Group, game_state* Game)
-{
-    Push(Group, CommandSetShader(WaterShader));
-    
-    v3 P0 = V3(-0.8f, -0.8f, 0.0f);
-    v3 P1 = V3(0.8f, 0.8f, 0.0f);
-    
-    texture_vertex VertexData[4] = {
-        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
-        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
-        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
-        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
-    };
-    
-    Push(Group, CommandDraw((f32*)VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(texture_vertex)));
-}
-*/
 
 static void
 DrawBackground(render_group* RenderGroup)
@@ -46,28 +25,40 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
         Color.RGB = 0.8f * Color.RGB;
     }
     
-    u32 TriangleCount = Region->VertexCount;
-    span<triangle> Triangles = AllocSpan(RenderGroup->Arena, triangle, TriangleCount);
+    u32 TriangleCount = Region->VertexCount + 2 * Region->VertexCount; // Top + sides
+    span<model_triangle> Triangles = AllocSpan(RenderGroup->Arena, model_triangle, TriangleCount);
     
     f32 Z = Region->Z;
     
-    for (u32 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
+    //Top
+    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
     {
-        triangle* Tri = Triangles + TriangleIndex;
+        model_triangle* Tri = Triangles + VertexIndex;
         
-        //TODO: Use functions
         Tri->Vertices[0].P = V3(Region->Center, Z);
-        Tri->Vertices[0].Col = Color;
-        
-        Tri->Vertices[1].P = V3(GetVertex(Region, TriangleIndex), Z);
-        Tri->Vertices[1].Col = Color;
-        
-        Tri->Vertices[2].P = V3(GetVertex(Region, TriangleIndex + 1), Z);
-        Tri->Vertices[2].Col = Color;
+        Tri->Vertices[1].P = V3(GetVertex(Region, VertexIndex), Z);
+        Tri->Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), Z);
     }
     
-    PushVertices(RenderGroup, Triangles.Memory, TriangleCount * sizeof(triangle), sizeof(tri_vertex), 
-                 D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Color);
+    //Sides
+    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+    {
+        model_triangle* Tri0 = Triangles + Region->VertexCount + 2 * VertexIndex + 0;
+        model_triangle* Tri1 = Triangles + Region->VertexCount + 2 * VertexIndex + 1;
+        
+        Tri0->Vertices[0].P = V3(GetVertex(Region, VertexIndex), Z);
+        Tri0->Vertices[1].P = V3(GetVertex(Region, VertexIndex), 2.0f);
+        Tri0->Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), 2.0f);
+        
+        Tri1->Vertices[0].P = V3(GetVertex(Region, VertexIndex + 1), 2.0f);
+        Tri1->Vertices[1].P = V3(GetVertex(Region, VertexIndex + 1), Z);
+        Tri1->Vertices[2].P = V3(GetVertex(Region, VertexIndex), Z);
+    }
+    
+    CalculateModelVertexNormals(Triangles.Memory, Triangles.Count);
+    PushVertices(RenderGroup, Triangles.Memory, TriangleCount * sizeof(model_triangle), sizeof(model_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Model);
+    PushColor(RenderGroup, Region->Color);
+    PushModelTransform(RenderGroup, IdentityTransform());
     
     Z -= 0.001f; //Prevent z-fighting
     
@@ -211,7 +202,7 @@ static void
 DrawWorld(render_group* RenderGroup, game_state* Game, render_context* Context)
 {
     //SetDepthTest(false);
-    //DrawWater(Game);
+    
     
     //SetDepthTest(true);
     
@@ -222,8 +213,8 @@ DrawWorld(render_group* RenderGroup, game_state* Game, render_context* Context)
     
     //SetDepthTest(false);
     DrawRegions(RenderGroup, Game, Context);
-    
     DrawTowers(RenderGroup, Game, Context);
+    DrawWater(RenderGroup, Game);
 }
 
 static void

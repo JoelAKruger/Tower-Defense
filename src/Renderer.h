@@ -23,9 +23,43 @@ struct char_vertex
     v4 Color;
 };
 
+struct model_vertex
+{
+    v3 P;
+    v3 Normal;
+};
+
+struct model_triangle
+{
+    model_vertex Vertices[3];
+};
+
 struct triangle
 {
     tri_vertex Vertices[3];
+};
+
+enum shader_index
+{
+    Shader_Null,
+    Shader_Color,
+    Shader_Font,
+    Shader_Texture,
+    Shader_Water,
+    Shader_Model,
+    Shader_Background,
+    
+    Shader_Count
+};
+
+enum vertex_buffer_index
+{
+    VertexBuffer_Null,
+    VertexBuffer_Castle,
+    VertexBuffer_Turret,
+    VertexBuffer_World,
+    
+    VertexBuffer_Count
 };
 
 struct render_command
@@ -63,6 +97,7 @@ struct game_assets
 render_command* GetNextEntry(render_group* RenderGroup);
 render_command* GetLastEntry(render_group* RenderGroup);
 
+void PushRect(render_group* RenderGroup, v3 P0, v3 P1);
 void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader);
 void PushColor(render_group* RenderGroup, v4 Color);
@@ -94,3 +129,6 @@ void SetLightTransform(m4x4 Transform);
 void SetShaderTime(f32 Time);
 void SetModelTransform(m4x4 Transform);
 void SetModelColor(v4 Color);
+
+//Utility functions
+void CalculateModelVertexNormals(model_triangle* Triangles, u64 TriangleCount);

@@ -37,15 +37,16 @@ void Win32SaveFile(char* Path, span<u8> Data);
 #define PlatformSaveFile    Win32SaveFile
 
 #include "D3D11.h"
+#include "Renderer.h"
 #include "Defense.h"
 #include "Platform.h"
-#include "Renderer.h"
 #include "Input.h"
 
 #include "Win32Network.cpp"
 #include "Graphics.cpp"
 #include "Defense.cpp"
 #include "D3D11.cpp"
+#include "Renderer.cpp"
 
 static std::string GlobalTextInput;
 static f32 GlobalScrollDelta;
@@ -53,10 +54,6 @@ static f32 GlobalScrollDelta;
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
 
 //Platform Functions
-
-
-
-
 void KeyboardAndMouseInputState(input_state* InputState, HWND Window);
 memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);
 font_texture CreateFontTexture(allocator Allocator, char* Path);
