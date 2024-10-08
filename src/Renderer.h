@@ -39,6 +39,11 @@ struct triangle
     tri_vertex Vertices[3];
 };
 
+struct cube_map
+{
+    texture Textures[6];
+};
+
 enum shader_index
 {
     Shader_Null,
@@ -89,9 +94,13 @@ struct game_assets
     vertex_buffer VertexBuffers[VertexBuffer_Count];
     shader Shaders[Shader_Count];
     texture Textures[32];
+    cube_map Skybox;
     
     render_output ShadowMaps[1];
 };
+
+//Initialisation
+texture CreateTexture(char* Path);
 
 //Render Group
 render_command* GetNextEntry(render_group* RenderGroup);

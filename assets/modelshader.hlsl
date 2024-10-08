@@ -69,7 +69,7 @@ float4 ps_main(VS_Output input) : SV_Target
 	float ambient = 0.3f;
 
 	float3 light_dir = 1.0f * normalize(float3(1.0f, 1.0f, 1.0f));
-	float diffuse = 0.5f + 0.5f * dot(normalize(input.normal), light_dir);
+	float diffuse = 0.5f + 0.5f * dot(normalize(input.normal), -1.0f * light_dir);
 
 	//float3 view_dir = normalize(camera_pos - input.pos);
 	//float3 reflect_dir = reflect(-light_dir, input.normal);

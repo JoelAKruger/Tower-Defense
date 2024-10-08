@@ -6,7 +6,7 @@ CalculateModelVertexNormals(model_triangle* Triangles, u64 TriangleCount)
         model_triangle* Tri = Triangles + TriangleIndex;
         
         v3 Normal = UnitV(CrossProduct(Tri->Vertices[1].P - Tri->Vertices[0].P, 
-                                       Tri->Vertices[2].P - Tri->Vertices[0].P));
+                                       Tri->Vertices[2].P - Tri->Vertices[1].P));
         
         Tri->Vertices[0].Normal = Normal;
         Tri->Vertices[1].Normal = Normal;

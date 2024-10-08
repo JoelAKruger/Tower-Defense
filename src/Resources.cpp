@@ -9,6 +9,24 @@ CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
     return Result;
 }
 
+static void
+LoadSkybox(game_assets* Assets)
+{
+    char* Paths[6] = {
+        "assets/textures/skybox/clouds1_up.bmp",
+        "assets/textures/skybox/clouds1_north.bmp",
+        "assets/textures/skybox/clouds1_east.bmp",
+        "assets/textures/skybox/clouds1_south.bmp",
+        "assets/textures/skybox/clouds1_west.bmp",
+        "assets/textures/skybox/clouds1_down.bmp"
+    };
+    
+    for (int TextureIndex = 0; TextureIndex < 6; TextureIndex++)
+    {
+        Assets->Skybox.Textures[TextureIndex] = CreateTexture(Paths[TextureIndex]);
+    }
+}
+
 static game_assets*
 LoadAssets(allocator Allocator)
 {
@@ -28,6 +46,8 @@ LoadAssets(allocator Allocator)
     Assets->Shaders[Shader_Water] = WaterShader;
     Assets->Shaders[Shader_Model] = ModelShader;
     //Assets->Shaders[Shader_Background] = BackgroundShader;
+    
+    LoadSkybox(Assets);
     
     return Assets;
 }

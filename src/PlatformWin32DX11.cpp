@@ -57,7 +57,6 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
 void KeyboardAndMouseInputState(input_state* InputState, HWND Window);
 memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);
 font_texture CreateFontTexture(allocator Allocator, char* Path);
-texture CreateTexture(char* Path);
 void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio);
 void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
 

@@ -1,4 +1,3 @@
-
 static void
 DrawWater(render_group* RenderGroup, game_state* Game)
 {
@@ -6,6 +5,12 @@ DrawWater(render_group* RenderGroup, game_state* Game)
     PushColor(RenderGroup, V4(0.3f, 0.6f, 1.0f, 0.2f));
 }
 
+static void
+DrawSkybox(render_group* RenderGroup, game_assets* Assets)
+{
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[5], V3(-1000.0f, -1000.0f, 1000.0f), V3(1000.0f, 1000.0f, 1000.0f));
+    PushNoDepthTest(RenderGroup);
+}
 
 static void
 DrawBackground(render_group* RenderGroup)
@@ -199,17 +204,19 @@ DrawTowers(render_group* RenderGroup, game_state* Game, render_context* Context)
 }
 
 static void
-DrawWorld(render_group* RenderGroup, game_state* Game, render_context* Context)
+DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, render_context* Context)
 {
     //SetDepthTest(false);
     
     
     //SetDepthTest(true);
-    
+    /*
     if (Game->ShowBackground)
     {
         DrawBackground(RenderGroup);
     }
+*/
+    DrawSkybox(RenderGroup, Assets);
     
     //SetDepthTest(false);
     DrawRegions(RenderGroup, Game, Context);
@@ -227,7 +234,7 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     render_group RenderGroup = {};
     RenderGroup.Arena = Context->Arena; //TODO: Fix this
     
-    DrawWorld(&RenderGroup, Game, Context);
+    DrawWorld(&RenderGroup, Game, Assets, Context);
     
     SetDepthTest(true);
     ClearOutput(Game->ShadowMap);

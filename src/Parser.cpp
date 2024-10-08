@@ -250,15 +250,15 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
         if (ChangeOrder)
         {
             //Flip direction of vertices to convert to left-handed
-            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[2].PositionIndex - 1], -1.0f * Normals[Face->Vertices[2].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], -1.0f * Normals[Face->Vertices[1].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[0].PositionIndex - 1], -1.0f * Normals[Face->Vertices[0].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[2].PositionIndex - 1], Normals[Face->Vertices[2].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], Normals[Face->Vertices[1].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[0].PositionIndex - 1], Normals[Face->Vertices[0].NormalIndex - 1]};
         }
         else
         {
-            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[2].PositionIndex - 1], Normals[Face->Vertices[2].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], Normals[Face->Vertices[1].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[0].PositionIndex - 1], Normals[Face->Vertices[0].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[2].PositionIndex - 1], -1.0f * Normals[Face->Vertices[2].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], -1.0f * Normals[Face->Vertices[1].NormalIndex - 1]};
+            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[0].PositionIndex - 1], -1.0f * Normals[Face->Vertices[0].NormalIndex - 1]};
         }
     }
     

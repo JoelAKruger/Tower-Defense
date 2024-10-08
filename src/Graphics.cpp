@@ -38,9 +38,9 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
         {V3(P0.X, P0.Y, P0.Z)}, 
         {V3(P0.X, P1.Y, P0.Z)}, 
         {V3(P1.X, P1.Y, P0.Z)},
-        {V3(P0.X, P0.Y, P0.Z)},
+        {V3(P1.X, P1.Y, P0.Z)},
         {V3(P1.X, P0.Y, P0.Z)},
-        {V3(P1.X, P1.Y, P0.Z)}
+        {V3(P0.X, P0.Y, P0.Z)}
     };
     
     CalculateModelVertexNormals((model_triangle*)VertexData, 2);
@@ -52,7 +52,7 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
     Command->VertexDataStride = sizeof(model_vertex);
     Command->VertexDataBytes = VertexDataBytes;
     
-    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
     Command->Shader = Shader_Model;
     Command->ModelTransform = IdentityTransform();
 }
@@ -76,7 +76,7 @@ PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV
     Command->VertexDataBytes = VertexDataBytes;
     
     Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-    Command->Shader = Shader_Background;
+    Command->Shader = Shader_Texture;
     Command->Texture = Texture;
 }
 
@@ -111,7 +111,6 @@ PushNoDepthTest(render_group* RenderGroup)
     render_command* Command = GetLastEntry(RenderGroup);
     Command->DisableDepthTest = true;
 }
-
 
 shader ColorShader;
 shader FontShader;
