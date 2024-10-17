@@ -174,6 +174,7 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
         CONSOLE_COMMAND(Console, create_server);
         CONSOLE_COMMAND(Console, connect);
         CONSOLE_COMMAND(Console, new_world);
+        CONSOLE_COMMAND(Console, clear);
     }
     
     //Check if toggled
@@ -317,5 +318,14 @@ DrawConsole(console* Console, memory_arena* Arena)
     {
         Y0 += InputTextHeight + Pad;
         DrawGUIString(History, V2(X0, Y0 + 0.25f * InputTextHeight), TextColor, InputTextHeight);
+    }
+}
+
+void Command_clear(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
+{
+    for (u64 HistoryIndex = 0; HistoryIndex < ArrayCount(Console->History); HistoryIndex++)
+    {
+        free(Console->History[HistoryIndex].Text);
+        Console->History[HistoryIndex] = {};
     }
 }

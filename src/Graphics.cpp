@@ -112,6 +112,13 @@ PushNoDepthTest(render_group* RenderGroup)
     Command->DisableDepthTest = true;
 }
 
+static void
+PushShader(render_group* RenderGroup, shader_index Shader)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->Shader = Shader;
+}
+
 shader ColorShader;
 shader FontShader;
 shader TextureShader;

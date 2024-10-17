@@ -85,7 +85,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     AdjustWindowRect(&ClientRect, WS_OVERLAPPEDWINDOW, FALSE);
     
     HWND Window = CreateWindow(WindowClass.lpszClassName,
-                               L"Puzzle Game",
+                               L"Tower Defence Game",
                                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                CW_USEDEFAULT, CW_USEDEFAULT,
                                ClientRect.right - ClientRect.left,

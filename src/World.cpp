@@ -201,8 +201,8 @@ CreateWorld(world* World)
     f32 HexagonRadius = 0.5f * World->Height / World->Rows;
     f32 HexagonSideLength = 1.118034f * HexagonRadius;
     
-    int RegionIndex = 0;
-    
+    //Region 0 is invalid
+    int RegionIndex = 1;
     
     for (int Y = 0; Y < World->Rows; Y++)
     {

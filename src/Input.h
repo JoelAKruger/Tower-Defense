@@ -17,7 +17,7 @@ enum
 struct input_state
 {
     button_state Buttons;
-    v2 Cursor;
+    v2 Cursor; // [-1, 1] is the window
     v2 Movement;
 };
 

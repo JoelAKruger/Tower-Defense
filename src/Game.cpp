@@ -1,6 +1,6 @@
 
 static v2
-ScreenToWorld(game_state* Game, v2 ScreenPos)
+ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f)
 {
     //TODO: Cache inverse matrix?
     
@@ -12,7 +12,7 @@ ScreenToWorld(game_state* Game, v2 ScreenPos)
     f32 Z = P0.Z;
     f32 DeltaZ = P0.Z - P1.Z;
     
-    f32 T = Z / DeltaZ;
+    f32 T = (Z - WorldZ) / DeltaZ;
     
     v3 ResultXYZ = P0 + T * (P1 - P0);
     
@@ -132,7 +132,7 @@ GameInitialise(allocator Allocator)
 }
 
 static bool
-InRegion(world_region* Region, v2 WorldPos, game_input* Input)
+InRegion(world_region* Region, v2 WorldPos)
 {
     if (Region->VertexCount < 3)
     {
@@ -424,6 +424,32 @@ HandleServerMessage(server_message* Message, game_state* GameState)
     }
 }
 
+static u64
+GetHoveredRegionIndex(game_state* Game, v2 CursorP)
+{
+    //TODO: This is rather inefficient
+    
+    u64 Result = 0;
+    
+    world* World = &Game->GlobalState.World;
+    
+    //Check regions in order, which I think is back to front, so regions
+    //that are further forward will be prioritised?
+    
+    for (u64 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        
+        v2 WorldP = ScreenToWorld(Game, CursorP, Region->Z);
+        
+        if (InRegion(Region, WorldP))
+        {
+            Result = RegionIndex;
+        }
+    }
+    
+    return Result;
+}
 
 static void 
 GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
@@ -506,22 +532,16 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 1500.0f);
-    SetTransform(GameState->WorldTransform);
     
-    //Get hovered region
-    v2 CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
-    u32 HoveringRegionIndex = 0;
+    //These are only valid if HoveringRegionIndex != 0
     world_region* HoveringRegion = 0;
-    for (u32 RegionIndex = 0; RegionIndex < GameState->GlobalState.World.RegionCount; RegionIndex++)
+    v2 CursorWorldPos = {};
+    
+    u64 HoveringRegionIndex = GetHoveredRegionIndex(GameState, Input->Cursor);
+    if (HoveringRegionIndex)
     {
-        world_region* Region = GameState->GlobalState.World.Regions + RegionIndex;
-        bool Hovering = InRegion(Region, CursorWorldPos, Input);
-        if (Hovering)
-        {
-            HoveringRegion = Region;
-            HoveringRegionIndex = RegionIndex;
-            break;
-        }
+        HoveringRegion = GameState->GlobalState.World.Regions + HoveringRegionIndex;
+        CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, HoveringRegion->Z);
     }
     
     render_context RenderContext = {};
@@ -554,14 +574,21 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     SetShader(ModelShader);
     
     //Draw new tower
-    if (GameState->Mode == Mode_Place)
+    
+    //Must have a HoveringRegion, or else I have no idea where the player is trying to place the tower
+    if (GameState->Mode == Mode_Place && HoveringRegion)
     {
         v2 P = CursorWorldPos;
         
-        bool Placeable = (HoveringRegion &&
-                          !HoveringRegion->IsWater &&
+        bool Placeable = (!HoveringRegion->IsWater &&
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+        
+        f32 Z = 0.0f;
+        if (HoveringRegion)
+        {
+            Z = HoveringRegion->Z;
+        }
         
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
@@ -580,7 +607,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         //Draw slightly above a normal tower to prevent z-fighting
         //TODO: This is a waste
         render_group RenderGroup = {};
-        DrawTower(&RenderGroup, GameState, Type, V3(P, -0.001f), Color);
+        DrawTower(&RenderGroup, GameState, Type, V3(P, Z - 0.001f), Color);
         DrawRenderGroup(&RenderGroup, Assets);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
@@ -607,7 +634,9 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
         {
             tower* Tower = GameState->GlobalState.Towers + TowerIndex;
-            v3 DrawP = V3(Tower->P, 0.0f) + V3(0.0f, 0.0f, -0.07f);
+            f32 TowerBaseZ = GameState->GlobalState.World.Regions[Tower->RegionIndex].Z;
+            
+            v3 DrawP = V3(Tower->P, TowerBaseZ) + V3(0.0f, 0.0f, -0.07f);
             v2 ScreenP = WorldToScreen(GameState, DrawP);
             
             f32 HealthBarEdge = 0.02f;
@@ -647,21 +676,23 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     
     BeginGUI(Input);
     //Draw GUI
+    
+    //TODO: Create a proper layout system
     if (GameState->Mode == Mode_MyTurn)
     {
-        if (Button(V2(-0.95f, -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Castle")))
+        if (Button(V2(-0.95f, -0.8f), V2(0.6f / GlobalAspectRatio, 0.1f), String("Castle")))
         {
             SetMode(GameState, Mode_Place);
             GameState->PlacementType = Tower_Castle;
         }
         
-        if (Button(V2(-0.95f + (0.6f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("Turret")))
+        if (Button(V2(-0.95f + (0.7f / GlobalAspectRatio), -0.8f), V2(0.6f / GlobalAspectRatio, 0.1f), String("Turret")))
         {
             SetMode(GameState, Mode_Place);
             GameState->PlacementType = Tower_Turret;
         }
         
-        if (Button(V2(-0.95f + (1.2f / GlobalAspectRatio), -0.8f), V2(0.5f / GlobalAspectRatio, 0.2f), String("End Turn")))
+        if (Button(V2(-0.95f + (1.4f / GlobalAspectRatio), -0.8f), V2(0.6f / GlobalAspectRatio, 0.1f), String("End Turn")))
         {
             player_request Request = {Request_EndTurn};
             SendPacket(&GameState->MultiplayerContext, &Request);

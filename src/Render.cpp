@@ -2,7 +2,7 @@ static void
 DrawWater(render_group* RenderGroup, game_state* Game)
 {
     PushRect(RenderGroup, V3(-1.0f, -1.0f, 0.125f), V3(1.0f, 1.0f, 0.125f));
-    PushColor(RenderGroup, V4(0.3f, 0.6f, 1.0f, 0.2f));
+    PushShader(RenderGroup, Shader_Water);
 }
 
 static void
@@ -199,7 +199,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, render_context* Context)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(RenderGroup, Game, Tower->Type, V3(Tower->P, 0.0f), Color, Tower->Rotation);
+        DrawTower(RenderGroup, Game, Tower->Type, V3(Tower->P, Region->Z), Color, Tower->Rotation);
     }
 }
 
