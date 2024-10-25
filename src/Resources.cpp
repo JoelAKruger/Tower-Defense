@@ -39,14 +39,6 @@ LoadAssets(allocator Allocator)
     Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", false);
     Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", true);
     
-    //TODO: Don't do this
-    Assets->Shaders[Shader_Color] = ColorShader;
-    Assets->Shaders[Shader_Font] = FontShader;
-    Assets->Shaders[Shader_Texture] = TextureShader;
-    Assets->Shaders[Shader_Water] = WaterShader;
-    Assets->Shaders[Shader_Model] = ModelShader;
-    //Assets->Shaders[Shader_Background] = BackgroundShader;
-    
     LoadSkybox(Assets);
     
     return Assets;

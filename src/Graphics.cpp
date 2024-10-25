@@ -119,6 +119,7 @@ PushShader(render_group* RenderGroup, shader_index Shader)
     Command->Shader = Shader;
 }
 
+/*
 shader ColorShader;
 shader FontShader;
 shader TextureShader;
@@ -129,6 +130,7 @@ texture BackgroundTexture;
 texture TargetTexture;
 texture TowerTexture;
 texture ExplosionTexture;
+*/
 
 f32 GlobalAspectRatio;
 

@@ -1,9 +1,3 @@
-struct VS_Input
-{
-	float3 pos : POS;
-	float3 normal : NORMAL;
-};
-
 struct VS_Output
 {
 	float4 pos : SV_POSITION;
@@ -11,6 +5,12 @@ struct VS_Output
 	float4 light_space_pos : POS1;
 	float3 normal : NORMAL;
 	float4 color : COLOR;
+};
+
+struct VS_Input
+{
+	float3 pos : POS;
+	float3 normal : NORMAL;
 };
 
 cbuffer WorldTransform : register(b0)

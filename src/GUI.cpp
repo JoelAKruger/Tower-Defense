@@ -13,8 +13,11 @@ struct gui_state
 gui_state GlobalGUIState;
 u32 GlobalGUIIdentifierCounter;
 
+shader ColorShader;
+shader FontShader;
+
 static void
-BeginGUI(game_input* Input)
+BeginGUI(game_input* Input, game_assets* Assets)
 {
 	//Check if buttons no longer exist
 	if (GlobalGUIState.Hot >= GlobalGUIIdentifierCounter)
@@ -28,6 +31,9 @@ BeginGUI(game_input* Input)
 	GlobalGUIState.InputHandled = false;
     
 	GlobalGUIIdentifierCounter = 1;
+    
+    ColorShader = Assets->Shaders[Shader_Color];
+    FontShader = Assets->Shaders[Shader_Font];
 }
 
 static inline bool

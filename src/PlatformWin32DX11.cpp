@@ -101,41 +101,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     IDXGISwapChain1* SwapChain = CreateD3D11SwapChain(Window);
     RenderOutput = CreateRenderOutput(SwapChain);
     
-    D3D11_INPUT_ELEMENT_DESC InputElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    
-    d3d11_shader Shader = CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
-    ColorShader = Shader;
-    
-    d3d11_shader BackgroundShader = CreateShader(L"assets/background.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
-    
-    D3D11_INPUT_ELEMENT_DESC FontShaderInputElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    FontShader = CreateShader(L"assets/fontshaders.hlsl", FontShaderInputElementDesc, ArrayCount(FontShaderInputElementDesc));
-    
-    D3D11_INPUT_ELEMENT_DESC TextureShaderElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    TextureShader = CreateShader(L"assets/texture.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
-    WaterShader = CreateShader(L"assets/water.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
-    
-    D3D11_INPUT_ELEMENT_DESC ModelShaderElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    
-    ModelShader = CreateShader(L"assets/modelshader.hlsl", ModelShaderElementDesc, ArrayCount(ModelShaderElementDesc));
-    
     D3D11_BLEND_DESC BlendDesc = {};
     BlendDesc.AlphaToCoverageEnable = false;
     BlendDesc.IndependentBlendEnable = false;
@@ -191,13 +156,6 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     game_input PreviousInput = {};
     
     memory_arena PerFrameDebugInfoArena = CreateSubArena(&PermanentArena, Kilobytes(4), TRANSIENT);
-    
-    texture Texture = CreateTexture("assets/world.png");
-    BackgroundTexture = Texture;
-    
-    TowerTexture     = CreateTexture("assets/tower.png");
-    TargetTexture    = CreateTexture("assets/target.png");
-    ExplosionTexture = CreateTexture("assets/explosion.png");
     
     font_texture FontTexture = CreateFontTexture(Allocator, "assets/LiberationMono-Regular.ttf");
     DefaultFont = &FontTexture;

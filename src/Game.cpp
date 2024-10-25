@@ -282,7 +282,8 @@ DrawExplosion(v2 P, f32 Z, f32 ExplosionRadius, u32 Frame)
     
     v2 ExplosionTextureSize = ExplosionRadius * V2(16.0f / 9.0f, 1.0f); //This matches the texture
     
-    SetTexture(ExplosionTexture);
+    //TODO: Fix this
+    //SetTexture(ExplosionTexture);
     
     v2 P0 = P - 0.5f * ExplosionTextureSize;
     v2 P1 = P + 0.5f * ExplosionTextureSize;
@@ -304,8 +305,9 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     
     if (Tower->Type == Tower_Turret)
     {
-        SetShader(TextureShader);
-        SetTexture(TargetTexture);
+        //TODO: Fix this
+        //SetShader(TextureShader);
+        //SetTexture(TargetTexture);
         SetTransform(Game->WorldTransform);
         DrawTexture(V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
     }
@@ -315,8 +317,9 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     {
         v2 CursorP = ScreenToWorld(Game, Input->Cursor);
         
-        SetShader(TextureShader);
-        SetTexture(TargetTexture);
+        //TODO: Fix this
+        //SetShader(TextureShader);
+        //SetTexture(TargetTexture);
         SetTransform(Game->WorldTransform);
         DrawTexture(V3(CursorP - 0.5f * TargetSize, TargetZ), V3(CursorP + 0.5f * TargetSize, TargetZ));
         
@@ -382,7 +385,8 @@ static void
 TickAnimations(game_state* Game, f32 DeltaTime)
 {
     SetDepthTest(false);
-    SetShader(TextureShader);
+    //TODO: Fix this
+    //SetShader(TextureShader);
     
     for (u32 AnimationIndex = 0; AnimationIndex < Game->AnimationCount; AnimationIndex++)
     {
@@ -571,7 +575,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     }
     
     SetDepthTest(true);
-    SetShader(ModelShader);
+    SetShader(Assets->Shaders[Shader_Model]);
     
     //Draw new tower
     
@@ -674,7 +678,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         
     }
     
-    BeginGUI(Input);
+    BeginGUI(Input, Assets);
     //Draw GUI
     
     //TODO: Create a proper layout system

@@ -141,14 +141,14 @@ ClearRenderOutput(render_output Output)
     if (Output.DepthStencilShaderResourceView) Output.DepthStencilShaderResourceView->Release();
 }
 
-d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementDesc, u32 InputElementDescCount)
+d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementDesc, u32 InputElementDescCount, char* PixelShaderEntry = "ps_main", char* VertexShaderEntry = "vs_main")
 {
     d3d11_shader Result = {};
     
     //Create Vertex Shader
     ID3DBlob* VertexShaderBlob;
     ID3DBlob* CompileErrorsBlob;
-    HRESULT HResult = D3DCompileFromFile(Path, 0, 0, "vs_main", "vs_5_0", 0, 0, &VertexShaderBlob, &CompileErrorsBlob);
+    HRESULT HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, VertexShaderEntry, "vs_5_0", 0, 0, &VertexShaderBlob, &CompileErrorsBlob);
     
     if (FAILED(HResult))
     {
@@ -169,7 +169,7 @@ d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementD
     
     //Create Pixel Shader
     ID3DBlob* PixelShaderBlob;
-    HResult = D3DCompileFromFile(Path, 0, 0, "ps_main", "ps_5_0", 0, 0, &PixelShaderBlob, &CompileErrorsBlob);
+    HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", 0, 0, &PixelShaderBlob, &CompileErrorsBlob);
     
     if (FAILED(HResult))
     {
@@ -608,7 +608,10 @@ LoadShaders(game_assets* Assets)
         {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
-    Assets->Shaders[Shader_Color] = CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
+    //Used for the GUI
+    Assets->Shaders[Shader_Color] = CreateShader(L"assets/colourshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), "PixelShader_Color", "VertexShader");
+    
+    
     Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", FontShaderInputElementDesc, ArrayCount(FontShaderInputElementDesc));
     

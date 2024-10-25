@@ -15,7 +15,8 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 static void
 DrawBackground(render_group* RenderGroup)
 {
-    PushTexturedRect(RenderGroup, BackgroundTexture, V3(0.0f, 0.0f, 0.0f), V3(1.0f, 0.5625f, 0.0f));
+    //TODO: Fix this
+    //PushTexturedRect(RenderGroup, BackgroundTexture, V3(0.0f, 0.0f, 0.0f), V3(1.0f, 0.5625f, 0.0f));
 }
 
 static void

@@ -19,7 +19,7 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
     {
         case Screen_MainMenu:
         {
-            BeginGUI(Input);
+            BeginGUI(Input, App->Assets);
             
             f32 ButtonWidth = 0.8f / GlobalAspectRatio;
             if (Button(V2(-0.5f * ButtonWidth, 0.0f), V2(ButtonWidth, 0.3f), String("Play")))
