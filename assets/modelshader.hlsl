@@ -7,10 +7,17 @@ struct VS_Output
 	float4 color : COLOR;
 };
 
+struct VS_ShadowOutput
+{
+	float4 pos : SV_POSITION;
+};
+
 struct VS_Input
 {
 	float3 pos : POS;
 	float3 normal : NORMAL;
+	float4 color : COL;
+	float2 uv : UV;
 };
 
 cbuffer WorldTransform : register(b0)
@@ -57,6 +64,21 @@ VS_Output vs_main(VS_Input input)
 
 	output.color = color;
 	return output;
+}
+
+VS_ShadowOutput vs_main_shadow(VS_Input input)
+{
+	float4 pos = mul(float4(input.pos, 1.0f), model_transform);
+
+	VS_ShadowOutput output;
+	output.pos = mul(pos, world_transform);
+
+	return output;
+}
+
+float ps_main_shadow(VS_ShadowOutput input) : SV_Depth
+{
+	return input.pos.z / input.pos.w;
 }
 
 float4 ps_main(VS_Output input) : SV_Target

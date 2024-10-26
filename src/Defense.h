@@ -203,8 +203,8 @@ struct game_state
     f64 Time;
     
     //TODO: Do not draw models in immediate mode
-    span<model_vertex> CubeVertices;
-    span<model_vertex> TurretVertices;
+    span<vertex> CubeVertices;
+    span<vertex> TurretVertices;
     
     m4x4 CastleTransform;
     m4x4 TurretTransform;

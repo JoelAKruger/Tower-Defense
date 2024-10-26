@@ -34,7 +34,7 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
-    model_vertex VertexData[6] = {
+    vertex VertexData[6] = {
         {V3(P0.X, P0.Y, P0.Z)}, 
         {V3(P0.X, P1.Y, P0.Z)}, 
         {V3(P1.X, P1.Y, P0.Z)},
@@ -43,13 +43,13 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
         {V3(P0.X, P0.Y, P0.Z)}
     };
     
-    CalculateModelVertexNormals((model_triangle*)VertexData, 2);
+    CalculateModelVertexNormals((tri*)VertexData, 2);
     
     //Get rid of this
     u64 VertexDataBytes = sizeof(VertexData);
     
     Command->VertexData = CopyVertexData(RenderGroup->Arena, VertexData, VertexDataBytes);
-    Command->VertexDataStride = sizeof(model_vertex);
+    Command->VertexDataStride = sizeof(vertex);
     Command->VertexDataBytes = VertexDataBytes;
     
     Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -137,14 +137,14 @@ f32 GlobalAspectRatio;
 static void 
 DrawQuad(v2 A, v2 B, v2 C, v2 D, v4 Color)
 {
-    f32 VertexData[] = {
-        A.X, A.Y, 0.0f, Color.R, Color.G, Color.B, Color.A,
-        B.X, B.Y, 0.0f, Color.R, Color.G, Color.B, Color.A,
-        C.X, C.Y, 0.0f, Color.R, Color.G, Color.B, Color.A,
-        D.X, D.Y, 0.0f, Color.R, Color.G, Color.B, Color.A
+    vertex Vertices[4] = {
+        {V3(A.X, A.Y, 0.0f), {}, Color},
+        {V3(B.X, B.Y, 0.0f), {}, Color},
+        {V3(C.X, C.Y, 0.0f), {}, Color},
+        {V3(D.X, D.Y, 0.0f), {}, Color}
     };
     
-    DrawVertices(VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, 7 * sizeof(f32));
+    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
 }
 
 static void
@@ -204,8 +204,8 @@ GUIStringWidth(string String, f32 FontSize)
     return Result;
 }
 
-static void
-DrawRenderGroup(render_group* Group, game_assets* Assets)
+static void 
+DrawRenderGroup(render_group* Group, game_assets* Assets, render_draw_type Type)
 {
     //TODO: Optimise this
     for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
@@ -213,6 +213,12 @@ DrawRenderGroup(render_group* Group, game_assets* Assets)
         render_command* Command = Group->Commands + CommandIndex;
         
         shader Shader = Assets->Shaders[Command->Shader];
+        
+        if (Type == Draw_OnlyDepth && Command->Shader == Shader_Model)
+        {
+            Shader = Assets->Shaders[Shader_OnlyDepth];
+        }
+        
         SetShader(Shader);
         
         SetTexture(Command->Texture);

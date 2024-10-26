@@ -2,9 +2,9 @@
 static vertex_buffer
 CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
 {
-    span<model_vertex> Vertices = LoadModel(Allocator, Path, SwitchOrder);
+    span<vertex> Vertices = LoadModel(Allocator, Path, SwitchOrder);
     
-    vertex_buffer Result = {Vertices.Memory, Vertices.Count * sizeof(model_vertex)};
+    vertex_buffer Result = {Vertices.Memory, Vertices.Count * sizeof(vertex)};
     
     return Result;
 }

@@ -4,39 +4,17 @@ struct vertex_buffer
     u64 Bytes;
 };
 
-struct color_vertex
-{
-    v3 Position;
-    v4 Color;
-};
-
-struct tri_vertex
-{
-    v3 P;
-    v4 Col;
-};
-
-struct char_vertex
-{
-    v3 Position;
-    v2 UV;
-    v4 Color;
-};
-
-struct model_vertex
+struct vertex
 {
     v3 P;
     v3 Normal;
+    v4 Color;
+    v2 UV;
 };
 
-struct model_triangle
+struct tri
 {
-    model_vertex Vertices[3];
-};
-
-struct triangle
-{
-    tri_vertex Vertices[3];
+    vertex Vertices[3];
 };
 
 struct cube_map
@@ -53,6 +31,7 @@ enum shader_index
     Shader_Water,
     Shader_Model,
     Shader_Background,
+    Shader_OnlyDepth,
     
     Shader_Count
 };
@@ -99,6 +78,12 @@ struct game_assets
     render_output ShadowMaps[1];
 };
 
+enum render_draw_type
+{
+    Draw_Regular,
+    Draw_OnlyDepth,
+};
+
 //Initialisation
 texture CreateTexture(char* Path);
 
@@ -120,7 +105,7 @@ void DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void DrawString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f, f32 AspectRatio = 1.0f);
 void DrawGUIString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f);
 f32 GUIStringWidth(string String, f32 FontSize);
-void DrawRenderGroup(render_group* Group, game_assets* Assets);
+void DrawRenderGroup(render_group* Group, game_assets* Assets, render_draw_type Type = Draw_Regular);
 
 //Transforms
 m4x4 IdentityTransform();
@@ -140,4 +125,4 @@ void SetModelTransform(m4x4 Transform);
 void SetModelColor(v4 Color);
 
 //Utility functions
-void CalculateModelVertexNormals(model_triangle* Triangles, u64 TriangleCount);
+void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);

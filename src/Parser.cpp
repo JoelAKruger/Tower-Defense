@@ -132,7 +132,7 @@ ParseVertex(file_reader* Reader)
     return Result;
 }
 
-static span<model_vertex>
+static span<vertex>
 LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
 {
     span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
@@ -241,7 +241,7 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
     /* Not optimised! (TODO: Optimise) */
     u32 VertexCount = FaceCount * 3;
     
-    span<model_vertex> Vertices = AllocSpan(Allocator.Permanent, model_vertex, VertexCount);
+    span<vertex> Vertices = AllocSpan(Allocator.Permanent, vertex, VertexCount);
     
     for (u32 FaceIndex = 0; FaceIndex < FaceCount; FaceIndex++)
     {

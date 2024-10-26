@@ -410,11 +410,11 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
     f32 X = Position.X;
     f32 Y = Position.Y;
     
-    u32 Stride = sizeof(char_vertex);
+    u32 Stride = sizeof(vertex);
     u32 Offset = 0;
     u32 VertexCount = 6 * Text.Length;
     
-    char_vertex* VertexData = AllocArray(&GraphicsArena, char_vertex, VertexCount);
+    vertex* VertexData = AllocArray(&GraphicsArena, vertex, VertexCount);
     
     for (u32 I = 0; I < Text.Length; I++)
     {
@@ -428,12 +428,12 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
         f32 Width = FontTexturePixelsToScreenX * (f32)(BakedChar.x1 - BakedChar.x0);
         f32 Height = FontTexturePixelsToScreenY * (f32)(BakedChar.y1 - BakedChar.y0);
         
-        VertexData[6 * I + 0].Position = {X0, Y1 - Height};
-        VertexData[6 * I + 1].Position = {X0, Y1};
-        VertexData[6 * I + 2].Position = {X0 + Width, Y1};
-        VertexData[6 * I + 3].Position = {X0 + Width, Y1};
-        VertexData[6 * I + 4].Position = {X0 + Width, Y1 - Height};
-        VertexData[6 * I + 5].Position = {X0, Y1 - Height};
+        VertexData[6 * I + 0].P = {X0, Y1 - Height};
+        VertexData[6 * I + 1].P = {X0, Y1};
+        VertexData[6 * I + 2].P = {X0 + Width, Y1};
+        VertexData[6 * I + 3].P = {X0 + Width, Y1};
+        VertexData[6 * I + 4].P = {X0 + Width, Y1 - Height};
+        VertexData[6 * I + 5].P = {X0, Y1 - Height};
         
         VertexData[6 * I + 0].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
         VertexData[6 * I + 1].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
@@ -453,7 +453,7 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
     }
     
     D3D11_BUFFER_DESC VertexBufferDesc = {};
-    VertexBufferDesc.ByteWidth = VertexCount * sizeof(char_vertex);
+    VertexBufferDesc.ByteWidth = VertexCount * sizeof(vertex);
     VertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
     VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     
@@ -586,6 +586,14 @@ LoadShaders(game_assets* Assets)
     D3D11_INPUT_ELEMENT_DESC InputElementDesc[] = 
     {
         {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+    };
+    
+    D3D11_INPUT_ELEMENT_DESC ColorInputElementDesc[] = 
+    {
+        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
         {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
@@ -609,14 +617,16 @@ LoadShaders(game_assets* Assets)
     };
     
     //Used for the GUI
-    Assets->Shaders[Shader_Color] = CreateShader(L"assets/colourshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), "PixelShader_Color", "VertexShader");
+    Assets->Shaders[Shader_Color] = CreateShader(L"assets/colourshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
     
-    Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
-    Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", FontShaderInputElementDesc, ArrayCount(FontShaderInputElementDesc));
+    Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", ColorInputElementDesc, ArrayCount(ColorInputElementDesc));
+    Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
     Assets->Shaders[Shader_Texture]= CreateShader(L"assets/texture.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
     Assets->Shaders[Shader_Water]= CreateShader(L"assets/water.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
     
-    Assets->Shaders[Shader_Model]= CreateShader(L"assets/modelshader.hlsl", ModelShaderElementDesc, ArrayCount(ModelShaderElementDesc));
+    Assets->Shaders[Shader_Model]= CreateShader(L"assets/modelshader.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
+    Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/modelshader.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                    "ps_main_shadow", "vs_main_shadow");
 }
