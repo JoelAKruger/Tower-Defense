@@ -80,8 +80,9 @@ struct game_assets
 
 enum render_draw_type
 {
-    Draw_Regular,
-    Draw_OnlyDepth,
+    Draw_Regular = 0,
+    Draw_OnlyDepth = 1,
+    Draw_Shadow = 2
 };
 
 //Initialisation

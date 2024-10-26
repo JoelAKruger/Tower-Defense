@@ -113,6 +113,13 @@ PushNoDepthTest(render_group* RenderGroup)
 }
 
 static void
+PushNoShadow(render_group* RenderGroup)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->DisableShadows = true;
+}
+
+static void
 PushShader(render_group* RenderGroup, shader_index Shader)
 {
     render_command* Command = GetLastEntry(RenderGroup);
@@ -212,9 +219,14 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, render_draw_type Type)
     {
         render_command* Command = Group->Commands + CommandIndex;
         
+        if ((Type & Draw_Shadow) && Command->DisableShadows)
+        {
+            continue;
+        }
+        
         shader Shader = Assets->Shaders[Command->Shader];
         
-        if (Type == Draw_OnlyDepth && Command->Shader == Shader_Model)
+        if ((Type & Draw_OnlyDepth) && (Command->Shader == Shader_Model))
         {
             Shader = Assets->Shaders[Shader_OnlyDepth];
         }

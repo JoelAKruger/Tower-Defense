@@ -3,6 +3,7 @@ DrawWater(render_group* RenderGroup, game_state* Game)
 {
     PushRect(RenderGroup, V3(-1.0f, -1.0f, 0.125f), V3(1.0f, 1.0f, 0.125f));
     PushShader(RenderGroup, Shader_Water);
+    PushNoShadow(RenderGroup);
 }
 
 static void
@@ -119,6 +120,7 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
         
         PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
                      D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Color);
+        PushNoShadow(RenderGroup);
     }
 }
 
@@ -241,7 +243,7 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     ClearOutput(Game->ShadowMap);
     SetOutput(Game->ShadowMap);
     SetTransform(Transform);
-    DrawRenderGroup(&RenderGroup, Assets, Draw_OnlyDepth);
+    DrawRenderGroup(&RenderGroup, Assets, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     UnsetShadowMap();
     
     SetFrameBufferAsOutput();
