@@ -22,6 +22,17 @@ struct cube_map
     texture Textures[6];
 };
 
+struct shader_constants
+{
+    m4x4 WorldToClipTransform; 
+    m4x4 ModelToWorldTransform; //Per draw call
+    m4x4 WorldToLightTransform;
+    v4 Color;                   //Per draw call
+    f32 Time;
+    f32 Pad[3];
+    v4 ClipPlane;
+};
+
 enum shader_index
 {
     Shader_Null,
@@ -75,6 +86,9 @@ struct game_assets
     texture Textures[32];
     cube_map Skybox;
     
+    render_output WaterReflection;
+    render_output WaterRefraction;
+    
     render_output ShadowMaps[1];
 };
 
@@ -87,6 +101,8 @@ enum render_draw_type
 
 //Initialisation
 texture CreateTexture(char* Path);
+render_output CreateShadowDepthTexture(int Width, int Height);
+render_output CreateRenderOutput(int Width, int Height);
 
 //Render Group
 render_command* GetNextEntry(render_group* RenderGroup);
@@ -106,7 +122,7 @@ void DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void DrawString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f, f32 AspectRatio = 1.0f);
 void DrawGUIString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f);
 f32 GUIStringWidth(string String, f32 FontSize);
-void DrawRenderGroup(render_group* Group, game_assets* Assets, render_draw_type Type = Draw_Regular);
+void DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type = Draw_Regular);
 
 //Transforms
 m4x4 IdentityTransform();
@@ -119,6 +135,7 @@ m4x4 ViewTransform(v3 Eye, v3 At);
 m4x4 OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f32 Far);
 
 //Shader constants
+void SetShaderConstants(shader_constants Constants);
 void SetTransform(m4x4 Transform);
 void SetLightTransform(m4x4 Transform);
 void SetShaderTime(f32 Time);

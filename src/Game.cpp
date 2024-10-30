@@ -612,7 +612,11 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         //TODO: This is a waste
         render_group RenderGroup = {};
         DrawTower(&RenderGroup, GameState, Type, V3(P, Z - 0.001f), Color);
-        DrawRenderGroup(&RenderGroup, Assets);
+        
+        shader_constants Constants = {};
+        Constants.WorldToClipTransform = GameState->WorldTransform;
+        Constants.WorldToLightTransform = IdentityTransform(); //TODO: Fix this
+        DrawRenderGroup(&RenderGroup, Assets, Constants);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {

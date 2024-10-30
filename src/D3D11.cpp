@@ -93,7 +93,7 @@ IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
 }
 
 static render_output
-CreateRenderOutput(IDXGISwapChain1* SwapChain)
+GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
 {
     render_output Result = {};
     
@@ -132,10 +132,92 @@ CreateRenderOutput(IDXGISwapChain1* SwapChain)
     return Result;
 }
 
+//TODO: This has no way of being resized :(
+//TODO: This duplicates code in CreateShadowTexture() or whatever the hell that other function is called
+static render_output
+CreateRenderOutput(int Width, int Height)
+{
+    render_output Result = {};
+    
+    //Create texture
+    ID3D11Texture2D* ColorTexture = 0;
+    
+    D3D11_TEXTURE2D_DESC Desc = {};
+    Desc.Width = Width;
+    Desc.Height = Height;
+    Desc.MipLevels = 1;
+    Desc.ArraySize = 1;
+    Desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    Desc.SampleDesc.Count = 1;
+    Desc.SampleDesc.Quality = 0;
+    Desc.Usage = D3D11_USAGE_DEFAULT;
+    Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    D3D11Device->CreateTexture2D(&Desc, 0, &ColorTexture);
+    
+    //Create render target view for colour texture
+    HRESULT HResult = D3D11Device->CreateRenderTargetView(ColorTexture, 0, &Result.RenderTargetView);
+    Assert(SUCCEEDED(HResult));
+    
+    //Create shader resource view for colour texture
+    D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc = {};
+    ShaderResourceViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ShaderResourceViewDesc.Texture2D.MipLevels = 1;
+    //TODO: Check if ShaderResourceViewDesc can be null
+    D3D11Device->CreateShaderResourceView(ColorTexture, &ShaderResourceViewDesc, &Result.ShaderResourceView);
+    
+    //Create depth map
+    ID3D11Texture2D* DepthTexture = 0;
+    
+    Desc = {};
+    Desc.Width = Width;
+    Desc.Height = Height;
+    Desc.MipLevels = 1;
+    Desc.ArraySize = 1;
+    Desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+    Desc.SampleDesc.Count = 1;
+    Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
+    
+    D3D11Device->CreateTexture2D(&Desc, 0, &DepthTexture);
+    
+    //Create depth stencil view for depth texture
+    D3D11_DEPTH_STENCIL_VIEW_DESC DepthStencilViewDesc = {};
+    DepthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    DepthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    
+    D3D11Device->CreateDepthStencilView(DepthTexture, &DepthStencilViewDesc, &Result.DepthStencilView);
+    
+    //Create shader resource view for depth texture
+    ShaderResourceViewDesc = {};
+    ShaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ShaderResourceViewDesc.Texture2D.MipLevels = 1;
+    D3D11Device->CreateShaderResourceView(DepthTexture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
+    
+    Result.Width = Width;
+    Result.Height = Height;
+    
+    //Create texture
+    D3D11_SAMPLER_DESC SamplerDesc = {};
+    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.BorderColor[0] = 1.0f;
+    SamplerDesc.BorderColor[1] = 1.0f;
+    SamplerDesc.BorderColor[2] = 1.0f;
+    SamplerDesc.BorderColor[3] = 1.0f;
+    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    
+    D3D11Device->CreateSamplerState(&SamplerDesc, &Result.Texture.SamplerState);
+    Result.Texture.TextureView = Result.ShaderResourceView;
+    
+    return Result;
+}
+
 static void
 ClearRenderOutput(render_output Output)
 {
-    if (Output.Texture) Output.Texture->Release();
     if (Output.RenderTargetView) Output.RenderTargetView->Release();
     if (Output.DepthStencilView) Output.DepthStencilView->Release();
     if (Output.DepthStencilShaderResourceView) Output.DepthStencilShaderResourceView->Release();
@@ -368,6 +450,8 @@ CreateTexture(char* Path)
 static render_output
 CreateShadowDepthTexture(int Width, int Height)
 {
+    ID3D11Texture2D* DepthTexture = 0;
+    
     //Create depth map
     D3D11_TEXTURE2D_DESC Desc = {};
     Desc.Width = Width;
@@ -379,24 +463,26 @@ CreateShadowDepthTexture(int Width, int Height)
     Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
     
     render_output Result = {};
-    D3D11Device->CreateTexture2D(&Desc, 0, &Result.Texture);
+    D3D11Device->CreateTexture2D(&Desc, 0, &DepthTexture);
     
     //Create depth stencil view
     D3D11_DEPTH_STENCIL_VIEW_DESC DepthStencilViewDesc = {};
     DepthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
     DepthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
     
-    D3D11Device->CreateDepthStencilView(Result.Texture, &DepthStencilViewDesc, &Result.DepthStencilView);
+    D3D11Device->CreateDepthStencilView(DepthTexture, &DepthStencilViewDesc, &Result.DepthStencilView);
     
     //Create shader resource view
     D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc = {};
     ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     ShaderResourceViewDesc.Texture2D.MipLevels = 1;
-    D3D11Device->CreateShaderResourceView(Result.Texture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
+    D3D11Device->CreateShaderResourceView(DepthTexture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
     
     Result.Width = Width;
     Result.Height = Height;
+    
+    DepthTexture->Release();
     
     return Result;
 }
@@ -488,7 +574,7 @@ D3D11TextWidth(string String, f32 Size, f32 AspectRatio)
 }
 
 static void
-SetVertexShaderConstant(u32 Index, void* Data, u32 Bytes)
+SetShaderConstant(u32 Index, void* Data, u32 Bytes)
 {
     D3D11_BUFFER_DESC ConstantBufferDesc = {};
     ConstantBufferDesc.ByteWidth = Bytes;
@@ -501,16 +587,16 @@ SetVertexShaderConstant(u32 Index, void* Data, u32 Bytes)
     D3D11Device->CreateBuffer(&ConstantBufferDesc, &SubresourceData, &Buffer);
     
     D3D11DeviceContext->VSSetConstantBuffers(Index, 1, &Buffer);
+    D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &Buffer);
     
     Buffer->Release();
 }
 
-
 static void
-SetTexture(texture Texture)
+SetTexture(texture Texture, int Index)
 {
-    D3D11DeviceContext->PSSetShaderResources(0, 1, &Texture.TextureView);
-    D3D11DeviceContext->PSSetSamplers(0, 1, &Texture.SamplerState);
+    D3D11DeviceContext->PSSetShaderResources(Index, 1, &Texture.TextureView);
+    D3D11DeviceContext->PSSetSamplers(Index, 1, &Texture.SamplerState);
 }
 
 static void
@@ -619,14 +705,17 @@ LoadShaders(game_assets* Assets)
     //Used for the GUI
     Assets->Shaders[Shader_Color] = CreateShader(L"assets/colourshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
-    
     Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", ColorInputElementDesc, ArrayCount(ColorInputElementDesc));
     Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
     Assets->Shaders[Shader_Texture]= CreateShader(L"assets/texture.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
-    Assets->Shaders[Shader_Water]= CreateShader(L"assets/water.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
     
-    Assets->Shaders[Shader_Model]= CreateShader(L"assets/modelshader.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
-    Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/modelshader.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                    "ps_main_shadow", "vs_main_shadow");
+    Assets->Shaders[Shader_Water]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                "PixelShader_Water", "MyVertexShader");
+    
+    Assets->Shaders[Shader_Model]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                "PixelShader_Model", "MyVertexShader");
+    
+    Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                    "PixelShader_Model", "MyVertexShader");
 }

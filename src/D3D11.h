@@ -16,13 +16,24 @@ struct d3d11_font_texture
     f32 RasterisedSize;
 };
 
+struct d3d11_texture
+{
+    ID3D11SamplerState* SamplerState;
+    ID3D11ShaderResourceView* TextureView;
+};
+
 struct d3d11_render_output
 {
-    ID3D11Texture2D* Texture;
+    //Drawing to output
     ID3D11RenderTargetView* RenderTargetView;
-    
     ID3D11DepthStencilView* DepthStencilView;
+    
+    //Sampling from output
+    ID3D11ShaderResourceView* ShaderResourceView; //For colour information
     ID3D11ShaderResourceView* DepthStencilShaderResourceView;
+    
+    // Texture.TextureView is equal to ShaderResourceView
+    d3d11_texture Texture;
     
     i32 Width, Height;
 };
@@ -30,12 +41,6 @@ struct d3d11_render_output
 struct d3d11_vertex_buffer
 {
     ID3D11Buffer* Buffer;
-};
-
-struct d3d11_texture
-{
-    ID3D11SamplerState* SamplerState;
-    ID3D11ShaderResourceView* TextureView;
 };
 
 typedef d3d11_shader        shader;

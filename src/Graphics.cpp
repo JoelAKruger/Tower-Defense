@@ -78,6 +78,7 @@ PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV
     Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
     Command->Shader = Shader_Texture;
     Command->Texture = Texture;
+    Command->ModelTransform = IdentityTransform();
 }
 
 static void
@@ -89,6 +90,7 @@ PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11
     Command->VertexDataStride = Stride;
     Command->Topology = Topology;
     Command->Shader = Shader;
+    Command->ModelTransform = IdentityTransform();
 }
 
 static void
@@ -212,7 +214,7 @@ GUIStringWidth(string String, f32 FontSize)
 }
 
 static void 
-DrawRenderGroup(render_group* Group, game_assets* Assets, render_draw_type Type)
+DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type)
 {
     //TODO: Optimise this
     for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
@@ -231,12 +233,19 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, render_draw_type Type)
             Shader = Assets->Shaders[Shader_OnlyDepth];
         }
         
-        SetShader(Shader);
+        Constants.ModelToWorldTransform = Command->ModelTransform;
+        Constants.Color = Command->Color;
         
+        SetShader(Shader);
         SetTexture(Command->Texture);
+        
+        //TODO: Remove these
         SetModelTransform(Command->ModelTransform);
         SetModelColor(Command->Color);
+        
         SetDepthTest(!Command->DisableDepthTest);
+        
+        SetShaderConstants(Constants);
         
         DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
     }
@@ -246,34 +255,43 @@ static void
 SetTransform(m4x4 Transform)
 {
     Transform = Transpose(Transform);
-    SetVertexShaderConstant(0, &Transform, sizeof(Transform));
+    SetShaderConstant(0, &Transform, sizeof(Transform));
 }
 
 static void
 SetLightTransform(m4x4 Transform)
 {
     Transform = Transpose(Transform);
-    SetVertexShaderConstant(4, &Transform, sizeof(Transform));
+    SetShaderConstant(4, &Transform, sizeof(Transform));
 }
 
 static void
 SetShaderTime(f32 Time)
 {
     f32 Constant[4] = {Time};
-    SetVertexShaderConstant(1, Constant, sizeof(Constant));
+    SetShaderConstant(1, Constant, sizeof(Constant));
 }
 
 static void
 SetModelTransform(m4x4 Transform)
 {
     Transform = Transpose(Transform);
-    SetVertexShaderConstant(2, &Transform, sizeof(Transform));
+    SetShaderConstant(2, &Transform, sizeof(Transform));
 }
 
 static void
 SetModelColor(v4 Color)
 {
-    SetVertexShaderConstant(3, &Color, sizeof(Color));
+    SetShaderConstant(3, &Color, sizeof(Color));
+}
+
+static void
+SetShaderConstants(shader_constants Constants)
+{
+    Constants.WorldToClipTransform  = Transpose(Constants.WorldToClipTransform);
+    Constants.ModelToWorldTransform = Transpose(Constants.ModelToWorldTransform);
+    Constants.WorldToLightTransform = Transpose(Constants.WorldToLightTransform);
+    SetShaderConstant(5, &Constants, sizeof(Constants));
 }
 
 static m4x4

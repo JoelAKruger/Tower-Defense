@@ -119,7 +119,7 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
         }
         
         PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
-                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Color);
+                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Model);
         PushNoShadow(RenderGroup);
     }
 }
@@ -230,6 +230,8 @@ DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, rend
 static void
 RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
 {
+    m4x4 WorldTransform = Game->WorldTransform;
+    
     v3 LightP = V3(-1.0f, -1.0f, -1.0f);
     v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
     m4x4 Transform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 3.0f);
@@ -239,16 +241,55 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     
     DrawWorld(&RenderGroup, Game, Assets, Context);
     
+    shader_constants Constants = {};
+    Constants.WorldToClipTransform = Transform;
+    Constants.WorldToLightTransform = Transform;
+    
     SetDepthTest(true);
     ClearOutput(Game->ShadowMap);
     SetOutput(Game->ShadowMap);
     SetTransform(Transform);
-    DrawRenderGroup(&RenderGroup, Assets, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
+    DrawRenderGroup(&RenderGroup, Assets, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     UnsetShadowMap();
     
-    SetFrameBufferAsOutput();
-    SetTransform(Game->WorldTransform);
-    SetLightTransform(Transform);
+    Constants.WorldToClipTransform = WorldTransform;
+    
+    //Draw reflection texture
+    f32 WaterZ = 0.125f;
+    
+    v3 ReflectionDirection = Game->CameraDirection;
+    ReflectionDirection.Z *= -1.0f;
+    v3 ReflectionCameraP = Game->CameraP;
+    ReflectionCameraP.Z -= 2.0f * (ReflectionCameraP.Z - WaterZ);
+    v3 ReflectionLookAt = ReflectionCameraP + ReflectionDirection;
+    
+    m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 1500.0f);
+    
+    //Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, -WaterZ);
+    Constants.WorldToClipTransform = ReflectionWorldTransform;
+    ClearOutput(Assets->WaterReflection);
+    SetOutput(Assets->WaterReflection);
+    DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    
+    //Refraction texture
+    //Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
+    Constants.WorldToClipTransform = WorldTransform;
+    ClearOutput(Assets->WaterRefraction);
+    SetOutput(Assets->WaterRefraction);
+    DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    
+    //Draw normal world
+    Constants.ClipPlane = {};
+    
+    PushTexturedRect(&RenderGroup, Assets->WaterReflection.Texture, V3(-1.5f, -1.5f, 0.0f), V3(-1.0f, -1.0f, 0.0f));
+    
+    //Set reflection and refraction textures
+    SetTexture(Assets->WaterReflection.Texture, 2);
+    SetTexture(Assets->WaterRefraction.Texture, 3);
+    
     SetShadowMap(Game->ShadowMap);
-    DrawRenderGroup(&RenderGroup, Assets, Draw_Regular);
+    SetFrameBufferAsOutput();
+    SetTransform(WorldTransform);
+    SetLightTransform(Transform);
+    DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
 }

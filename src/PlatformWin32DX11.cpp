@@ -99,7 +99,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     CreateD3D11Device();
     IDXGISwapChain1* SwapChain = CreateD3D11SwapChain(Window);
-    RenderOutput = CreateRenderOutput(SwapChain);
+    RenderOutput = GetDefaultRenderOutput(SwapChain);
     
     D3D11_BLEND_DESC BlendDesc = {};
     BlendDesc.AlphaToCoverageEnable = false;
@@ -194,7 +194,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
             Assert(SUCCEEDED(Result));
             
             
-            RenderOutput = CreateRenderOutput(SwapChain);
+            RenderOutput = GetDefaultRenderOutput(SwapChain);
             
             /*
             ID3D11Texture2D* FrameBuffer;
