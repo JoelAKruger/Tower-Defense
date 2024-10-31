@@ -113,15 +113,38 @@ SamplerState reflection_sampler : register(s2);
 Texture2D refraction_texture : register(t3);
 SamplerState refraction_sampler : register(s3);
 
+Texture2D water_dudv_texture : register(t4);
+SamplerState water_dudv_sampler : register(s4);
 
 float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 {
+	float4 water_color = float4(0.0f, 0.2f, 0.05f, 1.0f);
+	float distortion_strength = 0.02f;
+	float distortion_scaling = 6.0f;
+	float wave_speed = 0.03f;
+
+	float2 uv0 = frac(input.uv * distortion_scaling + float2(0.5f * wave_speed * time, 0.0f));
+	float2 uv1 = frac(input.uv * distortion_scaling + float2(-wave_speed * time, -wave_speed * time));
 	float2 screen_uv = 0.5f * (input.pos_clip.xy / input.pos_clip.w) + float2(0.5f, 0.5f);
 
-	float4 reflection_color = reflection_texture.Sample(reflection_sampler, float2(screen_uv.x, screen_uv.y));
-	float4 refraction_color = refraction_texture.Sample(refraction_sampler, float2(screen_uv.x, 1.0f - screen_uv.y));
+	float2 reflect_coords = screen_uv;
+	float2 refract_coords = float2(screen_uv.x, 1.0f - screen_uv.y);
+
+	float2 distortion0 = float2(0.0f, 0.0f); //water_dudv_texture.Sample(water_dudv_sampler, uv0).rg * 2.0f - 1.0f;
+	float2 distortion1 = water_dudv_texture.Sample(water_dudv_sampler, uv1).rg * 2.0f - 1.0f;
+
+	float2 distortion = distortion0 + distortion1;
+
+	reflect_coords += distortion * distortion_strength;
+	refract_coords += distortion * distortion_strength;
+	reflect_coords = clamp(reflect_coords, 0.001f, 0.999f);
+	refract_coords = clamp(refract_coords, 0.001f, 0.999f);
+
+	float4 reflection_color = reflection_texture.Sample(reflection_sampler, reflect_coords);
+	float4 refraction_color = refraction_texture.Sample(refraction_sampler, refract_coords);
 
 	float4 color = lerp(reflection_color, refraction_color, 0.5f);
+	color = lerp(color, water_color, 0.12f);
 
 	return color;
 }

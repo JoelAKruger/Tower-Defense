@@ -42,6 +42,7 @@ LoadAssets(allocator Allocator)
     
     Assets->WaterReflection = CreateRenderOutput(2048, 2048);
     Assets->WaterRefraction = CreateRenderOutput(2048, 2048);
+    Assets->WaterDuDv = CreateTexture("assets/textures/water_dudv.png");
     
     return Assets;
 }

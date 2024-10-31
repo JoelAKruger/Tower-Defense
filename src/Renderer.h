@@ -89,6 +89,7 @@ struct game_assets
     
     render_output WaterReflection;
     render_output WaterRefraction;
+    texture WaterDuDv;
     
     render_output ShadowMaps[1];
 };

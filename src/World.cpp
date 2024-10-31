@@ -223,7 +223,7 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
 static void
 CreateWorld(world* World)
 {
-    static u32 Seed = 1;
+    static u32 Seed = 2000;
     Seed++;
     
     World->Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);

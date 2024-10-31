@@ -287,6 +287,7 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     shader_constants Constants = {};
     Constants.WorldToClipTransform = Transform;
     Constants.WorldToLightTransform = Transform;
+    Constants.Time = Game->Time; //TODO: Maybe make this periodic?
     
     //Draw 
     SetDepthTest(true);
@@ -331,8 +332,9 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     //Set reflection and refraction textures
     SetFrameBufferAsOutput();
     SetShadowMap(Game->ShadowMap);
-    SetTexture(Assets->WaterReflection.Texture, 2); //Reflection
-    SetTexture(Assets->WaterRefraction.Texture, 3); //Refraction
+    SetTexture(Assets->WaterReflection.Texture, 2);
+    SetTexture(Assets->WaterRefraction.Texture, 3);
+    SetTexture(Assets->WaterDuDv, 4);
     
     SetTransform(WorldTransform);
     SetLightTransform(Transform);
