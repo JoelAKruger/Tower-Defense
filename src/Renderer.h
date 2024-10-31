@@ -108,7 +108,7 @@ render_output CreateRenderOutput(int Width, int Height);
 render_command* GetNextEntry(render_group* RenderGroup);
 render_command* GetLastEntry(render_group* RenderGroup);
 
-void PushRect(render_group* RenderGroup, v3 P0, v3 P1);
+void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader);
 void PushColor(render_group* RenderGroup, v4 Color);

@@ -30,17 +30,15 @@ struct texture_vertex
     v2 UV;
 };
 
-void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
+void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
-    vertex VertexData[6] = {
-        {V3(P0.X, P0.Y, P0.Z)}, 
-        {V3(P0.X, P1.Y, P0.Z)}, 
-        {V3(P1.X, P1.Y, P0.Z)},
-        {V3(P1.X, P1.Y, P0.Z)},
-        {V3(P1.X, P0.Y, P0.Z)},
-        {V3(P0.X, P0.Y, P0.Z)}
+    vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), {}, {}, V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), {}, {}, V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), {}, {}, V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), {}, {}, V2(UV1.X, UV1.Y)}
     };
     
     CalculateModelVertexNormals((tri*)VertexData, 2);
@@ -52,7 +50,7 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1)
     Command->VertexDataStride = sizeof(vertex);
     Command->VertexDataBytes = VertexDataBytes;
     
-    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
     Command->Shader = Shader_Model;
     Command->ModelTransform = IdentityTransform();
 }

@@ -3,7 +3,6 @@ DrawWater(render_group* RenderGroup, game_state* Game)
 {
     PushRect(RenderGroup, V3(-1.0f, -1.0f, 0.125f), V3(1.0f, 1.0f, 0.125f));
     PushShader(RenderGroup, Shader_Water);
-    PushNoShadow(RenderGroup);
 }
 
 static void
@@ -209,10 +208,6 @@ DrawTowers(render_group* RenderGroup, game_state* Game, render_context* Context)
 static void
 DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, render_context* Context)
 {
-    //SetDepthTest(false);
-    
-    
-    //SetDepthTest(true);
     /*
     if (Game->ShowBackground)
     {
@@ -221,10 +216,9 @@ DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, rend
 */
     DrawSkybox(RenderGroup, Assets);
     
-    //SetDepthTest(false);
     DrawRegions(RenderGroup, Game, Context);
     DrawTowers(RenderGroup, Game, Context);
-    DrawWater(RenderGroup, Game);
+    //DrawWater(RenderGroup, Game); //Water is now drawn in RenderWorld();
 }
 
 static void
@@ -245,12 +239,13 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     Constants.WorldToClipTransform = Transform;
     Constants.WorldToLightTransform = Transform;
     
+    //Draw 
     SetDepthTest(true);
+    UnsetShadowMap();
     ClearOutput(Game->ShadowMap);
     SetOutput(Game->ShadowMap);
     SetTransform(Transform);
     DrawRenderGroup(&RenderGroup, Assets, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
-    UnsetShadowMap();
     
     Constants.WorldToClipTransform = WorldTransform;
     
@@ -265,14 +260,14 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     
     m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 1500.0f);
     
-    //Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, -WaterZ);
+    Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
     Constants.WorldToClipTransform = ReflectionWorldTransform;
     ClearOutput(Assets->WaterReflection);
     SetOutput(Assets->WaterReflection);
     DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
     
     //Refraction texture
-    //Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
+    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
     Constants.WorldToClipTransform = WorldTransform;
     ClearOutput(Assets->WaterRefraction);
     SetOutput(Assets->WaterRefraction);
@@ -281,15 +276,18 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     //Draw normal world
     Constants.ClipPlane = {};
     
-    PushTexturedRect(&RenderGroup, Assets->WaterReflection.Texture, V3(-1.5f, -1.5f, 0.0f), V3(-1.0f, -1.0f, 0.0f));
+    //PushTexturedRect(&RenderGroup, Assets->WaterReflection.Texture, V3(-1.5f, -1.5f, 0.0f), V3(-1.0f, -1.0f, 0.0f));
+    DrawWater(&RenderGroup, Game);
     
     //Set reflection and refraction textures
-    SetTexture(Assets->WaterReflection.Texture, 2);
-    SetTexture(Assets->WaterRefraction.Texture, 3);
-    
-    SetShadowMap(Game->ShadowMap);
     SetFrameBufferAsOutput();
+    SetShadowMap(Game->ShadowMap);
+    SetTexture(Assets->WaterReflection.Texture, 2); //Reflection
+    SetTexture(Assets->WaterRefraction.Texture, 3); //Refraction
+    
     SetTransform(WorldTransform);
     SetLightTransform(Transform);
     DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    
+    //TODO: UnsetTexture(2), UnsetTexture(3)
 }

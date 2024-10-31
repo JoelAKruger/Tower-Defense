@@ -11,6 +11,7 @@ struct VS_Output_Default
 	float4 pos : SV_POSITION;
 	float3 pos_world : POS0;
 	float4 pos_light_space : POS1;
+	float4 pos_clip : TEXCOORD0;
 	float4 color : COL;
 	float3 normal : NORMAL;
 	float2 uv : UV;
@@ -34,11 +35,13 @@ SamplerComparisonState shadow_sampler : register(s1);
 VS_Output_Default MyVertexShader(VS_Input input) 
 {
 	float4 world_pos = mul(float4(input.pos, 1.0f), model_to_world);
+	float4 pos_clip = mul(world_pos, world_to_clip);
 
 	VS_Output_Default output;
-	output.pos = mul(world_pos, world_to_clip);
+	output.pos = pos_clip;
 	output.pos_world = world_pos.xyz / world_pos.w;
 	output.pos_light_space = mul(world_pos, world_to_light);
+	output.pos_clip = pos_clip;
 	output.color = input.color + color;
 	output.normal = (float3) mul(float4(input.normal, 0.0f), model_to_world);
 	output.uv = input.uv;
@@ -113,10 +116,10 @@ SamplerState refraction_sampler : register(s3);
 
 float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 {
-	float2 uv = input.uv;
+	float2 screen_uv = 0.5f * (input.pos_clip.xy / input.pos_clip.w) + float2(0.5f, 0.5f);
 
-	float4 reflection_color = reflection_texture.Sample(reflection_sampler, uv);
-	float4 refraction_color = reflection_texture.Sample(reflection_sampler, uv);
+	float4 reflection_color = reflection_texture.Sample(reflection_sampler, float2(screen_uv.x, screen_uv.y));
+	float4 refraction_color = refraction_texture.Sample(refraction_sampler, float2(screen_uv.x, 1.0f - screen_uv.y));
 
 	float4 color = lerp(reflection_color, refraction_color, 0.5f);
 

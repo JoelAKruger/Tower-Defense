@@ -12,7 +12,5 @@ void ClearOutput(render_output Output);
 void SetOutput(render_output Output);
 void SetFrameBufferAsOutput();
 render_output CreateShadowDepthTexture(int Width, int Height);
-void SetShadowMap(render_output Texture);
-void UnsetShadowMap();
 void LoadShaders(game_assets* Assets);
 renderer_vertex_buffer CreateVertexBuffer(void* Data, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64 Stride);

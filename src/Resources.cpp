@@ -41,8 +41,8 @@ LoadAssets(allocator Allocator)
     
     LoadSkybox(Assets);
     
-    Assets->WaterReflection = CreateRenderOutput(1024, 1024);
-    Assets->WaterRefraction = CreateRenderOutput(1024, 1024);
+    Assets->WaterReflection = CreateRenderOutput(2048, 2048);
+    Assets->WaterRefraction = CreateRenderOutput(2048, 2048);
     
     return Assets;
 }
