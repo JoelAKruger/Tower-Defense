@@ -1,7 +1,7 @@
 static v2
 GetVertex(world_region* Region, i32 Index)
 {
-    u32 VertexIndex = (Region->VertexCount + Index) % (Region->VertexCount);
+    u32 VertexIndex = (ArrayCount(Region->Vertices) + Index) % (ArrayCount(Region->Vertices));
     v2 Result = Region->Vertices[VertexIndex];
     return Result;
 }
@@ -10,7 +10,7 @@ static f32
 DistanceInsideRegion(world_region* Region, v2 P)
 {
     f32 MinDistance = 1000.0f;
-    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+    for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
     {
         v2 A = GetVertex(Region, VertexIndex);
         v2 B = GetVertex(Region, VertexIndex + 1);
@@ -107,13 +107,6 @@ CenterOf(v2 P0, v2 P1, v2 P2)
     return Result;
 }
 
-static void
-AddVertex(world_region* Region, v2 Vertex)
-{
-    Region->Vertices[Region->VertexCount++] = Vertex;
-    Assert(Region->VertexCount <= ArrayCount(Region->Vertices));
-}
-
 static f32
 GetWorldHeight(v2 P, u32 Seed)
 {
@@ -150,23 +143,6 @@ GetWaterColor(f32 Height)
 }
 
 static v2
-CalculateRegionCenter(world_region* Region)
-{
-    v2 Result = {};
-    
-    if (Region->VertexCount > 0)
-    {
-        for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
-        {
-            Result += Region->Vertices[VertexIndex];
-        }
-        
-        Result = Result * (1.0f / Region->VertexCount);
-    }
-    return Result;
-}
-
-static v2
 WorldPosFromGridPos(world* World, int X, int Y)
 {
     f32 dX = World->Width / World->Cols;
@@ -179,6 +155,69 @@ WorldPosFromGridPos(world* World, int X, int Y)
     }
     
     return Result;
+}
+
+static void
+SetColor(tri* Tri, v4 Color)
+{
+    Tri->Vertices[0].Color = Color;
+    Tri->Vertices[1].Color = Color;
+    Tri->Vertices[2].Color = Color;
+}
+
+static void
+CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
+{
+    u64 TriangleCount = (World->RegionCount - 1) * 3 * ArrayCount(world_region::Vertices);
+    static_array<tri> Triangles = AllocStaticArray(Arena, tri, TriangleCount);
+    
+    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        f32 Z = Region->Z;
+        v4 Color = Region->Color;
+        
+        //Top
+        for (u64 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
+        {
+            tri Tri = {};
+            
+            Tri.Vertices[0].P = V3(Region->Center, Z);
+            Tri.Vertices[1].P = V3(GetVertex(Region, VertexIndex), Z);
+            Tri.Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), Z);
+            
+            SetColor(&Tri, Color);
+            Add(&Triangles, Tri);
+        }
+        
+        //Sides
+        for (u64 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
+        {
+            tri Tri0 = {};
+            tri Tri1 = {};
+            
+            Tri0.Vertices[0].P = V3(GetVertex(Region, VertexIndex), Z);
+            Tri0.Vertices[1].P = V3(GetVertex(Region, VertexIndex), 2.0f);
+            Tri0.Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), 2.0f);
+            
+            Tri1.Vertices[0].P = V3(GetVertex(Region, VertexIndex + 1), 2.0f);
+            Tri1.Vertices[1].P = V3(GetVertex(Region, VertexIndex + 1), Z);
+            Tri1.Vertices[2].P = V3(GetVertex(Region, VertexIndex), Z);
+            
+            SetColor(&Tri0, Color);
+            SetColor(&Tri1, Color);
+            Add(&Triangles, Tri0);
+            Add(&Triangles, Tri1);
+        }
+    }
+    
+    // Ensure triangle count matches expectations
+    Assert(Triangles.Count == Triangles.Capacity);
+    
+    CalculateModelVertexNormals(Triangles.Memory, Triangles.Count);
+    
+    Assets->VertexBuffers[VertexBuffer_World] = CreateVertexBuffer(Triangles.Memory, Triangles.Count * sizeof(tri), 
+                                                                   D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
 }
 
 static void
@@ -211,8 +250,8 @@ CreateWorld(world* World)
             Assert(RegionIndex < ArrayCount(World->Regions));
             world_region* Region = World->Regions + RegionIndex;
             
+            Assert(ArrayCount(Region->Vertices) == 6);
             Region->Center = WorldPosFromGridPos(World, X, Y);
-            Region->VertexCount = 6;
             Region->Vertices[0] = Region->Center + HexagonSideLength * V2(0.0f, 1.0f);
             Region->Vertices[1] = Region->Center + HexagonSideLength * V2(0.86603f, 0.5f);
             Region->Vertices[2] = Region->Center + HexagonSideLength * V2(0.86603f, -0.5f);
@@ -237,5 +276,5 @@ CreateWorld(world* World)
         }
     }
     
-    World->RegionCount = RegionIndex; 
+    World->RegionCount = RegionIndex;
 }

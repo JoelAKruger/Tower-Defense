@@ -300,8 +300,19 @@ CreateVertexBuffer(void* Data, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64
     
     HRESULT HResult = D3D11Device->CreateBuffer(&VertexBufferDesc, &VertexSubresourceData, &Result.Buffer);
     Assert(SUCCEEDED(HResult));
+    Result.Topology = Topology;
+    Result.VertexCount = Bytes / Stride;
+    Result.Stride = Stride;
     
     return Result;
+}
+
+void FreeVertexBuffer(renderer_vertex_buffer VertexBuffer)
+{
+    if (VertexBuffer.Buffer)
+    {
+        VertexBuffer.Buffer->Release();
+    }
 }
 
 void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride)
@@ -333,6 +344,16 @@ void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY
     VertexBuffer->Release();
 }
 
+void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer)
+{
+    if (VertexBuffer.Buffer)
+    {
+        u32 Offset = 0;
+        D3D11DeviceContext->IASetPrimitiveTopology(VertexBuffer.Topology);
+        D3D11DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer.Buffer, &VertexBuffer.Stride, &Offset);
+        D3D11DeviceContext->Draw(VertexBuffer.VertexCount, 0);
+    }
+}
 
 void SetShader(d3d11_shader Shader)
 {

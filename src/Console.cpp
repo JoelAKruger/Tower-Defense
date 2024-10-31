@@ -140,32 +140,11 @@ ParseAndRunCommand(console* Console, string Command, game_state* GameState, memo
     }
 }
 
-void SaveWorld(world* World, char* Path, memory_arena* Arena);
-void LoadWorld(world* World, char* Path, memory_arena* Arena);
-
-void Command_load(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
-{
-    if (ServerState_)
-    {
-        LoadWorld(&ServerState_->World, "map.map", Arena);
-    }
-}
-
-void Command_save(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
-{
-    if (ServerState_)
-    {
-        SaveWorld(&ServerState_->World, "map.map", Arena);
-    }
-}
-
 static void
 UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory_arena* TArena, f32 DeltaTime)
 {
     if (Console->CommandCount == 0)
     {
-        CONSOLE_COMMAND(Console, load);
-        CONSOLE_COMMAND(Console, save);
         CONSOLE_COMMAND(Console, p);
         CONSOLE_COMMAND(Console, background);
         CONSOLE_COMMAND(Console, name);

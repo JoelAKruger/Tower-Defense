@@ -241,8 +241,8 @@ template <typename type>
 struct static_array
 {
     type* Memory;
-    u32 Count;
-    u32 Capacity;
+    u64 Count;
+    u64 Capacity;
     
     type& operator[](u32 Index)
     {

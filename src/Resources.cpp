@@ -1,12 +1,11 @@
-
-static vertex_buffer
+static renderer_vertex_buffer
 CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
 {
     span<vertex> Vertices = LoadModel(Allocator, Path, SwitchOrder);
     
-    vertex_buffer Result = {Vertices.Memory, Vertices.Count * sizeof(vertex)};
-    
-    return Result;
+    renderer_vertex_buffer VertexBuffer = CreateVertexBuffer(Vertices.Memory, Vertices.Count * sizeof(vertex),
+                                                             D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
+    return VertexBuffer;
 }
 
 static void

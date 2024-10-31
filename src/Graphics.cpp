@@ -92,6 +92,15 @@ PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11
 }
 
 static void
+PushModel(render_group* RenderGroup, vertex_buffer_index VertexBuffer)
+{
+    render_command* Command = GetNextEntry(RenderGroup);
+    Command->VertexBuffer = VertexBuffer;
+    Command->Shader = Shader_Model;
+    Command->ModelTransform = IdentityTransform();
+}
+
+static void
 PushColor(render_group* RenderGroup, v4 Color)
 {
     render_command* Command = GetLastEntry(RenderGroup);
@@ -245,7 +254,14 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         
         SetShaderConstants(Constants);
         
-        DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
+        if (Command->VertexBuffer)
+        {
+            DrawVertexBuffer(Assets->VertexBuffers[Command->VertexBuffer]);
+        }
+        else
+        {
+            DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
+        }
     }
 }
 

@@ -41,6 +41,9 @@ struct d3d11_render_output
 struct d3d11_vertex_buffer
 {
     ID3D11Buffer* Buffer;
+    D3D11_PRIMITIVE_TOPOLOGY Topology;
+    u32 VertexCount;
+    u32 Stride;
 };
 
 typedef d3d11_shader        shader;

@@ -3,16 +3,9 @@
 struct world_region
 {
     //Defined relative to world
-    union
-    {
-        struct
-        {
-            v2 Center;
-            v2 Vertices[15];
-        };
-        v2 Positions[16];
-    };
-    u32 VertexCount;
+    v2 Center;
+    v2 Vertices[6];
+    
     f32 Z;
     
     u32 OwnerIndex;
@@ -120,6 +113,7 @@ enum server_message_type
     Message_Null,
     Message_Initialise,
     Message_PlayAnimation,
+    Message_NewWorld
 };
 
 struct server_message
@@ -201,10 +195,6 @@ struct game_state
     v2 CursorWorldPos;
     
     f64 Time;
-    
-    //TODO: Do not draw models in immediate mode
-    span<vertex> CubeVertices;
-    span<vertex> TurretVertices;
     
     m4x4 CastleTransform;
     m4x4 TurretTransform;

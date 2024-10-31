@@ -49,62 +49,6 @@ LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
     return Result;
 }
 
-
-static void
-SaveWorld(world* World, char* Path, memory_arena* Arena)
-{
-    Assert(Arena->Type == TRANSIENT);
-    
-    u32 Bytes = sizeof(map_file_header) + World->RegionCount * sizeof(map_file_region);
-    u8* Memory = Alloc(Arena, Bytes);
-    u8* At = Memory;
-    
-    map_file_header* Header = (map_file_header*) At;
-    Header->RegionCount = World->RegionCount;
-    At += sizeof(map_file_header);
-    
-    map_file_region* Regions = (map_file_region*) At;
-    
-    for (u32 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
-    {
-        Regions[RegionIndex].Center = World->Regions[RegionIndex].Center;
-        Assert(sizeof(Regions[RegionIndex].Vertices) == sizeof(World->Regions[RegionIndex].Vertices));
-        memcpy(Regions[RegionIndex].Vertices, World->Regions[RegionIndex].Vertices, sizeof(Regions[RegionIndex].Vertices));
-        Regions[RegionIndex].VertexCount = World->Regions[RegionIndex].VertexCount;
-    }
-    
-    span<u8> Data = {Memory, Bytes};
-    PlatformSaveFile(Path, Data);
-}
-
-static void
-LoadWorld(world* World, char* Path, memory_arena* Arena)
-{
-    Assert(Arena->Type == TRANSIENT);
-    
-    span<u8> FileContents = PlatformLoadFile(Arena, Path);
-    
-    u8* Memory = FileContents.Memory;
-    u32 Bytes = FileContents.Count;
-    
-    map_file_header* Header = (map_file_header*) Memory;
-    Memory += sizeof(map_file_header);
-    
-    Assert(Bytes == sizeof(map_file_header) + Header->RegionCount * sizeof(map_file_region));
-    
-    map_file_region* Regions = (map_file_region*) Memory;
-    
-    World->RegionCount = Header->RegionCount;
-    
-    for (u32 RegionIndex = 0; RegionIndex < Header->RegionCount; RegionIndex++)
-    {
-        World->Regions[RegionIndex].Center = Regions[RegionIndex].Center;
-        Assert(sizeof(Regions[RegionIndex].Vertices) == sizeof(World->Regions[RegionIndex].Vertices));
-        memcpy(World->Regions[RegionIndex].Vertices, Regions[RegionIndex].Vertices, sizeof(Regions[RegionIndex].Vertices));
-        World->Regions[RegionIndex].VertexCount = Regions[RegionIndex].VertexCount;
-    }
-}
-
 static game_state* 
 GameInitialise(allocator Allocator)
 {
@@ -120,9 +64,6 @@ GameInitialise(allocator Allocator)
     
     GameState->ShadowMap = CreateShadowDepthTexture(8192, 8192);
     
-    GameState->CubeVertices   = LoadModel(Allocator, "assets/models/castle.obj", false);
-    GameState->TurretVertices = LoadModel(Allocator, "assets/models/turret.obj", true);
-    
     GameState->CastleTransform = ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
     GameState->TurretTransform = ModelRotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
     
@@ -134,17 +75,12 @@ GameInitialise(allocator Allocator)
 static bool
 InRegion(world_region* Region, v2 WorldPos)
 {
-    if (Region->VertexCount < 3)
-    {
-        return false;
-    }
-    
     v2 A0 = WorldPos;
     v2 A1 = Region->Center;
     
     u32 IntersectCount = 0;
     
-    for (u32 TestIndex = 0; TestIndex < Region->VertexCount; TestIndex++)
+    for (u32 TestIndex = 0; TestIndex < ArrayCount(Region->Vertices); TestIndex++)
     {
         v2 B0 = GetVertex(Region, TestIndex);
         v2 B1 = GetVertex(Region, TestIndex + 1);
@@ -156,116 +92,6 @@ InRegion(world_region* Region, v2 WorldPos)
     }
     
     return (IntersectCount % 2 == 0);
-}
-
-static void
-RunEditor(game_state* Game, world* World, game_input* Input, memory_arena* Arena)
-{
-    Assert(Arena->Type == TRANSIENT);
-    
-    DrawRectangle(V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
-    Game->Dragging = false;
-    
-    gui_layout Layout = DefaultLayout(0.6f, 1.0f);
-    
-    SetShader(FontShader);
-    Layout.Label("Regions");
-    
-    if (Layout.Button("Add"))
-    {
-        Game->Editor.SelectedRegionIndex = (World->RegionCount++);
-        Assert(World->RegionCount < ArrayCount(World->Regions));
-    }
-    
-    Layout.NextRow();
-    
-    Layout.Label(ArenaPrint(Arena, "Region: %u", Game->Editor.SelectedRegionIndex));
-    Layout.NextRow();
-    Layout.Label(ArenaPrint(Arena, "Position: %u", Game->Editor.SelectedVertexIndex));
-    Layout.NextRow();
-    
-    Layout.Label("Vertices");
-    
-    if (Layout.Button("Add"))
-    {
-        world_region* Region = World->Regions + Game->Editor.SelectedRegionIndex;
-        
-        v2 NewVertex = {};
-        
-        //New vertex is average of first and last vertex
-        if (Region->VertexCount >= 2)
-        { 
-            NewVertex = 0.5f * (GetVertex(Region, -1) + GetVertex(Region, 0));
-        }
-        
-        if (Region->VertexCount + 1 < ArrayCount(Region->Vertices))
-        {
-            Region->Vertices[Region->VertexCount++] = NewVertex;
-        }
-    }
-    
-    if (Layout.Button("Remove"))
-    {
-        world_region* Region = World->Regions + Game->Editor.SelectedRegionIndex;
-        
-        if (Region->VertexCount > 0)
-        {
-            Region->VertexCount--;
-        }
-    }
-    
-    f32 VertexDisplaySize = 0.01f;
-    
-    SetShader(ColorShader);
-    for (u32 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
-    {
-        world_region* Region = World->Regions + RegionIndex;
-        
-        for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
-        {
-            v2 Vertex = Region->Positions[PositionIndex];
-            v2 VertexScreen = WorldToScreen(Game, Vertex);
-            
-            v2 SquareSize = V2(VertexDisplaySize, VertexDisplaySize);
-            
-            v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
-            
-            DrawRectangle(VertexScreen - 0.5f * SquareSize, SquareSize, Color);
-        }
-    }
-    
-    if ((Input->Button & Button_LMouse) == 0)
-    {
-        Game->Editor.DraggingVertex = false;
-    }
-    
-    if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
-    {
-        for (u32 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
-        {
-            world_region* Region = World->Regions + RegionIndex;
-            
-            for (u32 PositionIndex = 0; PositionIndex < Region->VertexCount + 1; PositionIndex++)
-            {
-                v2 Vertex = Region->Positions[PositionIndex];
-                v2 VertexScreen = WorldToScreen(Game, Vertex);
-                
-                if (Abs(VertexScreen.X - Input->Cursor.X) < 0.5f * VertexDisplaySize &&
-                    Abs(VertexScreen.Y - Input->Cursor.Y) < 0.5f * VertexDisplaySize)
-                {
-                    Game->Editor.DraggingVertex = true;
-                    Game->Editor.SelectedRegionIndex = RegionIndex;
-                    Game->Editor.SelectedVertexIndex = PositionIndex;
-                }
-            }
-        }
-    }
-    
-    if (Game->Editor.DraggingVertex)
-    {
-        world_region* Region = World->Regions + Game->Editor.SelectedRegionIndex;
-        Region->Positions[Game->Editor.SelectedVertexIndex] = ScreenToWorld(Game, Input->Cursor);
-    }
 }
 
 static void
@@ -409,7 +235,7 @@ TickAnimations(game_state* Game, f32 DeltaTime)
 }
 
 static void
-HandleServerMessage(server_message* Message, game_state* GameState)
+HandleMessageFromServer(server_message* Message, game_state* GameState, game_assets* Assets, memory_arena* TArena)
 {
     switch (Message->Type)
     {
@@ -420,6 +246,11 @@ HandleServerMessage(server_message* Message, game_state* GameState)
         case Message_PlayAnimation:
         {
             BeginAnimation(GameState, Message->AnimationP, Message->AnimationRadius);
+        } break;
+        case Message_NewWorld:
+        {
+            FreeVertexBuffer(Assets->VertexBuffers[VertexBuffer_World]);
+            CreateWorldVertexBuffer(Assets, &GameState->GlobalState.World, TArena);
         } break;
         default:
         {
@@ -455,6 +286,12 @@ GetHoveredRegionIndex(game_state* Game, v2 CursorP)
     return Result;
 }
 
+static void
+NewWorldData(global_game_state* NewGameState)
+{
+    
+}
+
 static void 
 GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
@@ -466,7 +303,8 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     
     for (u32 MessageIndex = 0; MessageIndex < GameState->MultiplayerContext.MessageQueue.MessageCount; MessageIndex++)
     {
-        HandleServerMessage(GameState->MultiplayerContext.MessageQueue.Messages + MessageIndex, GameState);
+        HandleMessageFromServer(GameState->MultiplayerContext.MessageQueue.Messages + MessageIndex, GameState,
+                                Assets, Allocator.Transient);
     }
     GameState->MultiplayerContext.MessageQueue.MessageCount = 0;
     
@@ -705,12 +543,6 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
             player_request Request = {Request_EndTurn};
             SendPacket(&GameState->MultiplayerContext, &Request);
         }
-    }
-    
-    if (GameState->Mode == Mode_Edit)
-    {
-        //Use actual world, not local world
-        RunEditor(GameState, &ServerState_->World, Input, Allocator.Transient);
     }
     
     if (GameState->Mode == Mode_EditTower)

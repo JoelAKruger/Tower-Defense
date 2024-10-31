@@ -71,6 +71,9 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
                             Assert(Packet->dataLength == sizeof(global_game_state));
                             *Game = *(global_game_state*)Packet->data;
                             
+                            server_message Message = {Message_NewWorld};
+                            AddMessage(&Context->MessageQueue, Message);
+                            
                             enet_packet_destroy(Packet);
                         } break;
                         case Channel_Message:

@@ -65,6 +65,7 @@ struct render_command
     
     D3D11_PRIMITIVE_TOPOLOGY Topology;
     shader_index Shader;
+    vertex_buffer_index VertexBuffer; //If VertexBuffer is null, then data is in VertexData
     texture Texture;
     m4x4 ModelTransform;
     v4 Color;
@@ -81,7 +82,7 @@ struct render_group
 
 struct game_assets
 {
-    vertex_buffer VertexBuffers[VertexBuffer_Count];
+    renderer_vertex_buffer VertexBuffers[VertexBuffer_Count];
     shader Shaders[Shader_Count];
     texture Textures[32];
     cube_map Skybox;

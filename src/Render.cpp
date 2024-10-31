@@ -22,22 +22,18 @@ DrawBackground(render_group* RenderGroup)
 static void
 DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world_region* Region, v4 Color, bool Hovering)
 {
-    if (Region->VertexCount == 0)
-    {
-        return;
-    }
     if (Hovering)
     {
         Color.RGB = 0.8f * Color.RGB;
     }
     
-    u32 TriangleCount = Region->VertexCount + 2 * Region->VertexCount; // Top + sides
+    u32 TriangleCount = ArrayCount(Region->Vertices) + 2 * ArrayCount(Region->Vertices); // Top + sides
     span<tri> Triangles = AllocSpan(RenderGroup->Arena, tri, TriangleCount);
     
     f32 Z = Region->Z;
     
     //Top
-    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+    for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
     {
         tri* Tri = Triangles + VertexIndex;
         
@@ -47,10 +43,10 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
     }
     
     //Sides
-    for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+    for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
     {
-        tri* Tri0 = Triangles + Region->VertexCount + 2 * VertexIndex + 0;
-        tri* Tri1 = Triangles + Region->VertexCount + 2 * VertexIndex + 1;
+        tri* Tri0 = Triangles + ArrayCount(Region->Vertices) + 2 * VertexIndex + 0;
+        tri* Tri1 = Triangles + ArrayCount(Region->Vertices) + 2 * VertexIndex + 1;
         
         Tri0->Vertices[0].P = V3(GetVertex(Region, VertexIndex), Z);
         Tri0->Vertices[1].P = V3(GetVertex(Region, VertexIndex), 2.0f);
@@ -71,10 +67,10 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
     bool DrawOutline = Hovering;
     if (DrawOutline)
     {
-        u32 VertexDrawCount = 6 * Region->VertexCount + 2;
+        u32 VertexDrawCount = 6 * ArrayCount(Region->Vertices) + 2;
         vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
         
-        for (u32 VertexIndex = 0; VertexIndex < Region->VertexCount; VertexIndex++)
+        for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
         {
             v2 Vertex = GetVertex(Region, VertexIndex);
             v2 PrevVertex = GetVertex(Region, VertexIndex - 1);
@@ -123,18 +119,79 @@ DrawWorldRegion(render_group* RenderGroup, game_state* Game, world* World, world
     }
 }
 
+static void
+DrawRegionOutline(render_group* RenderGroup, world_region* Region)
+{
+    v4 Color = V4(1.0f, 0.0f, 1.0f, 1.0f);
+    f32 Z = Region->Z - 0.001f;
+    
+    u32 VertexDrawCount = 6 * ArrayCount(Region->Vertices) + 2;
+    vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
+    
+    for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
+    {
+        v2 Vertex = GetVertex(Region, VertexIndex);
+        v2 PrevVertex = GetVertex(Region, VertexIndex - 1);
+        v2 NextVertex = GetVertex(Region, VertexIndex + 1);
+        
+        v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
+        v2 PerpB = UnitV(Perp(NextVertex - Vertex));
+        v2 Mid = UnitV(PerpA + PerpB);
+        
+        f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
+        
+        v2 RectSize = V2(0.005f, 0.005f);
+        
+        f32 HalfBorderThickness = 0.0035f;
+        
+        //If concave
+        if (SinAngle < 0.0f)
+        {
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, Z), {}, Color};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, Z), {}, Color};
+        }
+        else
+        {
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), {}, Color};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, Z), {}, Color};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
+        }
+        
+        if (VertexIndex == 0)
+        {
+            Vertices[VertexDrawCount - 2] = Vertices[0];
+            Vertices[VertexDrawCount - 1] = Vertices[1];
+        }
+    }
+    
+    PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
+                 D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Model);
+    PushNoShadow(RenderGroup);
+}
 
 static void
 DrawRegions(render_group* RenderGroup, game_state* Game, render_context* Context)
 {
-    SetShader(ColorShader);
+    PushModel(RenderGroup, VertexBuffer_World);
+    if (Context->HoveringRegion)
+    {
+        DrawRegionOutline(RenderGroup, Context->HoveringRegion);
+    }
+    
     for (u32 RegionIndex = 0; RegionIndex < Game->GlobalState.World.RegionCount; RegionIndex++)
     {
         
-        world_region* Region = Game->GlobalState.World.Regions + RegionIndex;
+        //world_region* Region = Game->GlobalState.World.Regions + RegionIndex;
         
-        bool Hovering = (Region == Context->HoveringRegion);
-        DrawWorldRegion(RenderGroup, Game, &Game->GlobalState.World, Region, Region->Color, Hovering);
+        //bool Hovering = (Region == Context->HoveringRegion);
+        //DrawWorldRegion(RenderGroup, Game, &Game->GlobalState.World, Region, Region->Color, Hovering);
         
         //Draw name
         /*
@@ -152,24 +209,24 @@ DrawRegions(render_group* RenderGroup, game_state* Game, render_context* Context
             DrawString(Name, P, V4(1.0f, 1.0f, 1.0f, 1.0f), TextSize);
         }
 */
+        
     }
 }
 
 static void
 DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
 {
-    //TODO: Use game assets
-    span<vertex> ModelVertices = {};
+    vertex_buffer_index VertexBuffer = {};
     m4x4 Transform;
     
     if (Type == Tower_Castle)
     {
-        ModelVertices = Game->CubeVertices;
+        VertexBuffer = VertexBuffer_Castle;
         Transform = Game->CastleTransform;
     }
     else if (Type == Tower_Turret)
     {
-        ModelVertices = Game->TurretVertices;
+        VertexBuffer = VertexBuffer_Turret;
         Transform = Game->TurretTransform * RotateTransform(-1.0f * Angle); //idk why it is -1.0f
     }
     else
@@ -179,7 +236,7 @@ DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4
     
     m4x4 ModelTransform = Transform * TranslateTransform(P.X, P.Y, P.Z);
     
-    PushVertices(RenderGroup, ModelVertices.Memory, sizeof(vertex) * ModelVertices.Count, sizeof(vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Model);
+    PushModel(RenderGroup, VertexBuffer);
     PushColor(RenderGroup, Color);
     PushModelTransform(RenderGroup, ModelTransform);
 }
@@ -208,17 +265,9 @@ DrawTowers(render_group* RenderGroup, game_state* Game, render_context* Context)
 static void
 DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, render_context* Context)
 {
-    /*
-    if (Game->ShowBackground)
-    {
-        DrawBackground(RenderGroup);
-    }
-*/
     DrawSkybox(RenderGroup, Assets);
-    
     DrawRegions(RenderGroup, Game, Context);
     DrawTowers(RenderGroup, Game, Context);
-    //DrawWater(RenderGroup, Game); //Water is now drawn in RenderWorld();
 }
 
 static void
