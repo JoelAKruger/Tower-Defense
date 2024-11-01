@@ -24,12 +24,6 @@ CopyVertexData(memory_arena* Arena, void* Data, u64 Bytes)
     return Result;
 }
 
-struct texture_vertex
-{
-    v3 Position;
-    v2 UV;
-};
-
 void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
@@ -41,7 +35,7 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
         {V3(P1.X, P1.Y, P0.Z), {}, {}, V2(UV1.X, UV1.Y)}
     };
     
-    CalculateModelVertexNormals((tri*)VertexData, 2);
+    //CalculateModelVertexNormals((tri*)VertexData, 2);
     
     //Get rid of this
     u64 VertexDataBytes = sizeof(VertexData);
@@ -60,17 +54,42 @@ PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
-    texture_vertex VertexData[4] = {
-        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
-        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
-        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
-        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
+    vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), {}, {}, V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), {}, {}, V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), {}, {}, V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), {}, {}, V2(UV1.X, UV1.Y)}
     };
     
     u64 VertexDataBytes = sizeof(VertexData);
     
     Command->VertexData = CopyVertexData(RenderGroup->Arena, VertexData, VertexDataBytes);
-    Command->VertexDataStride = sizeof(texture_vertex);
+    Command->VertexDataStride = sizeof(vertex);
+    Command->VertexDataBytes = VertexDataBytes;
+    
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    Command->Shader = Shader_Texture;
+    Command->Texture = Texture;
+    Command->ModelTransform = IdentityTransform();
+}
+
+
+static void
+PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3)
+{
+    render_command* Command = GetNextEntry(RenderGroup);
+    
+    vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), {}, {}, V2(UV0.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P1.Z), {}, {}, V2(UV1.X, UV1.Y)},
+        {V3(P3.X, P3.Y, P3.Z), {}, {}, V2(UV3.X, UV3.Y)},
+        {V3(P2.X, P2.Y, P2.Z), {}, {}, V2(UV2.X, UV2.Y)}
+    };
+    
+    u64 VertexDataBytes = sizeof(VertexData);
+    
+    Command->VertexData = CopyVertexData(RenderGroup->Arena, VertexData, VertexDataBytes);
+    Command->VertexDataStride = sizeof(vertex);
     Command->VertexDataBytes = VertexDataBytes;
     
     Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
@@ -187,14 +206,14 @@ DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     Assert(P0.Z == P1.Z);
     
-    texture_vertex VertexData[4] = {
-        {V3(P0.X, P0.Y, P0.Z), V2(UV0.X, UV0.Y)},
-        {V3(P0.X, P1.Y, P0.Z), V2(UV0.X, UV1.Y)},
-        {V3(P1.X, P0.Y, P0.Z), V2(UV1.X, UV0.Y)},
-        {V3(P1.X, P1.Y, P0.Z), V2(UV1.X, UV1.Y)}
+    vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), {}, {}, V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), {}, {}, V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), {}, {}, V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), {}, {}, V2(UV1.X, UV1.Y)}
     };
     
-    DrawVertices((f32*) VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(texture_vertex));
+    DrawVertices((f32*) VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
 }
 
 static void

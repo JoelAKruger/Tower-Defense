@@ -24,7 +24,6 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
             f32 ButtonWidth = 0.8f / GlobalAspectRatio;
             if (Button(V2(-0.5f * ButtonWidth, 0.0f), V2(ButtonWidth, 0.3f), String("Play")))
             {
-                
                 App->CurrentScreen = Screen_Game;
                 App->GameState = GameInitialise(Allocator);
             }

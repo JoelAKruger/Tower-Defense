@@ -27,10 +27,15 @@ struct shader_constants
     m4x4 WorldToClipTransform; 
     m4x4 ModelToWorldTransform; //Per draw call
     m4x4 WorldToLightTransform;
-    v4 Color;                   //Per draw call
+    v4 Color; //Per draw call
+    
     f32 Time;
-    f32 Pad[3];
+    f32 Pad0[3];
+    
     v4 ClipPlane;
+    
+    v3 CameraPos;
+    f32 Pad1;
 };
 
 enum shader_index
@@ -53,6 +58,7 @@ enum vertex_buffer_index
     VertexBuffer_Castle,
     VertexBuffer_Turret,
     VertexBuffer_World,
+    VertexBuffer_Cube,
     
     VertexBuffer_Count
 };
@@ -112,6 +118,7 @@ render_command* GetLastEntry(render_group* RenderGroup);
 
 void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
+void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3);
 void PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader);
 void PushColor(render_group* RenderGroup, v4 Color);
 void PushModelTransform(render_group* RenderGroup, m4x4 Transform);

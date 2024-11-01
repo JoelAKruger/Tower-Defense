@@ -59,7 +59,7 @@ GameInitialise(allocator Allocator)
     
     GameState->CameraP = {0.0f, -0.25, 0.0f};
     GameState->CameraTargetZ = -1.25f;
-    GameState->CameraDirection = {0.0f, 1.0f, 5.5f};
+    GameState->CameraDirection = {0.0f, 1.5f, 5.5f};
     GameState->FOV = 50.0f;
     
     GameState->ShadowMap = CreateShadowDepthTexture(8192, 8192);

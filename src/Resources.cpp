@@ -3,6 +3,8 @@ CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
 {
     span<vertex> Vertices = LoadModel(Allocator, Path, SwitchOrder);
     
+    CalculateModelVertexNormals((tri*)Vertices.Memory, Vertices.Count / 3);
+    
     renderer_vertex_buffer VertexBuffer = CreateVertexBuffer(Vertices.Memory, Vertices.Count * sizeof(vertex),
                                                              D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
     return VertexBuffer;
@@ -37,6 +39,7 @@ LoadAssets(allocator Allocator)
     
     Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", false);
     Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", true);
+    Assets->VertexBuffers[VertexBuffer_Cube]   = CreateModelVertexBuffer(Allocator, "assets/models/cube.obj", true);
     
     LoadSkybox(Assets);
     

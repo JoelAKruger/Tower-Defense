@@ -26,6 +26,7 @@ cbuffer Constants : register(b5)
 	float time;
 
 	float4 clip_plane;
+	float3 camera_pos;
 };
 
 Texture2D shadow_map : register(t1);
@@ -43,7 +44,7 @@ VS_Output_Default MyVertexShader(VS_Input input)
 	output.pos_light_space = mul(world_pos, world_to_light);
 	output.pos_clip = pos_clip;
 	output.color = input.color + color;
-	output.normal = (float3) mul(float4(input.normal, 0.0f), model_to_world);
+	output.normal = normalize((float3)mul(float4(input.normal, 0.0f), model_to_world));
 	output.uv = input.uv;
 	
 	return output;
@@ -88,13 +89,13 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 
 	float ambient = 0.3f;
 
-	float3 light_dir = 1.0f * normalize(float3(1.0f, 1.0f, 1.0f));
-	float diffuse = 0.5f + 0.5f * dot(normalize(input.normal), -1.0f * light_dir);
+	float3 light_dir = 1.0f * normalize(float3(1.0f, -1.0f, 1.0f));
+	float diffuse = 0.5f + 0.5f * dot(input.normal, -1.0f * light_dir);
 
-	//float3 view_dir = normalize(camera_pos - input.pos);
-	//float3 reflect_dir = reflect(-light_dir, input.normal);
+	float3 view_dir = normalize(camera_pos - input.pos_world);
+	float3 reflect_dir = reflect(light_dir, input.normal);
 
-	//float specular = 0.5f * pow(max(dot(view_dir, reflect_dir), 0.0), 32);
+	float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
 
 	float epsilon = 0.001f;
 	float is_lit = float(shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - epsilon));
@@ -104,7 +105,7 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 		diffuse *= 0.2f;
 	}
 
-	return float4((ambient + diffuse) * input.color.rgb, input.color.a);
+	return float4((ambient + diffuse + specular) * input.color.rgb, input.color.a);
 }
 
 Texture2D reflection_texture : register(t2);
@@ -119,7 +120,7 @@ SamplerState water_dudv_sampler : register(s4);
 float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 {
 	float4 water_color = float4(0.0f, 0.2f, 0.05f, 1.0f);
-	float distortion_strength = 0.02f;
+	float distortion_strength = 0.01f;
 	float distortion_scaling = 6.0f;
 	float wave_speed = 0.03f;
 
@@ -147,4 +148,13 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	color = lerp(color, water_color, 0.12f);
 
 	return color;
+}
+
+Texture2D default_texture : register(t0);
+SamplerState default_sampler : register(s0);
+
+float4 PixelShader_Texture(VS_Output_Default input) : SV_Target
+{
+	float4 sample = default_texture.Sample(default_sampler, input.uv);
+	return sample;
 }

@@ -8,8 +8,17 @@ DrawWater(render_group* RenderGroup, game_state* Game)
 static void
 DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 {
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[5], V3(-1000.0f, -1000.0f, 1000.0f), V3(1000.0f, 1000.0f, 1000.0f));
+    
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[5], V3(-100.0f, -100.0f, 100.0f), V3(100.0f, 100.0f, 100.0f));
     PushNoDepthTest(RenderGroup);
+    
+    //PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], V3(100.0f, 100.0f, -100.0f), V3(-100.0f, -100.0f, -100.0f));
+    //PushNoDepthTest(RenderGroup);
+    
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], 
+                     V3(-100.0f, 100.0f, -100.0f), V3(-100.0f, -100.0f, -100.0f),
+                     V3(100.0f, -100.0f, -100.0f), V3(100.0f, 100.0f, -100.0f),
+                     V2(1.0f, 1.0f), V2(1.0f, 0.0f), V2(0.0f, 0.0f), V2(0.0f, 1.0f));
 }
 
 static void
@@ -275,8 +284,8 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
 {
     m4x4 WorldTransform = Game->WorldTransform;
     
-    v3 LightP = V3(-1.0f, -1.0f, -1.0f);
-    v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
+    v3 LightP = V3(-1.0f, 1.0f, -1.0f);
+    v3 LightDirection = V3(1.0f, -1.0f, 1.0f);
     m4x4 Transform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 3.0f);
     
     render_group RenderGroup = {};
@@ -288,6 +297,7 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     Constants.WorldToClipTransform = Transform;
     Constants.WorldToLightTransform = Transform;
     Constants.Time = Game->Time; //TODO: Maybe make this periodic?
+    Constants.CameraPos = Game->CameraP;
     
     //Draw 
     SetDepthTest(true);

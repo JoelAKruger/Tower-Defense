@@ -729,7 +729,8 @@ LoadShaders(game_assets* Assets)
     Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", ColorInputElementDesc, ArrayCount(ColorInputElementDesc));
     Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
-    Assets->Shaders[Shader_Texture]= CreateShader(L"assets/texture.hlsl", TextureShaderElementDesc, ArrayCount(TextureShaderElementDesc));
+    Assets->Shaders[Shader_Texture]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                  "PixelShader_Texture", "MyVertexShader");
     
     Assets->Shaders[Shader_Water]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
                                                 "PixelShader_Water", "MyVertexShader");
