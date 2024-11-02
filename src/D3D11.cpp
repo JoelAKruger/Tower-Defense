@@ -73,7 +73,7 @@ IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
     DXGIAdapter->Release();
     
     DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = {};
-    SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    SwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
     SwapChainDesc.SampleDesc.Count = 4;
     SwapChainDesc.SampleDesc.Quality = 0;
     SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
