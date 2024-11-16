@@ -1,7 +1,7 @@
 struct console;
 struct game_state;
 
-typedef void (*console_command_callback)(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena);
+typedef void (*console_command_callback)(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets* Assets,  memory_arena* Arena);
 
 struct console_command
 {
@@ -31,7 +31,7 @@ void AddLine(console* Console, string String);
 void ClearConsole(console* Console);
 
 #define CONSOLE_COMMAND(Console, Command) \
-void Command_ ## Command(int, string*, console*, game_state*, memory_arena*); \
+void Command_ ## Command(int, string*, console*, game_state*, game_assets* Assets, memory_arena*); \
 AddCommand(Console, String(#Command), Command_ ## Command)
 
 void AddCommand(console* Console, string Command, console_command_callback Callback)
@@ -70,7 +70,7 @@ ClearConsole(console* Console)
 }
 
 static void
-ParseAndRunCommand(console* Console, string Command, game_state* GameState, memory_arena* TArena)
+ParseAndRunCommand(console* Console, string Command, game_state* GameState, game_assets* Assets, memory_arena* TArena)
 {
     int const MaxArgs = 16;
     string Args[MaxArgs];
@@ -130,7 +130,7 @@ ParseAndRunCommand(console* Console, string Command, game_state* GameState, memo
             {
                 if (StringsAreEqual(Console->Commands[CommandIndex].Command, Args[0]))
                 {
-                    Console->Commands[CommandIndex].Callback(ArgCount, Args, Console, GameState, TArena);
+                    Console->Commands[CommandIndex].Callback(ArgCount, Args, Console, GameState, Assets, TArena);
                     return;
                 }
             }
@@ -141,12 +141,11 @@ ParseAndRunCommand(console* Console, string Command, game_state* GameState, memo
 }
 
 static void
-UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory_arena* TArena, f32 DeltaTime)
+UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory_arena* TArena, game_assets* Assets, f32 DeltaTime)
 {
     if (Console->CommandCount == 0)
     {
         CONSOLE_COMMAND(Console, p);
-        CONSOLE_COMMAND(Console, background);
         CONSOLE_COMMAND(Console, name);
         CONSOLE_COMMAND(Console, reset);
         CONSOLE_COMMAND(Console, color);
@@ -154,6 +153,7 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
         CONSOLE_COMMAND(Console, connect);
         CONSOLE_COMMAND(Console, new_world);
         CONSOLE_COMMAND(Console, clear);
+        CONSOLE_COMMAND(Console, water_flow);
     }
     
     //Check if toggled
@@ -221,7 +221,7 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
                 case '\n':
                 {
                     string Command = {Console->Input, (u32)Console->InputLength};
-                    ParseAndRunCommand(Console, Command, GameState, TArena);
+                    ParseAndRunCommand(Console, Command, GameState, Assets, TArena);
                     
                     Console->InputLength = 0;
                     Console->InputCursor = 0;
@@ -300,11 +300,16 @@ DrawConsole(console* Console, memory_arena* Arena)
     }
 }
 
-void Command_clear(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
+void Command_clear(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets* Assets, memory_arena* Arena)
 {
     for (u64 HistoryIndex = 0; HistoryIndex < ArrayCount(Console->History); HistoryIndex++)
     {
         free(Console->History[HistoryIndex].Text);
         Console->History[HistoryIndex] = {};
     }
+}
+
+void Command_water_flow(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets* Assets, memory_arena* Arena)
+{
+    CreateWaterFlowMap(&GameState->GlobalState.World, Assets, Arena);
 }

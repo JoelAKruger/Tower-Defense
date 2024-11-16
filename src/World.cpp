@@ -6,6 +6,41 @@ GetVertex(world_region* Region, i32 Index)
     return Result;
 }
 
+static bool
+LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
+{
+    f32 Epsilon = 0.00001f;
+    
+    v2 st = Inverse(M2x2(B1 - B0, A0 - A1)) * (A0 - B0);
+    f32 s = st.X;
+    f32 t = st.Y;
+    
+    bool Result = (s >= 0.0f && s <= 1.0f) && (t >= 0.0f && t <= 1.0f);
+    return Result;
+}
+
+static bool
+InRegion(world_region* Region, v2 WorldPos)
+{
+    v2 A0 = WorldPos;
+    v2 A1 = Region->Center;
+    
+    u32 IntersectCount = 0;
+    
+    for (u32 TestIndex = 0; TestIndex < ArrayCount(Region->Vertices); TestIndex++)
+    {
+        v2 B0 = GetVertex(Region, TestIndex);
+        v2 B1 = GetVertex(Region, TestIndex + 1);
+        
+        if (LinesIntersect(A0, A1, B0, B1))
+        {
+            IntersectCount++;
+        }
+    }
+    
+    return (IntersectCount % 2 == 0);
+}
+
 static f32
 DistanceInsideRegion(world_region* Region, v2 P)
 {
@@ -125,8 +160,8 @@ static v4
 GetRandomPlayerColor()
 {
     v4 PlayerColors[] = {
-        V4(0.5f, 0.9f, 0.45f, 1.0f),
-        V4(0.4f, 0.6f, 0.7f, 1.0f)
+        V4(0.4f, 0.8f, 0.35f, 1.0f),
+        V4(0.3f, 0.4f, 0.7f, 1.0f)
     };
     
     v4 Result = PlayerColors[rand() % ArrayCount(PlayerColors)];
@@ -223,7 +258,7 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
 static void
 CreateWorld(world* World)
 {
-    static u32 Seed = 2000;
+    static u32 Seed = 2001;
     Seed++;
     
     World->Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);

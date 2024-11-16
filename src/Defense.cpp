@@ -7,6 +7,7 @@
 #include "Server.cpp"
 #include "Resources.cpp"
 #include "Game.cpp"
+#include "Water.cpp"
 
 static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, allocator Allocator)
 {

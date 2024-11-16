@@ -1,4 +1,3 @@
-
 static v2
 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f)
 {
@@ -36,19 +35,6 @@ WorldToScreen(game_state* GameState, v2 WorldPos)
     return Result;
 }
 
-static bool
-LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
-{
-    f32 Epsilon = 0.00001f;
-    
-    v2 st = Inverse(M2x2(B1 - B0, A0 - A1)) * (A0 - B0);
-    f32 s = st.X;
-    f32 t = st.Y;
-    
-    bool Result = (s >= 0.0f && s <= 1.0f) && (t >= 0.0f && t <= 1.0f);
-    return Result;
-}
-
 static game_state* 
 GameInitialise(allocator Allocator)
 {
@@ -59,7 +45,7 @@ GameInitialise(allocator Allocator)
     
     GameState->CameraP = {0.0f, -0.25, 0.0f};
     GameState->CameraTargetZ = -1.25f;
-    GameState->CameraDirection = {0.0f, 1.5f, 5.5f};
+    GameState->CameraDirection = {0.0f, 2.0f, 5.5f};
     GameState->FOV = 50.0f;
     
     GameState->ShadowMap = CreateShadowDepthTexture(8192, 8192);
@@ -70,28 +56,6 @@ GameInitialise(allocator Allocator)
     GameState->ApproxTowerZ = -0.06f;
     
     return GameState;
-}
-
-static bool
-InRegion(world_region* Region, v2 WorldPos)
-{
-    v2 A0 = WorldPos;
-    v2 A1 = Region->Center;
-    
-    u32 IntersectCount = 0;
-    
-    for (u32 TestIndex = 0; TestIndex < ArrayCount(Region->Vertices); TestIndex++)
-    {
-        v2 B0 = GetVertex(Region, TestIndex);
-        v2 B1 = GetVertex(Region, TestIndex + 1);
-        
-        if (LinesIntersect(A0, A1, B0, B1))
-        {
-            IntersectCount++;
-        }
-    }
-    
-    return (IntersectCount % 2 == 0);
 }
 
 static void
@@ -251,6 +215,7 @@ HandleMessageFromServer(server_message* Message, game_state* GameState, game_ass
         {
             FreeVertexBuffer(Assets->VertexBuffers[VertexBuffer_World]);
             CreateWorldVertexBuffer(Assets, &GameState->GlobalState.World, TArena);
+            CreateWaterFlowMap(&GameState->GlobalState.World, Assets, TArena);
         } break;
         default:
         {
@@ -295,7 +260,7 @@ NewWorldData(global_game_state* NewGameState)
 static void 
 GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
-    UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, SecondsPerFrame);
+    UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, Assets, SecondsPerFrame);
     
     GameState->Time += SecondsPerFrame;
     
@@ -562,28 +527,13 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     DrawConsole(GameState->Console, Allocator.Transient);
 }
 
-void Command_p(int, string*, console* Console, game_state* GameState, memory_arena* Arena)
+void Command_p(int, string*, console* Console, game_state* GameState, game_assets*, memory_arena* Arena)
 {
     string String = ArenaPrint(Arena, "X: %f, Y: %f, Z: %f", GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
     AddLine(Console, String);
 }
 
-void Command_background(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
-{
-    if (ArgCount == 2)
-    {
-        if (StringsAreEqual(Args[1], String("off")))
-        {
-            GameState->ShowBackground = false;
-        }
-        else if (StringsAreEqual(Args[1], String("on")))
-        {
-            GameState->ShowBackground = true;
-        }
-    }
-}
-
-void Command_name(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
+void Command_name(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets*, memory_arena* Arena)
 {
     if (ArgCount == 3)
     {
@@ -595,13 +545,13 @@ void Command_name(int ArgCount, string* Args, console* Console, game_state* Game
     }
 }
 
-void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, memory_arena* Arena)
+void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets*, memory_arena* Arena)
 {
     player_request Request = {Request_Reset};
     SendPacket(&GameState->MultiplayerContext, &Request);
 }
 
-void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
     u32 ColorCount = ArrayCount(ServerState_->World.Colors);
     
@@ -611,16 +561,16 @@ void Command_color(int ArgCount, string* Args, console* Console, game_state* Gam
     }
 }
 
-void Command_create_server(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+void Command_create_server(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
     Host();
 }
 
-void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
     ConnectToServer(&Game->MultiplayerContext, "localhost");
 }
 
-void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, memory_arena* Arena)
+void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
 }

@@ -254,7 +254,7 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         
         shader Shader = Assets->Shaders[Command->Shader];
         
-        if ((Type & Draw_OnlyDepth) && (Command->Shader == Shader_Model))
+        if (Type & Draw_OnlyDepth)
         {
             Shader = Assets->Shaders[Shader_OnlyDepth];
         }

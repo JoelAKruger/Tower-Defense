@@ -1,6 +1,7 @@
 
 //Graphics API (DirectX wrapper)
 void SetTexture(texture Texture, int Index = 0);
+void UnsetTexture(int Index = 0);
 void SetShader(d3d11_shader Shader);
 void SetShaderConstant(u32 Index, void* Data, u32 Bytes);
 void SetDepthTest(bool Value);

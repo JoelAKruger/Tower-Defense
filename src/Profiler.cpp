@@ -92,6 +92,5 @@ static inline dynamic_array<string> GetProfileReadout(memory_arena* Arena)
     
     Add(&Strings, &FPSString, Arena);
     
-    //span<string> Result = {Strings.Memory, Strings.Count};
     return Strings;
 }

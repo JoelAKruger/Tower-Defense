@@ -239,3 +239,5 @@ struct app_state
 };
 
 void InitialiseServerState(global_game_state* Game);
+
+void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);

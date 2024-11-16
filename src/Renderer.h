@@ -96,6 +96,9 @@ struct game_assets
     render_output WaterReflection;
     render_output WaterRefraction;
     texture WaterDuDv;
+    texture WaterNormal;
+    
+    texture WaterFlow; //Dynamic
     
     render_output ShadowMaps[1];
 };
@@ -109,6 +112,8 @@ enum render_draw_type
 
 //Initialisation
 texture CreateTexture(char* Path);
+texture CreateTexture(u32* TextureData, int Width, int Height);
+void DeleteTexture(texture* Texture);
 render_output CreateShadowDepthTexture(int Width, int Height);
 render_output CreateRenderOutput(int Width, int Height);
 

@@ -24,7 +24,8 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 static void
 DrawRegionOutline(render_group* RenderGroup, world_region* Region)
 {
-    v4 Color = V4(1.0f, 0.0f, 1.0f, 1.0f);
+    v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+    v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = Region->Z - 0.001f;
     
     u32 VertexDrawCount = 6 * ArrayCount(Region->Vertices) + 2;
@@ -47,21 +48,21 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
         //If concave
         if (SinAngle < 0.0f)
         {
-            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, Z), {}, Color};
-            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, Z), {}, Color};
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, Z), Normal, Color};
         }
         else
         {
-            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), {}, Color};
-            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
-            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, Z), {}, Color};
-            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   Z), {}, Color};
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, Z), Normal, Color};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
         }
         
         if (VertexIndex == 0)
@@ -144,8 +145,8 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
 {
     m4x4 WorldTransform = Game->WorldTransform;
     
-    v3 LightP = V3(-1.0f, 1.0f, -1.0f);
-    v3 LightDirection = V3(1.0f, -1.0f, 1.0f);
+    v3 LightP = V3(-1.0f, -1.0f, -1.0f);
+    v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
     m4x4 Transform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 3.0f);
     
     render_group RenderGroup = {};
@@ -205,10 +206,19 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     SetTexture(Assets->WaterReflection.Texture, 2);
     SetTexture(Assets->WaterRefraction.Texture, 3);
     SetTexture(Assets->WaterDuDv, 4);
+    SetTexture(Assets->WaterFlow, 5);
+    SetTexture(Assets->WaterNormal, 6);
     
     SetTransform(WorldTransform);
     SetLightTransform(Transform);
     DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    
+    UnsetShadowMap();
+    UnsetTexture(2);
+    UnsetTexture(3);
+    UnsetTexture(4);
+    UnsetTexture(5);
+    UnsetTexture(6);
     
     //TODO: UnsetTexture(2), UnsetTexture(3)
 }

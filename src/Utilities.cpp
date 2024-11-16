@@ -396,11 +396,12 @@ StringToU32(string String)
 template <typename type>
 class array_2d
 {
+    public:
     type* Memory;
-    u32 Rows;
-    u32 Cols;
+    u64 Rows;
+    u64 Cols;
     
-    type Get(u32 X, u32 Y)
+    type Get(u64 X, u64 Y)
     {
         Assert(X < Cols);
         Assert(Y < Rows);
@@ -408,7 +409,7 @@ class array_2d
         return *Ptr;
     }
     
-    void Set(u32 X, u32 Y, type& Value)
+    void Set(u64 X, u64 Y, type& Value)
     {
         Assert(X < Cols);
         Assert(Y < Rows);
@@ -416,7 +417,7 @@ class array_2d
         *Ptr = Value;
     }
     
-    type* At(u32 X, u32 Y)
+    type* At(u64 X, u64 Y)
     {
         Assert(X < Cols);
         Assert(Y < Rows);
@@ -431,7 +432,7 @@ AllocArray2D(memory_arena* Arena, u32 Rows, u32 Cols)
 {
     array_2d<type> Result = {};
     
-    Result.Memory = Alloc(Arena, sizeof(type) * Rows * Cols);
+    Result.Memory = (type*)Alloc(Arena, sizeof(type) * Rows * Cols);
     Result.Rows = Rows;
     Result.Cols = Cols;
     

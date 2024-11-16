@@ -200,9 +200,9 @@ CreateRenderOutput(int Width, int Height)
     //Create texture
     D3D11_SAMPLER_DESC SamplerDesc = {};
     SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.BorderColor[0] = 1.0f;
     SamplerDesc.BorderColor[1] = 1.0f;
     SamplerDesc.BorderColor[2] = 1.0f;
@@ -423,19 +423,15 @@ font_texture CreateFontTexture(allocator Allocator, char* Path)
 }
 
 static texture
-CreateTexture(char* Path)
+CreateTexture(u32* TextureData, int Width, int Height)
 {
     texture Result = {};
     
-    int Width = 0, Height = 0, Channels = 0;
-    stbi_set_flip_vertically_on_load(true);
-    stbi_uc* TextureData = stbi_load(Path, &Width, &Height, &Channels, 4);
-    
     D3D11_SAMPLER_DESC SamplerDesc = {};
     SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.BorderColor[0] = 1.0f;
     SamplerDesc.BorderColor[1] = 1.0f;
     SamplerDesc.BorderColor[2] = 1.0f;
@@ -462,6 +458,31 @@ CreateTexture(char* Path)
     D3D11Device->CreateTexture2D(&TextureDesc, &TextureSubresourceData, &Texture);
     
     D3D11Device->CreateShaderResourceView(Texture, 0, &Result.TextureView);
+    return Result;
+}
+
+static void
+DeleteTexture(texture* Texture)
+{
+    if (Texture->SamplerState)
+    {
+        Texture->SamplerState->Release();
+    }
+    if (Texture->TextureView)
+    {
+        Texture->TextureView->Release();
+    }
+    *Texture = {};
+}
+
+static texture
+CreateTexture(char* Path)
+{
+    int Width = 0, Height = 0, Channels = 0;
+    stbi_set_flip_vertically_on_load(true);
+    stbi_uc* TextureData = stbi_load(Path, &Width, &Height, &Channels, 4);
+    
+    texture Result = CreateTexture((u32*)TextureData, Width, Height);
     
     free(TextureData);
     
@@ -621,6 +642,15 @@ SetTexture(texture Texture, int Index)
 }
 
 static void
+UnsetTexture(int Index)
+{
+    ID3D11ShaderResourceView* ShaderResourceView = 0;
+    D3D11DeviceContext->PSSetShaderResources(Index, 1, &ShaderResourceView);
+    ID3D11SamplerState* Sampler = 0;
+    D3D11DeviceContext->PSSetSamplers(Index, 1, &Sampler);
+}
+
+static void
 SetShadowMap(render_output Texture)
 {
     D3D11DeviceContext->PSSetShaderResources(1, 1, &Texture.DepthStencilShaderResourceView);
@@ -739,5 +769,5 @@ LoadShaders(game_assets* Assets)
                                                 "PixelShader_Model", "MyVertexShader");
     
     Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                    "PixelShader_Model", "MyVertexShader");
+                                                    "PixelShader_OnlyDepth", "VertexShader_OnlyDepth");
 }
