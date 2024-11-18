@@ -1,5 +1,5 @@
 static v2
-ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f)
+ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
 {
     //TODO: Cache inverse matrix?
     
@@ -47,8 +47,6 @@ GameInitialise(allocator Allocator)
     GameState->CameraTargetZ = -1.25f;
     GameState->CameraDirection = {0.0f, 2.0f, 5.5f};
     GameState->FOV = 50.0f;
-    
-    GameState->ShadowMap = CreateShadowDepthTexture(8192, 8192);
     
     GameState->CastleTransform = ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
     GameState->TurretTransform = ModelRotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
@@ -125,21 +123,24 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     }
     
     SetTransform(IdentityTransform());
-    SetShader(ColorShader);
-    DrawRectangle(V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
+    SetShader(GUIColorShader); //TODO: Remove
+    GUI_DrawRectangle(V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
     
     gui_layout Layout = DefaultLayout(0.65f, 0.95f);
     
     Layout.NextRow();
     
-    if ((Tower->Type == Tower_Turret) && Layout.Button("Set Target"))
+    if ((Tower->Type == Tower_Turret) && Layout.GUIButton(String("Set Target")))
     {
         Game->TowerEditMode = TowerEdit_SetTarget;
     }
     
-    
-    SetShader(FontShader);
+    SetShader(GUIFontShader); //TODO: Remove
     Layout.Label("Tower Editor");
+    
+    panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f);
+    Panel.DoBackground();
+    Panel.Button("Hello");
 }
 
 static void
@@ -356,7 +357,8 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     RenderContext.HoveringRegion = HoveringRegion;
     RenderContext.SelectedTower = GameState->SelectedTower;
     
-    RenderWorld(GameState, Assets, &RenderContext);
+    shader_constants Constants = {};
+    RenderWorld(GameState, Assets, &RenderContext, &Constants);
     
     //Draw animations
     TickAnimations(GameState, SecondsPerFrame);
@@ -416,9 +418,6 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         render_group RenderGroup = {};
         DrawTower(&RenderGroup, GameState, Type, V3(P, Z - 0.001f), Color);
         
-        shader_constants Constants = {};
-        Constants.WorldToClipTransform = GameState->WorldTransform;
-        Constants.WorldToLightTransform = IdentityTransform(); //TODO: Fix this
         DrawRenderGroup(&RenderGroup, Assets, Constants);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
@@ -441,7 +440,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     //Draw health bars
     if (GameState->CameraP.Z > WorldInfoZThreshold)
     {
-        SetShader(ColorShader);
+        SetShader(GUIColorShader);
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
         {
             tower* Tower = GameState->GlobalState.Towers + TowerIndex;
@@ -456,13 +455,13 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
             
             v2 HealthBarInner = V2(HealthBarInnerSize.X * Tower->Health, HealthBarInnerSize.Y);
             
-            DrawRectangle(ScreenP - 0.5f * HealthBarSize, HealthBarSize, V4(0.5f, 0.5f, 0.5f, 1.0f));
-            DrawRectangle(ScreenP - 0.5f * HealthBarInnerSize, HealthBarInner, V4(1.0f, 0.0f, 0.0f, 1.0f));
+            GUI_DrawRectangle(ScreenP - 0.5f * HealthBarSize, HealthBarSize, V4(0.5f, 0.5f, 0.5f, 1.0f));
+            GUI_DrawRectangle(ScreenP - 0.5f * HealthBarInnerSize, HealthBarInner, V4(1.0f, 0.0f, 0.0f, 1.0f));
         }
     }
     
     //Draw region names
-    SetShader(FontShader);
+    SetShader(GUIFontShader);
     if (GameState->CameraP.Z > WorldInfoZThreshold)
     {
         for (u32 RegionIndex = 0; RegionIndex < GameState->GlobalState.World.RegionCount; RegionIndex++)
@@ -517,7 +516,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     
     string PosString = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 
                                   GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
-    SetShader(FontShader);
+    SetShader(GUIFontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
     DrawGUIString(String(GameState->MultiplayerContext.Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));

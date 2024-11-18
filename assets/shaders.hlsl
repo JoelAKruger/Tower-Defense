@@ -107,21 +107,13 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 	float3 view_dir = normalize(camera_pos - input.pos_world);
 	float3 reflect_dir = reflect(light_dir, input.normal);
 
-	float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
+	float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 40);
 
 	float shadow = GetShadowValue(shadow_uv, pixel_depth);
 
-	//float epsilon = 0.0001f;
-	//float is_lit = float(shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - epsilon));
+	float light = ambient + (diffuse + specular) * (1.0f - 0.8f * shadow);
 
-	diffuse -= 0.8f * shadow * diffuse;
-
-	//if (is_lit == 0.0f)
-	//{
-	//	diffuse *= 0.2f;
-	//}
-
-	return float4((ambient + diffuse + specular) * input.color.rgb, input.color.a);
+	return float4(light * input.color.rgb, input.color.a);
 }
 
 Texture2D reflection_texture : register(t2);
@@ -167,7 +159,7 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	normal0 = normalize(normal0);
 	normal1 = normalize(normal1);
 
-	float3 light_dir = normalize(float3(1.0f, -1.0f, 1.0f));
+	float3 light_dir = normalize(float3(1.0f, 1.0f, 1.0f));
 	float3 view_dir = normalize(camera_pos - input.pos_world);
 	float3 reflect_dir = reflect(light_dir, normal0);
 	float specular0 = pow(max(dot(view_dir, reflect_dir), 0.0), 32);	
@@ -219,7 +211,7 @@ float GetShadowValue(float2 shadow_uv, float pixel_depth)
 	{
 		for (int y = -2; y <= 2; y++)
 		{
-			light += shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv + float2(texel_width, texel_height), pixel_depth - epsilon);
+			light += shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv + 2.0f * float2(texel_width, texel_height), pixel_depth - epsilon);
 		}
 	}
 	

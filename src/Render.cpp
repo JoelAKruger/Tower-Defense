@@ -140,35 +140,36 @@ DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, rend
     DrawTowers(RenderGroup, Game, Context);
 }
 
-static void
-RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
+static void RenderWorld(game_state* Game, game_assets* Assets, render_context* Context, shader_constants* Constants)
 {
     m4x4 WorldTransform = Game->WorldTransform;
     
-    v3 LightP = V3(-1.0f, -1.0f, -1.0f);
+    
+    f32 Visibility = -Game->CameraP.Z;
+    v2 Focus = ScreenToWorld(Game, V2(0.0f, 0.0f), 0.0f);
+    v3 LightP = V3(Focus, 0.0f) + Visibility * V3(-1.0f, -1.0f, -1.0f);
     v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
-    m4x4 Transform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 3.0f);
+    m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.8f * Visibility, Visibility, -Visibility, 1.1f * Visibility, 0.0f, 3.0f);
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Context->Arena; //TODO: Fix this
     
     DrawWorld(&RenderGroup, Game, Assets, Context);
     
-    shader_constants Constants = {};
-    Constants.WorldToClipTransform = Transform;
-    Constants.WorldToLightTransform = Transform;
-    Constants.Time = Game->Time; //TODO: Maybe make this periodic?
-    Constants.CameraPos = Game->CameraP;
+    Constants->WorldToClipTransform = LightTransform;
+    Constants->WorldToLightTransform = LightTransform;
+    Constants->Time = Game->Time; //TODO: Maybe make this periodic?
+    Constants->CameraPos = Game->CameraP;
     
     //Draw 
     SetDepthTest(true);
     UnsetShadowMap();
-    ClearOutput(Game->ShadowMap);
-    SetOutput(Game->ShadowMap);
-    SetTransform(Transform);
-    DrawRenderGroup(&RenderGroup, Assets, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
+    ClearOutput(Assets->ShadowMaps[0]);
+    SetOutput(Assets->ShadowMaps[0]);
+    SetTransform(LightTransform);
+    DrawRenderGroup(&RenderGroup, Assets, *Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     
-    Constants.WorldToClipTransform = WorldTransform;
+    Constants->WorldToClipTransform = WorldTransform;
     
     //Draw reflection texture
     f32 WaterZ = 0.125f;
@@ -181,28 +182,28 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     
     m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 1500.0f);
     
-    Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
-    Constants.WorldToClipTransform = ReflectionWorldTransform;
+    Constants->ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
+    Constants->WorldToClipTransform = ReflectionWorldTransform;
     ClearOutput(Assets->WaterReflection);
     SetOutput(Assets->WaterReflection);
-    DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    DrawRenderGroup(&RenderGroup, Assets, *Constants, Draw_Regular);
     
     //Refraction texture
-    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
-    Constants.WorldToClipTransform = WorldTransform;
+    Constants->ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
+    Constants->WorldToClipTransform = WorldTransform;
     ClearOutput(Assets->WaterRefraction);
     SetOutput(Assets->WaterRefraction);
-    DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    DrawRenderGroup(&RenderGroup, Assets, *Constants, Draw_Regular);
     
     //Draw normal world
-    Constants.ClipPlane = {};
+    Constants->ClipPlane = {};
     
     //PushTexturedRect(&RenderGroup, Assets->WaterReflection.Texture, V3(-1.5f, -1.5f, 0.0f), V3(-1.0f, -1.0f, 0.0f));
     DrawWater(&RenderGroup, Game);
     
     //Set reflection and refraction textures
     SetFrameBufferAsOutput();
-    SetShadowMap(Game->ShadowMap);
+    SetShadowMap(Assets->ShadowMaps[0]);
     SetTexture(Assets->WaterReflection.Texture, 2);
     SetTexture(Assets->WaterRefraction.Texture, 3);
     SetTexture(Assets->WaterDuDv, 4);
@@ -210,8 +211,8 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     SetTexture(Assets->WaterNormal, 6);
     
     SetTransform(WorldTransform);
-    SetLightTransform(Transform);
-    DrawRenderGroup(&RenderGroup, Assets, Constants, Draw_Regular);
+    SetLightTransform(LightTransform);
+    DrawRenderGroup(&RenderGroup, Assets, *Constants, Draw_Regular);
     
     UnsetShadowMap();
     UnsetTexture(2);
@@ -219,6 +220,4 @@ RenderWorld(game_state* Game, game_assets* Assets, render_context* Context)
     UnsetTexture(4);
     UnsetTexture(5);
     UnsetTexture(6);
-    
-    //TODO: UnsetTexture(2), UnsetTexture(3)
 }

@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include <directxmath.h>
-
 struct v2 { f32 X, Y; };
 struct v2i { i32 X, Y; };
 

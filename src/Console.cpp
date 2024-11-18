@@ -253,10 +253,11 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
         }
     }
 }
+//TODO: Take assets as a parameter
 static void
 DrawConsole(console* Console, memory_arena* Arena)
 {
-    SetShader(ColorShader);
+    SetShader(GUIColorShader);
     f32 ScreenTop = 0.5625;
     
     f32 X0 = -0.8f;
@@ -267,8 +268,8 @@ DrawConsole(console* Console, memory_arena* Arena)
     f32 Y0 = 1.0f - Console->Height;
     f32 Width = X1 - X0;
     
-    DrawRectangle(V2(X0, Y0 + InputTextHeight), V2(Width, Console->Height), V4(0.0f, 0.0f, 0.0f, 0.75f));
-    DrawRectangle(V2(X0, Y0), V2(Width, InputTextHeight), V4(0.0f, 0.0f, 0.0f, 1.0f));
+    GUI_DrawRectangle(V2(X0, Y0 + InputTextHeight), V2(Width, Console->Height), V4(0.0f, 0.0f, 0.0f, 0.75f));
+    GUI_DrawRectangle(V2(X0, Y0), V2(Width, InputTextHeight), V4(0.0f, 0.0f, 0.0f, 1.0f));
     
     string Input = ArenaPrint(Arena, "> %.*s", Console->InputLength, Console->Input);
     
@@ -285,12 +286,12 @@ DrawConsole(console* Console, memory_arena* Arena)
     
     if (Console->CursorOn)
     {
-        DrawRectangle(V2(X0 + WidthA, Y0 + Pad), 
-                      V2(Pad, InputTextHeight - 2.0f * Pad),
-                      TextColor);
+        GUI_DrawRectangle(V2(X0 + WidthA, Y0 + Pad), 
+                          V2(Pad, InputTextHeight - 2.0f * Pad),
+                          TextColor);
     }
     
-    SetShader(FontShader);
+    SetShader(GUIFontShader);
     DrawGUIString(Input, V2(X0, Y0 + 0.25f * InputTextHeight), TextColor, InputTextHeight);
     
     for (string History : Console->History)

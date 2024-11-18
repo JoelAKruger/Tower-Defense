@@ -155,40 +155,21 @@ PushShader(render_group* RenderGroup, shader_index Shader)
 }
 
 /*
-shader ColorShader;
-shader FontShader;
-shader TextureShader;
-shader WaterShader;
-shader ModelShader;
-
-texture BackgroundTexture;
-texture TargetTexture;
-texture TowerTexture;
-texture ExplosionTexture;
+A   B
+C   D
 */
-
-f32 GlobalAspectRatio;
 
 static void 
 DrawQuad(v2 A, v2 B, v2 C, v2 D, v4 Color)
 {
-    vertex Vertices[4] = {
-        {V3(A.X, A.Y, 0.0f), {}, Color},
-        {V3(B.X, B.Y, 0.0f), {}, Color},
-        {V3(C.X, C.Y, 0.0f), {}, Color},
-        {V3(D.X, D.Y, 0.0f), {}, Color}
+    gui_vertex Vertices[4] = {
+        {V2(A.X, A.Y), Color, V2(0, 1)},
+        {V2(B.X, B.Y), Color, V2(1, 1)},
+        {V2(C.X, C.Y), Color, V2(0, 0)},
+        {V2(D.X, D.Y), Color, V2(1, 0)}
     };
     
-    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
-}
-
-static void
-DrawRectangle(v2 Position, v2 Size, v4 Color)
-{
-    v2 Origin = Position;
-    v2 XAxis = V2(Size.X, 0.0f);
-    v2 YAxis = V2(0.0f, Size.Y);
-    DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Color);
+    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(Vertices[0]));
 }
 
 static void
@@ -445,4 +426,15 @@ OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f32 Fa
     Result.Values[3][3] = 1.0f;
     
     return Result;
+}
+
+static rect 
+PixelAccurateTexPosition(texture Texture, v2 Origin = {}, f32 Scale = 1.0f)
+{
+    f32 PixelWidth = 2.0f / GlobalOutputWidth;
+    f32 PixelHeight = 2.0f / GlobalOutputHeight;
+    
+    v2 MinCorner = Origin;
+    v2 MaxCorner = {Origin.X + PixelWidth * Texture.Width * Scale, Origin.Y + PixelHeight * Texture.Height * Scale};
+    return {MinCorner, MaxCorner};
 }

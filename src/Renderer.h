@@ -1,13 +1,14 @@
-struct vertex_buffer
-{
-    void* Data;
-    u64 Bytes;
-};
-
 struct vertex
 {
     v3 P;
     v3 Normal;
+    v4 Color;
+    v2 UV;
+};
+
+struct gui_vertex
+{
+    v2 P;
     v4 Color;
     v2 UV;
 };
@@ -48,6 +49,10 @@ enum shader_index
     Shader_Model,
     Shader_Background,
     Shader_OnlyDepth,
+    
+    Shader_GUI_Color,
+    Shader_GUI_Texture,
+    Shader_GUI_Font,
     
     Shader_Count
 };
@@ -101,6 +106,9 @@ struct game_assets
     texture WaterFlow; //Dynamic
     
     render_output ShadowMaps[1];
+    
+    texture Button;
+    texture Panel;
 };
 
 enum render_draw_type
@@ -158,3 +166,7 @@ void SetModelColor(v4 Color);
 
 //Utility functions
 void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);
+
+extern f32 GlobalAspectRatio;
+extern int GlobalOutputWidth;
+extern int GlobalOutputHeight;

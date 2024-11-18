@@ -50,6 +50,9 @@ void Win32SaveFile(char* Path, span<u8> Data);
 
 static std::string GlobalTextInput;
 static f32 GlobalScrollDelta;
+f32 GlobalAspectRatio;
+int GlobalOutputWidth;
+int GlobalOutputHeight;
 
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
 
@@ -61,7 +64,6 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
 void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
 
 static bool GlobalWindowDidResize;
-
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowCode)
 {
@@ -187,29 +189,14 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         {
             D3D11DeviceContext->OMSetRenderTargets(0, 0, 0);
             ClearRenderOutput(RenderOutput);
-            //FrameBufferView->Release();
-            //DepthBufferView->Release();
             
             HRESULT Result = SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
             Assert(SUCCEEDED(Result));
             
-            
             RenderOutput = GetDefaultRenderOutput(SwapChain);
-            
-            /*
-            ID3D11Texture2D* FrameBuffer;
-            Result = SwapChain->GetBuffer(0, IID_PPV_ARGS(&FrameBuffer));
-            Assert(SUCCEEDED(Result));
-            
-            //D3D11_TEXTURE2D_DESC FrameBufferDesc;
-            //FrameBuffer->GetDesc(&FrameBufferDesc);
-            
-            //GlobalAspectRatio = (f32)FrameBufferDesc.Width / (f32)FrameBufferDesc.Height;
-            
-            Result = D3D11Device->CreateRenderTargetView(FrameBuffer, 0, &FrameBufferView);
-            Assert(SUCCEEDED(Result));
-            FrameBuffer->Release();
-*/
+            GlobalAspectRatio = (f32)RenderOutput.Width / (f32)RenderOutput.Height;
+            GlobalOutputWidth = RenderOutput.Width;
+            GlobalOutputHeight = RenderOutput.Height;
             
             GlobalWindowDidResize = false;
         }
@@ -261,7 +248,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         // Draw profiling information
         SetTransform(IdentityTransform());
-        SetShader(FontShader);
+        SetShader(GUIFontShader);
         f32 X = -0.99f;
         f32 Y = 0.95f;
         for (string Text : Profile)

@@ -105,7 +105,6 @@ GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
     //Get dimensions and set aspect ratio
     D3D11_TEXTURE2D_DESC FrameBufferDesc;
     FrameBuffer->GetDesc(&FrameBufferDesc);
-    GlobalAspectRatio = (f32)FrameBufferDesc.Width / (f32)FrameBufferDesc.Height;
     
     Result.Width = FrameBufferDesc.Width;
     Result.Height = FrameBufferDesc.Height;
@@ -428,7 +427,7 @@ CreateTexture(u32* TextureData, int Width, int Height)
     texture Result = {};
     
     D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT ; //D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -458,6 +457,10 @@ CreateTexture(u32* TextureData, int Width, int Height)
     D3D11Device->CreateTexture2D(&TextureDesc, &TextureSubresourceData, &Texture);
     
     D3D11Device->CreateShaderResourceView(Texture, 0, &Result.TextureView);
+    
+    Result.Width = Width;
+    Result.Height = Height;
+    
     return Result;
 }
 
@@ -529,7 +532,7 @@ CreateShadowDepthTexture(int Width, int Height)
     return Result;
 }
 
-
+//TODO: Move this out of the platform layer
 void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio)
 {
     f32 FontTexturePixelsToScreenY = Size / Font.RasterisedSize;
@@ -538,11 +541,11 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
     f32 X = Position.X;
     f32 Y = Position.Y;
     
-    u32 Stride = sizeof(vertex);
+    u32 Stride = sizeof(gui_vertex);
     u32 Offset = 0;
     u32 VertexCount = 6 * Text.Length;
     
-    vertex* VertexData = AllocArray(&GraphicsArena, vertex, VertexCount);
+    gui_vertex* VertexData = AllocArray(&GraphicsArena, gui_vertex, VertexCount);
     
     for (u32 I = 0; I < Text.Length; I++)
     {
@@ -581,7 +584,7 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
     }
     
     D3D11_BUFFER_DESC VertexBufferDesc = {};
-    VertexBufferDesc.ByteWidth = VertexCount * sizeof(vertex);
+    VertexBufferDesc.ByteWidth = VertexCount * sizeof(gui_vertex);
     VertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
     VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     
@@ -728,35 +731,16 @@ LoadShaders(game_assets* Assets)
         {"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
-    D3D11_INPUT_ELEMENT_DESC ColorInputElementDesc[] = 
+    D3D11_INPUT_ELEMENT_DESC GUIInputElementDesc[] = 
     {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    
-    D3D11_INPUT_ELEMENT_DESC FontShaderInputElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    
-    D3D11_INPUT_ELEMENT_DESC TextureShaderElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
-    };
-    
-    D3D11_INPUT_ELEMENT_DESC ModelShaderElementDesc[] = 
-    {
-        {"POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"COL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        {"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
     //Used for the GUI
     Assets->Shaders[Shader_Color] = CreateShader(L"assets/colourshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
-    Assets->Shaders[Shader_Background]= CreateShader(L"assets/background.hlsl", ColorInputElementDesc, ArrayCount(ColorInputElementDesc));
     Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
     
     Assets->Shaders[Shader_Texture]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
@@ -770,4 +754,13 @@ LoadShaders(game_assets* Assets)
     
     Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
                                                     "PixelShader_OnlyDepth", "VertexShader_OnlyDepth");
+    
+    Assets->Shaders[Shader_GUI_Color] = CreateShader(L"assets/guishaders.hlsl", 
+                                                     GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Color", "GUI_VertexShader");
+    
+    Assets->Shaders[Shader_GUI_Texture] = CreateShader(L"assets/guishaders.hlsl", 
+                                                       GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Texture", "GUI_VertexShader");
+    
+    Assets->Shaders[Shader_GUI_Font] = CreateShader(L"assets/guishaders.hlsl", 
+                                                    GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Font", "GUI_VertexShader");
 }

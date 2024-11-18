@@ -169,8 +169,6 @@ struct game_state
     
     m4x4 WorldTransform;
     
-    render_output ShadowMap;
-    
     game_mode Mode;
     
     //Valid when mode is Mode_Place
@@ -241,3 +239,4 @@ struct app_state
 void InitialiseServerState(global_game_state* Game);
 
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
+v2 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);

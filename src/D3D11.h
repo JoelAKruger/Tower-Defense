@@ -20,6 +20,7 @@ struct d3d11_texture
 {
     ID3D11SamplerState* SamplerState;
     ID3D11ShaderResourceView* TextureView;
+    int Width, Height;
 };
 
 struct d3d11_render_output
@@ -61,4 +62,5 @@ font_texture* DefaultFont;
 void CreateD3D11Device();
 f32 D3D11TextWidth(string String, f32 Size, f32 AspectRatio = 1.0f);
 
+//TODO: Wtf is this
 #define PlatformTextWidth D3D11TextWidth
