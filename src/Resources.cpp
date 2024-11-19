@@ -28,6 +28,28 @@ LoadSkybox(game_assets* Assets)
     }
 }
 
+static font_asset
+LoadFont(char* Path, f32 Size, memory_arena* Arena)
+{
+    Assert(Arena->Type == TRANSIENT);
+    
+    font_asset Result = {};
+    
+    int TextureWidth = 512;
+    int TextureHeight = 512;
+    
+    span<u8> File = PlatformLoadFile(Arena, Path);
+    u8* TempTexture = Alloc(Arena, TextureWidth * TextureHeight * sizeof(u8));
+    
+    stbtt_BakeFontBitmap(File.Memory, 0, Size, TempTexture, TextureWidth, TextureHeight, 0, 
+                         ArrayCount(Result.BakedChars), Result.BakedChars);
+    
+    Result.Size = 0.45f * Size;
+    Result.Texture = CreateTexture((u32*)TempTexture, TextureWidth, TextureHeight, 1);
+    
+    return Result;
+}
+
 static game_assets*
 LoadAssets(allocator Allocator)
 {
@@ -50,6 +72,8 @@ LoadAssets(allocator Allocator)
     
     Assets->Button = CreateTexture("assets/textures/wenrexa_gui/Btn_TEST.png");
     Assets->Panel = CreateTexture("assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
+    
+    Assets->Font = LoadFont("assets/fonts/TitilliumWeb-Regular.ttf", 75.0f, Allocator.Transient);
     
     return Assets;
 }

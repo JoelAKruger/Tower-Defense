@@ -84,6 +84,13 @@ struct render_command
     bool DisableShadows;
 };
 
+struct font_asset
+{
+    texture Texture;
+    stbtt_bakedchar BakedChars[128];
+    f32 Size;
+};
+
 struct render_group
 {
     memory_arena* Arena;
@@ -97,6 +104,8 @@ struct game_assets
     shader Shaders[Shader_Count];
     texture Textures[32];
     cube_map Skybox;
+    
+    font_asset Font;
     
     render_output WaterReflection;
     render_output WaterRefraction;
@@ -120,7 +129,7 @@ enum render_draw_type
 
 //Initialisation
 texture CreateTexture(char* Path);
-texture CreateTexture(u32* TextureData, int Width, int Height);
+texture CreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
 void DeleteTexture(texture* Texture);
 render_output CreateShadowDepthTexture(int Width, int Height);
 render_output CreateRenderOutput(int Width, int Height);
@@ -170,3 +179,5 @@ void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);
 extern f32 GlobalAspectRatio;
 extern int GlobalOutputWidth;
 extern int GlobalOutputHeight;
+
+extern memory_arena GraphicsArena;

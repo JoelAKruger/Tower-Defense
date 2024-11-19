@@ -130,17 +130,13 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     
     Layout.NextRow();
     
-    if ((Tower->Type == Tower_Turret) && Layout.GUIButton(String("Set Target")))
+    if ((Tower->Type == Tower_Turret) && Layout.Button(String("Set Target")))
     {
         Game->TowerEditMode = TowerEdit_SetTarget;
     }
     
     SetShader(GUIFontShader); //TODO: Remove
     Layout.Label("Tower Editor");
-    
-    panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f);
-    Panel.DoBackground();
-    Panel.Button("Hello");
 }
 
 static void
@@ -251,6 +247,33 @@ GetHoveredRegionIndex(game_state* Game, v2 CursorP)
     
     return Result;
 }
+
+
+static void
+DoTowerMenu(game_state* Game)
+{
+    panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f, 1.0f);
+    Panel.DoBackground();
+    
+    if (Panel.Button("Castle"))
+    {
+        SetMode(Game, Mode_Place);
+        Game->PlacementType = Tower_Castle;
+    }
+    Panel.NextRow();
+    if (Panel.Button("Turret"))
+    {
+        SetMode(Game, Mode_Place);
+        Game->PlacementType = Tower_Turret;
+    }
+    Panel.NextRow();
+    if (Panel.Button("End Turn"))
+    {
+        player_request Request = {Request_EndTurn};
+        SendPacket(&Game->MultiplayerContext, &Request);
+    }
+}
+
 
 static void
 NewWorldData(global_game_state* NewGameState)
@@ -490,23 +513,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     //TODO: Create a proper layout system
     if (GameState->Mode == Mode_MyTurn)
     {
-        if (Button(V2(-0.95f, -0.8f), V2(0.6f / GlobalAspectRatio, 0.1f), String("Castle")))
-        {
-            SetMode(GameState, Mode_Place);
-            GameState->PlacementType = Tower_Castle;
-        }
-        
-        if (Button(V2(-0.95f + (0.7f / GlobalAspectRatio), -0.8f), V2(0.6f / GlobalAspectRatio, 0.1f), String("Turret")))
-        {
-            SetMode(GameState, Mode_Place);
-            GameState->PlacementType = Tower_Turret;
-        }
-        
-        if (Button(V2(-0.95f + (1.4f / GlobalAspectRatio), -0.8f), V2(0.6f / GlobalAspectRatio, 0.1f), String("End Turn")))
-        {
-            player_request Request = {Request_EndTurn};
-            SendPacket(&GameState->MultiplayerContext, &Request);
-        }
+        DoTowerMenu(GameState);
     }
     
     if (GameState->Mode == Mode_EditTower)

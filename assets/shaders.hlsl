@@ -111,7 +111,7 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 
 	float shadow = GetShadowValue(shadow_uv, pixel_depth);
 
-	float light = ambient + (diffuse + specular) * (1.0f - 0.8f * shadow);
+	float light = ambient + diffuse * (1.0f - 0.8f * shadow) + specular * (1.0f - shadow);
 
 	return float4(light * input.color.rgb, input.color.a);
 }

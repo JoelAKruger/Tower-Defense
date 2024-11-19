@@ -421,13 +421,24 @@ font_texture CreateFontTexture(allocator Allocator, char* Path)
     return Result;
 }
 
+static inline DXGI_FORMAT ChannelCountToDXGIFormat(int Channels)
+{
+    switch (Channels)
+    {
+        case 1: return DXGI_FORMAT_R8_UNORM;
+        case 2: return DXGI_FORMAT_R8G8_UNORM;
+        case 4: return DXGI_FORMAT_R8G8B8A8_UNORM;
+        default: Assert(0); return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
 static texture
-CreateTexture(u32* TextureData, int Width, int Height)
+CreateTexture(u32* TextureData, int Width, int Height, int Channels)
 {
     texture Result = {};
     
     D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT ; //D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SamplerDesc.Filter = D3D11_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR; //D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -444,14 +455,14 @@ CreateTexture(u32* TextureData, int Width, int Height)
     TextureDesc.Height = Height;
     TextureDesc.MipLevels = 1;
     TextureDesc.ArraySize = 1;
-    TextureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    TextureDesc.Format = ChannelCountToDXGIFormat(Channels);
     TextureDesc.SampleDesc.Count = 1;
     TextureDesc.Usage = D3D11_USAGE_IMMUTABLE;
     TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     
     D3D11_SUBRESOURCE_DATA TextureSubresourceData = {};
     TextureSubresourceData.pSysMem = TextureData;
-    TextureSubresourceData.SysMemPitch = Width * sizeof(u32);
+    TextureSubresourceData.SysMemPitch = Width * Channels;
     
     ID3D11Texture2D* Texture;
     D3D11Device->CreateTexture2D(&TextureDesc, &TextureSubresourceData, &Texture);

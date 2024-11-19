@@ -428,13 +428,32 @@ OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f32 Fa
     return Result;
 }
 
-static rect 
-PixelAccurateTexPosition(texture Texture, v2 Origin = {}, f32 Scale = 1.0f)
+static int 
+TextPixelWidth(font_asset* Font, string String)
 {
-    f32 PixelWidth = 2.0f / GlobalOutputWidth;
-    f32 PixelHeight = 2.0f / GlobalOutputHeight;
+    int Width = 0;
     
-    v2 MinCorner = Origin;
-    v2 MaxCorner = {Origin.X + PixelWidth * Texture.Width * Scale, Origin.Y + PixelHeight * Texture.Height * Scale};
-    return {MinCorner, MaxCorner};
+    for (int I = 0; I < String.Length; I++)
+    {
+        u8 C = (u8)String.Text[I];
+        Assert(C < ArrayCount(Font->BakedChars));
+        
+        Width += Font->BakedChars[C].xadvance;
+    }
+    
+    return Width;
+}
+
+static v2
+TextPixelSize(font_asset* Font, string String)
+{
+    f32 Height = Font->Size;
+    f32 Width = (f32)TextPixelWidth(Font, String);
+    return {Width, Height};
+}
+
+static void
+DrawString_(string String)
+{
+    
 }
