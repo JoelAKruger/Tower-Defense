@@ -19,8 +19,6 @@ struct world_region
 
 struct world
 {
-    v4 Colors[2];
-    
     f32 X0, Y0;
     f32 Width, Height;
     
@@ -53,7 +51,8 @@ enum tower_type
 {
     Tower_Null,
     Tower_Castle,
-    Tower_Turret
+    Tower_Turret,
+    Tower_Mine
 };
 
 struct tower
@@ -74,10 +73,18 @@ enum tower_edit_mode
     TowerEdit_SetTarget
 };
 
+struct player
+{
+    //u32 ColorIndex
+    
+    u32 Credits;
+};
+
 struct global_game_state
 {
     u32 PlayerCount;
     u32 PlayerTurnIndex;
+    player Players[4];
     
     world World;
     
@@ -185,10 +192,6 @@ struct game_state
     animation Animations[16];
     u32 AnimationCount;
     
-    u32 MyColorIndex;
-    
-    bool ShowBackground;
-    
     bool Dragging;
     v2 CursorWorldPos;
     
@@ -199,6 +202,7 @@ struct game_state
     
     //These are constants
     f32 ApproxTowerZ;
+    v4 Colors[4];
 };
 
 struct map_file_header

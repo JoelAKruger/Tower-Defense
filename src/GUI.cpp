@@ -214,7 +214,10 @@ struct panel_layout
     
     void DoBackground();
     void NextRow();
+    void Text(string Text);
+    void Text(char* Text);
     bool Button(char* Text);
+    void Image(texture Texture);
 };
 
 
@@ -255,6 +258,16 @@ void panel_layout::NextRow()
     X = XPad;
 }
 
+void panel_layout::Text(string Text)
+{
+    v2 PixelSize = TextPixelSize(&GlobalAssets->Font, Text);
+    v2 P = V2(X0 + X * PixelWidth, Y0 + PixelHeight * (Y - 0.5f * CurrentRowPixelHeight - 0.5f * PixelSize.Y));
+    GUI_DrawText(&GlobalAssets->Font, Text, P);
+    
+    X += (int)PixelSize.X + XPad;
+    CurrentRowPixelHeight = Max(CurrentRowPixelHeight, (int)PixelSize.Y);
+}
+
 bool panel_layout::Button(char* Text)
 {
     texture Texture = GlobalAssets->Button;
@@ -280,10 +293,27 @@ bool panel_layout::Button(char* Text)
         GUI_DrawRectangle(P, Size, V4(1.0f, 1.0f, 1.0f, 0.1f));
     }
     
-    X += W + XPad;
-    CurrentRowPixelHeight= Max(CurrentRowPixelHeight, Texture.Height);
+    X += Texture.Width + XPad;
+    CurrentRowPixelHeight = Max(CurrentRowPixelHeight, Texture.Height);
     
     return (Status == GUI_Pressed);
+}
+
+void panel_layout::Image(texture Texture)
+{
+    f32 W = Texture.Width * PixelWidth;
+    f32 H = Texture.Height * PixelHeight;
+    
+    SetShader(GlobalAssets->Shaders[Shader_GUI_Texture]);
+    SetTexture(Texture);
+    
+    v2 P = V2(X0 + X * PixelWidth, Y0 + Y * PixelHeight - H);
+    v2 Size = V2(W, H);
+    
+    GUI_DrawTexture(Texture, P, Size);
+    
+    X += Texture.Width + XPad;
+    CurrentRowPixelHeight = Max(CurrentRowPixelHeight, Texture.Height);
 }
 
 static void

@@ -63,7 +63,8 @@ enum vertex_buffer_index
     VertexBuffer_Castle,
     VertexBuffer_Turret,
     VertexBuffer_World,
-    VertexBuffer_Cube,
+    VertexBuffer_Mine,
+    
     
     VertexBuffer_Count
 };
@@ -118,6 +119,7 @@ struct game_assets
     
     texture Button;
     texture Panel;
+    texture Crystal;
 };
 
 enum render_draw_type

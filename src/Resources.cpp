@@ -61,7 +61,7 @@ LoadAssets(allocator Allocator)
     
     Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", false);
     Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", true);
-    Assets->VertexBuffers[VertexBuffer_Cube]   = CreateModelVertexBuffer(Allocator, "assets/models/cube.obj", true);
+    Assets->VertexBuffers[VertexBuffer_Mine]   = CreateModelVertexBuffer(Allocator, "assets/models/cube.obj", true);
     
     LoadSkybox(Assets);
     
@@ -72,6 +72,7 @@ LoadAssets(allocator Allocator)
     
     Assets->Button = CreateTexture("assets/textures/wenrexa_gui/Btn_TEST.png");
     Assets->Panel = CreateTexture("assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
+    Assets->Crystal = CreateTexture("assets/textures/crystal.png");
     
     Assets->Font = LoadFont("assets/fonts/TitilliumWeb-Regular.ttf", 75.0f, Allocator.Transient);
     

@@ -360,10 +360,16 @@ inline float Random()
 	return (float)rand() / (float)RAND_MAX;
 }
 
-static inline f32
-RandomBetween(f32 Min, f32 MaX)
+static inline int
+RandomBetween(int Min, int Max)
 {
-	return Min + Random() * (MaX - Min);
+    return Min + rand() % (Max + 1 - Min);
+}
+
+static inline f32
+RandomBetween(f32 Min, f32 Max)
+{
+	return Min + Random() * (Max - Min);
 }
 
 static inline f32 

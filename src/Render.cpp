@@ -93,6 +93,11 @@ DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4
         VertexBuffer = VertexBuffer_Turret;
         Transform = Game->TurretTransform * RotateTransform(-1.0f * Angle); //idk why it is -1.0f
     }
+    else if (Type == Tower_Mine)
+    {
+        VertexBuffer = VertexBuffer_Mine;
+        Transform = ScaleTransform(0.01f, 0.01f, 0.01f);
+    }
     else
     {
         Assert(0);
@@ -144,12 +149,17 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
 {
     m4x4 WorldTransform = Game->WorldTransform;
     
-    
+    /*
     f32 Visibility = -Game->CameraP.Z;
     v2 Focus = ScreenToWorld(Game, V2(0.0f, 0.0f), 0.0f);
     v3 LightP = V3(Focus, 0.0f) + Visibility * V3(-1.0f, -1.0f, -1.0f);
     v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
     m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-1.8f * Visibility, Visibility, -Visibility, 1.1f * Visibility, 0.0f, 3.0f);
+    */
+    
+    v3 LightP = V3(-1.0f, -1.0f, -1.0f);
+    v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
+    m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-0.7f, 0.7f, -0.7f, 0.3f, 0.0f, 3.0f);
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Context->Arena; //TODO: Fix this

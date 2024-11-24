@@ -248,12 +248,26 @@ GetHoveredRegionIndex(game_state* Game, v2 CursorP)
     return Result;
 }
 
+static player*
+GetPlayer(game_state* Game)
+{
+    player* Result = &Game->GlobalState.Players[Game->MultiplayerContext.MyClientID];
+    return Result;
+}
 
 static void
-DoTowerMenu(game_state* Game)
+DoTowerMenu(game_state* Game, game_assets* Assets, memory_arena* Arena)
 {
+    Assert(Arena->Type == TRANSIENT);
+    
+    player* Player = GetPlayer(Game);
+    
     panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f, 1.0f);
     Panel.DoBackground();
+    
+    Panel.Image(Assets->Crystal);
+    Panel.Text(ArenaPrint(Arena, "%u", Player->Credits));
+    Panel.NextRow();
     
     if (Panel.Button("Castle"))
     {
@@ -266,6 +280,13 @@ DoTowerMenu(game_state* Game)
         SetMode(Game, Mode_Place);
         Game->PlacementType = Tower_Turret;
     }
+    Panel.NextRow();
+    if (Panel.Button("Mine"))
+    {
+        SetMode(Game, Mode_Place);
+        Game->PlacementType = Tower_Mine;
+    }
+    Panel.NextRow();
     Panel.NextRow();
     if (Panel.Button("End Turn"))
     {
@@ -413,6 +434,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         v2 P = CursorWorldPos;
         
         bool Placeable = (!HoveringRegion->IsWater &&
+                          HoveringRegion->OwnerIndex == GameState->MultiplayerContext.MyClientID && 
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
@@ -513,7 +535,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     //TODO: Create a proper layout system
     if (GameState->Mode == Mode_MyTurn)
     {
-        DoTowerMenu(GameState);
+        DoTowerMenu(GameState, Assets, Allocator.Transient);
     }
     
     if (GameState->Mode == Mode_EditTower)
@@ -555,16 +577,6 @@ void Command_reset(int ArgCount, string* Args, console* Console, game_state* Gam
 {
     player_request Request = {Request_Reset};
     SendPacket(&GameState->MultiplayerContext, &Request);
-}
-
-void Command_color(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
-{
-    u32 ColorCount = ArrayCount(ServerState_->World.Colors);
-    
-    for (u32 RegionIndex = 0; RegionIndex < ServerState_->World.RegionCount; RegionIndex++)
-    {
-        //ServerState_->World.Regions[RegionIndex].ColorIndex = rand() % ColorCount;
-    }
 }
 
 void Command_create_server(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)

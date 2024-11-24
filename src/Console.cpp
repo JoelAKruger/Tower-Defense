@@ -148,7 +148,6 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
         CONSOLE_COMMAND(Console, p);
         CONSOLE_COMMAND(Console, name);
         CONSOLE_COMMAND(Console, reset);
-        CONSOLE_COMMAND(Console, color);
         CONSOLE_COMMAND(Console, create_server);
         CONSOLE_COMMAND(Console, connect);
         CONSOLE_COMMAND(Console, new_world);

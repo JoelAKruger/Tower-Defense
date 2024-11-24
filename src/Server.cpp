@@ -1,25 +1,19 @@
 static void
 InitialiseServerState(global_game_state* Game)
 {
-    CreateWorld(&Game->World);
+    CreateWorld(&Game->World, 2);
+}
+
+static void
+InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
+{
+    Assert(PlayerIndex < ArrayCount(Game->Players));
+    Assert(PlayerIndex < Game->PlayerCount);
     
-    /*
-    world_region Region = {};
+    player* Player = Game->Players + PlayerIndex;
+    *Player = {};
     
-    Region.VertexCount = 4;
-    Region.Center = {0.0f, 0.0f};
-    Region.Vertices[0] = {0.0f, 0.5f};
-    Region.Vertices[1] = {0.5f, 0.0f};
-    Region.Vertices[2] = {0.0f, -0.5f};
-    Region.Vertices[3] = {-0.5f, 0.0f};
-    SetName(&Region, "Niaga");
-    
-    Game->World.Regions[0] = Region;
-    Game->World.RegionCount = 1;
-    
-    Game->World.Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
-    Game->World.Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
-*/
+    Player->Credits = 10;
 }
 
 static inline void
@@ -83,17 +77,23 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
     {
         case Request_PlaceTower:
         {
-            if (Game->TowerCount < ArrayCount(Game->Towers))
+            int Cost = 5;
+            player* Player = Game->Players + Game->PlayerTurnIndex;
+            bool CanPlace = (Player->Credits >= Cost);
+            
+            if (CanPlace && (Game->TowerCount < ArrayCount(Game->Towers)))
             {
                 tower Tower = {Request->TowerType};
                 
-                //TODO: Assert position and region is valid!
+                //TODO: Assert position, region, tower type are valid!
                 
                 Tower.P = Request->TowerP;
                 Tower.RegionIndex = Request->TowerRegionIndex;
                 Tower.Health = 1.0f;
                 
                 Game->Towers[Game->TowerCount++] = Tower;
+                
+                Player->Credits -= Cost;
             }
             else
             {

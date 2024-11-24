@@ -19,6 +19,8 @@ ConnectToServer(multiplayer_context* Context, char* Hostname)
     
     Context->Platform.ServerHost = enet_host_create(0, ConnectionCount, Channel_Count, 0, 0);
     
+    Assert(Context->Platform.ServerHost);
+    
     ENetAddress Address = {};
     enet_address_set_host(&Address, Hostname);
     Address.port = Port;
@@ -121,6 +123,7 @@ struct client_info
 };
 
 void ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue);
+void InitialisePlayer(global_game_state* Game, u32 PlayerIndex);
 
 //This can be null :(
 global_game_state* ServerState_;
@@ -183,6 +186,7 @@ ServerMain(LPVOID)
                     enet_peer_send(Peer, Channel_Message, SendPacket);
                     
                     Game.PlayerCount = ClientCount;
+                    InitialisePlayer(&Game, ClientIndex);
                 } break;
                 case ENET_EVENT_TYPE_RECEIVE:
                 {

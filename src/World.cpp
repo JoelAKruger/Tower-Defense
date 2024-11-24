@@ -246,7 +246,6 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
         }
     }
     
-    // Ensure triangle count matches expectations
     Assert(Triangles.Count == Triangles.Capacity);
     
     CalculateModelVertexNormals(Triangles.Memory, Triangles.Count);
@@ -256,13 +255,17 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
 }
 
 static void
-CreateWorld(world* World)
+CreateWorld(world* World, u64 PlayerCount)
 {
+    Assert(PlayerCount <= 4);
+    
     static u32 Seed = 2001;
     Seed++;
     
-    World->Colors[0] = V4(0.3f, 0.7f, 0.25f, 1.0f);
-    World->Colors[1] = V4(0.2f, 0.4f, 0.5f, 1.0f);
+    v4 Colors[4] = {
+        V4(0.4f, 0.8f, 0.35f, 1.0f),
+        V4(0.3f, 0.4f, 0.7f, 1.0f)
+    };
     
     World->X0 = -1.0f;
     World->Y0 = -1.0f;
@@ -304,7 +307,8 @@ CreateWorld(world* World)
             }
             else
             {
-                Region->Color = GetRandomPlayerColor();
+                Region->OwnerIndex = RandomBetween(0, PlayerCount - 1);
+                Region->Color = Colors[Region->OwnerIndex];
             }
             
             RegionIndex++;
