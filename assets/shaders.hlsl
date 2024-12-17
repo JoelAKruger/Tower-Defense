@@ -184,6 +184,54 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	return color;
 }
 
+Texture2D ambient_texture : register(t7);
+SamplerState ambient_sampler : register(s7);
+
+Texture2D diffuse_texture : register(t8);
+SamplerState diffuse_sampler : register(s8);
+
+Texture2D normal_texture : register(t9);
+SamplerState normal_sampler : register(s9);
+
+Texture2D specular_texture : register(t10);
+SamplerState specular_sampler : register(s10);
+
+float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
+{
+	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
+	if (clip_plane_distance < 0)
+	{
+		discard;
+	}
+
+	float2 shadow_uv;
+	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
+	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
+	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
+
+	float ambient = (float)ambient_texture.Sample(ambient_sampler, input.uv);
+
+	float3 normal = normal_texture.Sample(normal_sampler, input.uv);
+	normal = 2.0f * normal - float3(1.0f, 1.0f, 1.0f);
+
+	float3 light_dir = 1.0f * normalize(float3(1.0f, -1.0f, 1.0f)); //TODO: make this a constant!
+	float diffuse = 0.5f + 0.5f * dot(normal, light_dir);
+
+	float3 view_dir = normalize(camera_pos - input.pos_world);	
+
+	float3 reflect_dir = reflect(light_dir, normal);
+
+	float shinyness = 8.0f;
+	float specular = specular_texture.Sample(specular_sampler, input.uv) * pow(max(dot(view_dir, reflect_dir), 0.0), shinyness);
+
+	float shadow = GetShadowValue(shadow_uv, pixel_depth);
+
+	float light = ambient + shadow * (diffuse + specular);
+	float3 color = diffuse_texture.Sample(diffuse_sampler, input.uv);
+
+	return float4((ambient + (1.0f - shadow) * (diffuse + specular)) * color, 1.0f);
+}
+
 Texture2D default_texture : register(t0);
 SamplerState default_sampler : register(s0);
 
