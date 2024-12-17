@@ -12,6 +12,7 @@ typedef uint8_t u8;
 typedef int8_t i8;
 typedef float f32;
 typedef double f64;
+typedef u32 b32;
 
 #define Kilobytes(n) (n * 1024)
 #define Megabytes(n) (n * 1024 * 1024)

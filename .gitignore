@@ -1,13 +1,7 @@
-*.idb
-*.pdb
-*.obj
-!assets/models/*.obj
-*.exe
-*.enc
-screenshots/
-maps/
 build/
 Nsight/
 .vs/
+vcpkg/
+Art/
 build.bat
 TODO.txt

@@ -142,6 +142,7 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
     u32 PositionCount = 0;
     u32 NormalCount = 0;
     u32 FaceCount = 0;
+    u32 TexCoordCount = 0;
     
     while (!AtEnd(&Reader))
     {
@@ -153,7 +154,7 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
         //Vertex texture coord
         else if (Consume(&Reader, "vt"))
         {
-            Assert(0);
+            TexCoordCount++;
         }
         //Vertex normal
         else if (Consume(&Reader, "vn"))
@@ -177,10 +178,10 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
         else if (Consume(&Reader, "s"))
         {
         }
-        else
+        else if (Consume(&Reader, "usemtl"))
         {
-            Assert(0);
         }
+        
         NextLine(&Reader);
     }
     
@@ -188,10 +189,12 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
     span<v3> Positions = AllocSpan(Allocator.Transient, v3, PositionCount);
     span<v3> Normals = AllocSpan(Allocator.Transient, v3, NormalCount);
     span<obj_file_face> Faces = AllocSpan(Allocator.Transient, obj_file_face, FaceCount);
+    span<v2> TexCoords = AllocSpan(Allocator.Transient, v2, TexCoordCount);
     
     u32 PositionIndex = 0;
     u32 NormalIndex = 0;
     u32 FaceIndex = 0;
+    u32 TexCoordIndex = 0;
     
     Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
     while (!AtEnd(&Reader))
@@ -208,9 +211,13 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
             Positions[PositionIndex++] = Position;
         }
         //Vertex texture coord
-        else if (Consume(&Reader, "vt"))
+        else if (Consume(&Reader, "vt "))
         {
-            Assert(0);
+            v2 TexCoord;
+            TexCoord.X = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            TexCoord.Y = ParseFloat(&Reader);
+            TexCoords[TexCoordIndex++] = TexCoord;
         }
         //Vertex normal
         else if (Consume(&Reader, "vn "))
@@ -247,18 +254,26 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
     {
         obj_file_face* Face = Faces + FaceIndex;
         
+        Vertices[FaceIndex * 3 + 0].P = Positions[Face->Vertices[0].PositionIndex - 1];
+        Vertices[FaceIndex * 3 + 1].P = Positions[Face->Vertices[1].PositionIndex - 1];
+        Vertices[FaceIndex * 3 + 2].P = Positions[Face->Vertices[2].PositionIndex - 1];
+        
+        Vertices[FaceIndex * 3 + 0].Normal = -1.0f * Normals[Face->Vertices[0].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 1].Normal = -1.0f * Normals[Face->Vertices[1].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 2].Normal = -1.0f * Normals[Face->Vertices[2].NormalIndex - 1];
+        
+        if (Face->Vertices[0].TexCoordIndex && Face->Vertices[1].TexCoordIndex && Face->Vertices[2].TexCoordIndex)
+        {
+            Vertices[FaceIndex * 3 + 0].UV = TexCoords[Face->Vertices[0].TexCoordIndex - 1];
+            Vertices[FaceIndex * 3 + 1].UV = TexCoords[Face->Vertices[1].TexCoordIndex - 1];
+            Vertices[FaceIndex * 3 + 2].UV = TexCoords[Face->Vertices[2].TexCoordIndex - 1];
+        }
+        
         if (ChangeOrder)
         {
-            //Flip direction of vertices to convert to left-handed
-            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[2].PositionIndex - 1], Normals[Face->Vertices[2].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], Normals[Face->Vertices[1].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[0].PositionIndex - 1], Normals[Face->Vertices[0].NormalIndex - 1]};
-        }
-        else
-        {
-            Vertices[FaceIndex * 3 + 0] = {Positions[Face->Vertices[2].PositionIndex - 1], -1.0f * Normals[Face->Vertices[2].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 1] = {Positions[Face->Vertices[1].PositionIndex - 1], -1.0f * Normals[Face->Vertices[1].NormalIndex - 1]};
-            Vertices[FaceIndex * 3 + 2] = {Positions[Face->Vertices[0].PositionIndex - 1], -1.0f * Normals[Face->Vertices[0].NormalIndex - 1]};
+            vertex Temp = Vertices[FaceIndex * 3 + 0];
+            Vertices[FaceIndex * 3 + 0] = Vertices[FaceIndex * 3 + 2];
+            Vertices[FaceIndex * 3 + 2] = Temp;
         }
     }
     

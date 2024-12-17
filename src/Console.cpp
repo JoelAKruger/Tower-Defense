@@ -146,7 +146,6 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
     if (Console->CommandCount == 0)
     {
         CONSOLE_COMMAND(Console, p);
-        CONSOLE_COMMAND(Console, name);
         CONSOLE_COMMAND(Console, reset);
         CONSOLE_COMMAND(Console, create_server);
         CONSOLE_COMMAND(Console, connect);

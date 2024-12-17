@@ -65,8 +65,12 @@ void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
 
 static bool GlobalWindowDidResize;
 
+void InitialiseSteamNetworking();
+
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowCode)
 {
+    InitialiseSteamNetworking();
+    
     //Required for profiling
     GetCPUFrequency(10);
     

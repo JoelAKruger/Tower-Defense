@@ -1,5 +1,9 @@
 memory_arena GraphicsArena;
 
+#ifndef DEBUG
+#define DEBUG
+#endif
+
 static void
 CreateD3D11Device()
 {
@@ -438,7 +442,7 @@ CreateTexture(u32* TextureData, int Width, int Height, int Channels)
     texture Result = {};
     
     D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR; //D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;//D3D11_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR; //
     SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
     SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -457,8 +461,9 @@ CreateTexture(u32* TextureData, int Width, int Height, int Channels)
     TextureDesc.ArraySize = 1;
     TextureDesc.Format = ChannelCountToDXGIFormat(Channels);
     TextureDesc.SampleDesc.Count = 1;
-    TextureDesc.Usage = D3D11_USAGE_IMMUTABLE;
-    TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    TextureDesc.Usage = D3D11_USAGE_DEFAULT;
+    TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    TextureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
     
     D3D11_SUBRESOURCE_DATA TextureSubresourceData = {};
     TextureSubresourceData.pSysMem = TextureData;
@@ -467,7 +472,13 @@ CreateTexture(u32* TextureData, int Width, int Height, int Channels)
     ID3D11Texture2D* Texture;
     D3D11Device->CreateTexture2D(&TextureDesc, &TextureSubresourceData, &Texture);
     
-    D3D11Device->CreateShaderResourceView(Texture, 0, &Result.TextureView);
+    D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc = {};
+    ShaderResourceViewDesc.Format = TextureDesc.Format;
+    ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ShaderResourceViewDesc.Texture2D.MipLevels = -1;
+    
+    D3D11Device->CreateShaderResourceView(Texture, &ShaderResourceViewDesc, &Result.TextureView);
+    //D3D11DeviceContext->GenerateMips(Result.TextureView);
     
     Result.Width = Width;
     Result.Height = Height;
@@ -763,8 +774,11 @@ LoadShaders(game_assets* Assets)
     Assets->Shaders[Shader_Model]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
                                                 "PixelShader_Model", "MyVertexShader");
     
+    Assets->Shaders[Shader_TexturedModel]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                        "PixelShader_TexturedModel", "MyVertexShader");
+    
     Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                    "PixelShader_OnlyDepth", "VertexShader_OnlyDepth");
+                                                    "PixelShader_TexturedModel", "MyVertexShader");
     
     Assets->Shaders[Shader_GUI_Color] = CreateShader(L"assets/guishaders.hlsl", 
                                                      GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Color", "GUI_VertexShader");

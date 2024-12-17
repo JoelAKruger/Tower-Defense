@@ -203,6 +203,11 @@ SetColor(tri* Tri, v4 Color)
 static void
 CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
 {
+    if (World->RegionCount == 0)
+    {
+        return;
+    }
+    
     u64 TriangleCount = (World->RegionCount - 1) * 3 * ArrayCount(world_region::Vertices);
     static_array<tri> Triangles = AllocStaticArray(Arena, tri, TriangleCount);
     

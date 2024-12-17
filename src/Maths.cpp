@@ -18,12 +18,12 @@ struct v4
         struct
         {
             v2 XY;
-            f32 Z, W;
+            //f32 Z, W;
         };
         struct
         {
             v3 XYZ;
-            f32 W;
+            //f32 W;
         };
         struct
         {
@@ -32,7 +32,7 @@ struct v4
         struct
         {
             v3 RGB;
-            f32 A;
+            //f32 A;
         };
     };
 };

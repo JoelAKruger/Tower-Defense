@@ -47,6 +47,7 @@ enum shader_index
     Shader_Texture,
     Shader_Water,
     Shader_Model,
+    Shader_TexturedModel,
     Shader_Background,
     Shader_OnlyDepth,
     
@@ -99,6 +100,15 @@ struct render_group
     u32 CommandCount;
 };
 
+struct model_textures
+{
+    texture Ambient;
+    texture Diffuse;
+    //texture Displacement;
+    texture Normal;
+    texture Specular;
+};
+
 struct game_assets
 {
     renderer_vertex_buffer VertexBuffers[VertexBuffer_Count];
@@ -120,6 +130,8 @@ struct game_assets
     texture Button;
     texture Panel;
     texture Crystal;
+    
+    model_textures ModelTextures;
 };
 
 enum render_draw_type
@@ -127,6 +139,12 @@ enum render_draw_type
     Draw_Regular = 0,
     Draw_OnlyDepth = 1,
     Draw_Shadow = 2
+};
+
+struct ssao_kernel
+{
+    v3 Samples[64];
+    v3 Noise[16];
 };
 
 //Initialisation

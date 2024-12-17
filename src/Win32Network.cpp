@@ -1,249 +1,320 @@
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "Winmm.lib")
-#pragma comment(lib, "lib/enet64.lib")
+const u16 DefaultPort = 22333;
 
-static u16 Port = 22333;
-
-enum 
+static void
+SteamDebugOutput(ESteamNetworkingSocketsDebugOutputType Type, const char* Message)
 {
-    Channel_Message,
-    Channel_WorldData,
-    
-    Channel_Count
-};
+    LOG("Steam networking message: %s", Message);
+}
+
+static void
+InitialiseSteamNetworking()
+{
+    static bool Initialised = false;
+    if (!Initialised)
+    {
+        SteamNetworkingErrMsg Error;
+        if (GameNetworkingSockets_Init(0, Error))
+        {
+            SteamNetworkingUtils()->SetDebugOutputFunction(k_ESteamNetworkingSocketsDebugOutputType_Msg, SteamDebugOutput);
+            Initialised = true;
+        }
+        else
+        {
+            LOG("Could not initialise steam networking library: %s\n", Error);
+        }
+    }
+}
+
+static multiplayer_context* GlobalClientContext;
+
+static void
+Client_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* Info)
+{
+    switch (Info->m_info.m_eState)
+    {
+        case k_ESteamNetworkingConnectionState_ClosedByPeer:
+        case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+        {
+            if (Info->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
+            {
+                //Disconnected
+                LOG("(CLIENT) Disconnected: Connection %s, reason %d: %s\n",
+                    Info->m_info.m_szConnectionDescription,
+                    Info->m_info.m_eEndReason,
+                    Info->m_info.m_szEndDebug);
+                
+                GlobalClientContext->Connected = false;
+            }
+        } break;
+        case k_ESteamNetworkingConnectionState_Connected:
+        {
+            GlobalClientContext->Connected = true;
+            LOG("(CLIENT) Connected");
+        } break;
+    }
+}
 
 static void
 ConnectToServer(multiplayer_context* Context, char* Hostname)
 {
-    int ConnectionCount = 1;
+    GlobalClientContext = Context;
     
-    Context->Platform.ServerHost = enet_host_create(0, ConnectionCount, Channel_Count, 0, 0);
+    ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
     
-    Assert(Context->Platform.ServerHost);
+    SteamNetworkingIPAddr Address;
+    Address.Clear();
+    Address.ParseString(Hostname);
+    Address.m_port = DefaultPort;
     
-    ENetAddress Address = {};
-    enet_address_set_host(&Address, Hostname);
-    Address.port = Port;
+    SteamNetworkingConfigValue_t Config;
+    Config.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*)Client_SteamConnectionStatusChanged);
     
-    Context->Platform.ServerPeer = enet_host_connect(Context->Platform.ServerHost, &Address, Channel_Count, 0);
-    Context->Connected = true;
+    Context->Platform.Connection = Interface->ConnectByIPAddress(Address, 1, &Config);
+    
+    Assert(Context->Platform.Connection != k_HSteamNetConnection_Invalid);
 }
 
 
 static void
 DisconnectFromServer()
 {
-    
 }
 
-static void AddMessage(server_message_queue* Queue, server_message Message);
+static void AddMessage(server_message_queue* Queue, server_packet_message Message);
 
 static void
 CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
 {
-    if (Context->Platform.ServerHost)
+    if (!Context->Platform.Connection)
     {
-        while (true)
+        return;
+    }
+    
+    ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
+    while (true)
+    {
+        ISteamNetworkingMessage* IncomingMessage = 0;
+        int MessageCount = Interface->ReceiveMessagesOnConnection(Context->Platform.Connection, 
+                                                                  &IncomingMessage, 1);
+        
+        Assert(MessageCount >= 0);
+        
+        if (MessageCount > 0)
         {
-            ENetEvent Event = {};
-            int ENetResult = enet_host_service(Context->Platform.ServerHost, &Event, 0);
+            Assert(MessageCount == 1 && IncomingMessage);
             
-            if (ENetResult == 0)
+            channel Channel = *(channel*)IncomingMessage->m_pData;
+            switch (Channel)
             {
-                break;
-            }
-            
-            Assert(ENetResult > 0);
-            
-            switch (Event.type)
-            {
-                case ENET_EVENT_TYPE_CONNECT:
+                case Channel_GameState:
                 {
-                    Context->Connected = true;
-                } break;
-                case ENET_EVENT_TYPE_RECEIVE:
-                {
-                    ENetPacket* Packet = Event.packet;
+                    LOG("Client: received game state\n");
+                    Assert(IncomingMessage->m_cbSize == sizeof(server_packet_game_state));
+                    server_packet_game_state* Packet = (server_packet_game_state*)IncomingMessage->m_pData;
                     
-                    switch (Event.channelID)
-                    {
-                        case Channel_WorldData:
-                        {
-                            LOG("Client: received world data\n");
-                            Assert(Packet->dataLength == sizeof(global_game_state));
-                            *Game = *(global_game_state*)Packet->data;
-                            
-                            server_message Message = {Message_NewWorld};
-                            AddMessage(&Context->MessageQueue, Message);
-                            
-                            enet_packet_destroy(Packet);
-                        } break;
-                        case Channel_Message:
-                        {
-                            LOG("Client: received message\n");
-                            Assert(Packet->dataLength == sizeof(server_message));
-                            server_message* Message = (server_message*)Packet->data;
-                            AddMessage(&Context->MessageQueue, *Message);
-                        } break;
-                        default:
-                        {
-                            Assert(0);
-                        }
-                    }
+                    *Game = Packet->ServerGameState;
+                    
+                    server_packet_message Message = {Channel_Message, Message_NewWorld};
+                    AddMessage(&Context->MessageQueue, Message);
                 } break;
-                case ENET_EVENT_TYPE_DISCONNECT:
+                case Channel_Message:
                 {
-                    Context->Connected = false;
+                    LOG("Client: received message\n");
+                    Assert(IncomingMessage->m_cbSize == sizeof(server_packet_message));
+                    server_packet_message* Message = (server_packet_message*)IncomingMessage->m_pData;
+                    AddMessage(&Context->MessageQueue, *Message);
                 } break;
-                default:
-                {
-                    Assert(0);
-                }
+                default: Assert(0);
             }
+            
+            IncomingMessage->Release();
+        }
+        else
+        { 
+            break;
         }
     }
+    
+    Interface->RunCallbacks();
 }
 
 static bool
 PlatformSend(multiplayer_context* Context, u8* Data, u32 Length)
 {
-    ENetPacket* Packet = enet_packet_create((void*)Data, Length, ENET_PACKET_FLAG_RELIABLE);
-    
-    enet_peer_send(Context->Platform.ServerPeer, 0, Packet);
-    
-    enet_host_flush(Context->Platform.ServerHost);
-    enet_packet_destroy(Packet); 
+    ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
+    Interface->SendMessageToConnection(Context->Platform.Connection, Data, Length, k_nSteamNetworkingSend_Reliable, 0);
     
     return true;
 }
 
-struct client_info
-{
-    u32 ClientIndex;
-};
-
 void ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue);
 void InitialisePlayer(global_game_state* Game, u32 PlayerIndex);
 
-//This can be null :(
-global_game_state* ServerState_;
+struct server_state
+{
+    ISteamNetworkingSockets* Interface;
+    HSteamListenSocket ListenSocket;
+    HSteamNetPollGroup PollGroup;
+    
+    bool SendFlag;
+    HSteamNetConnection Clients[8];
+    u32 ClientCount = 0;
+};
+
+server_state ServerState = {};
+
+static u64 
+GetClientIndex(HSteamNetConnection Connection)
+{
+    for (u32 CheckClientIndex = 0; CheckClientIndex < ArrayCount(ServerState.Clients); CheckClientIndex++)
+    {
+        if (ServerState.Clients[CheckClientIndex] == Connection)
+        {
+            return CheckClientIndex;
+        }
+    }
+    Assert(0);
+    return 0;
+}
+
+global_game_state* GlobalServerGameState_;
+
+static void
+Server_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* Info)
+{
+    switch (Info->m_info.m_eState)
+    {
+        case k_ESteamNetworkingConnectionState_ClosedByPeer:
+        case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
+        {
+            if (Info->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
+            {
+                //Disconnected
+                LOG("(SERVER) Disconnected: Connection %s, reason %d: %s\n",
+                    Info->m_info.m_szConnectionDescription,
+                    Info->m_info.m_eEndReason,
+                    Info->m_info.m_szEndDebug);
+                
+                u64 ClientIndex = GetClientIndex(Info->m_hConn);
+                ServerState.Clients[ClientIndex] = {};
+                
+                ServerState.Interface->CloseConnection(Info->m_hConn, 0, 0, false);
+            }
+        } break;
+        
+        case k_ESteamNetworkingConnectionState_Connected:
+        {
+            LOG("(SERVER) Connected: Connection %s\n", Info->m_info.m_szConnectionDescription);
+        } break;
+        
+        case k_ESteamNetworkingConnectionState_Connecting:
+        {
+            Assert(ServerState.ClientCount < ArrayCount(ServerState.Clients));
+            
+            //TODO: Check return values
+            ServerState.Interface->AcceptConnection(Info->m_hConn);
+            ServerState.Interface->SetConnectionPollGroup(Info->m_hConn, ServerState.PollGroup);
+            
+            u64 PlayerIndex = (ServerState.ClientCount++);
+            ServerState.Clients[PlayerIndex] = Info->m_hConn;
+            
+            GlobalServerGameState_->PlayerCount = ServerState.ClientCount;
+            InitialisePlayer(GlobalServerGameState_, PlayerIndex);
+            
+            LOG("(SERVER) Connecting: Connection %s\n", Info->m_info.m_szConnectionDescription);
+            
+            server_packet_message Message = {Channel_Message};
+            Message.Type = Message_Initialise;
+            Message.InitialiseClientID = PlayerIndex;
+            ServerState.Interface->SendMessageToConnection(Info->m_hConn, (void*)&Message, sizeof(Message), k_nSteamNetworkingSend_Reliable, 0);
+            
+            ServerState.SendFlag = true;
+        } break;
+    }
+}
 
 DWORD WINAPI
 ServerMain(LPVOID)
 {
-    enet_initialize();
+    SteamNetworkingIPAddr ServerAddress;
+    ServerAddress.Clear();
+    ServerAddress.m_port = DefaultPort;
     
-    ENetAddress Address = {};
-    Address.host = ENET_HOST_ANY;
-    Address.port = Port;
+    SteamNetworkingConfigValue_t Config;
+    Config.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*)Server_SteamConnectionStatusChanged);
     
-    ENetHost* Server = enet_host_create(&Address, 8, Channel_Count, 0, 0);
+    ServerState.Interface = SteamNetworkingSockets();
+    
+    ServerState.ListenSocket = ServerState.Interface->CreateListenSocketIP(ServerAddress, 1, &Config);
+    Assert(ServerState.ListenSocket != k_HSteamListenSocket_Invalid);
+    
+    ServerState.PollGroup = ServerState.Interface->CreatePollGroup();
+    Assert(ServerState.PollGroup != k_HSteamNetPollGroup_Invalid);
+    
     LOG("Created server\n");
     
     global_game_state Game = {};
+    GlobalServerGameState_ = &Game;
+    
     InitialiseServerState(&Game);
-    
-    ServerState_ = &Game;
-    
-    ENetPeer* Clients[8];
-    u32 ClientCount = 0;
     
     server_message_queue MessageQueue = {};
     
     while (true)
     {
-        ENetEvent Event = {};
-        int ENetResult = enet_host_service(Server, &Event, 0);
+        ISteamNetworkingMessage* IncomingMessage = 0;
+        int MessageCount = ServerState.Interface->ReceiveMessagesOnPollGroup(ServerState.PollGroup, &IncomingMessage, 1);
         
-        Assert(ENetResult >= 0);
+        Assert(MessageCount >= 0);
         
-        if (ENetResult > 0)
+        if (MessageCount > 0)
         {
-            switch (Event.type)
-            {
-                case ENET_EVENT_TYPE_CONNECT:
-                {
-                    ENetPeer* Peer = Event.peer;
-                    u32 Host = Peer->address.host;
-                    LOG("New connection from %u.%u.%u.%u:%u\n", (u8)(Host), (u8)(Host >> 8), (u8)(Host >> 16), (u8)(Host >> 24) , Peer->address.port);
-                    
-                    u32 ClientIndex = ClientCount++;
-                    Assert(ClientIndex < ArrayCount(Clients));
-                    
-                    Clients[ClientIndex] = Peer;
-                    
-                    client_info* ClientInfo = new client_info{};
-                    ClientInfo->ClientIndex = ClientIndex;
-                    Peer->data = ClientInfo;
-                    
-                    //Send client its client index
-                    server_message Message = {};
-                    Message.Type = Message_Initialise;
-                    Message.InitialiseClientID = ClientIndex;
-                    
-                    ENetPacket* SendPacket = enet_packet_create((void*)&Message, sizeof(Message), ENET_PACKET_FLAG_RELIABLE);
-                    
-                    enet_peer_send(Peer, Channel_Message, SendPacket);
-                    
-                    Game.PlayerCount = ClientCount;
-                    InitialisePlayer(&Game, ClientIndex);
-                } break;
-                case ENET_EVENT_TYPE_RECEIVE:
-                {
-                    LOG("Server: Received data from client\n");
-                    ENetPacket* Packet = Event.packet;
-                    client_info* ClientInfo = (client_info*)Event.peer->data;
-                    
-                    Assert(Packet->dataLength == sizeof(player_request));
-                    player_request* Request = (player_request*)Packet->data;
-                    
-                    ServerHandleRequest(&Game, ClientInfo->ClientIndex, Request, &MessageQueue);
-                    
-                    enet_packet_destroy(Packet);
-                } break;
-                case ENET_EVENT_TYPE_DISCONNECT:
-                {
-                    LOG("Client disconnected\n");
-                    
-                    client_info* ClientInfo = (client_info*)Event.peer->data;
-                    delete ClientInfo;
-                } break;
-                default:
-                {
-                    Assert(0);
-                }
-            }
+            Assert(MessageCount == 1 && IncomingMessage);
             
-            //Send new state to clients
-            //TODO: Check if this is necessary
-            ENetPacket* WorldPacket = enet_packet_create((void*)&Game, sizeof(Game), ENET_PACKET_FLAG_RELIABLE);
+            LOG("Server: Received data from client\n");
             
-            for (u32 ClientIndex = 0; ClientIndex < ClientCount; ClientIndex++)
-            {
-                enet_peer_send(Clients[ClientIndex], Channel_WorldData, WorldPacket);
-            }
+            Assert(IncomingMessage->m_cbSize == sizeof(player_request));
+            player_request* Request = (player_request*)IncomingMessage->m_pData;
             
-            for (u32 MessageIndex = 0; MessageIndex < MessageQueue.MessageCount; MessageIndex++)
-            {
-                server_message* Message = MessageQueue.Messages + MessageIndex;
-                ENetPacket* Packet = enet_packet_create((void*)Message, sizeof(*Message), ENET_PACKET_FLAG_RELIABLE);
-                
-                for (u32 ClientIndex = 0; ClientIndex < ClientCount; ClientIndex++)
-                {
-                    enet_peer_send(Clients[ClientIndex], Channel_Message, Packet);
-                }
-            }
+            u64 ClientIndex = GetClientIndex(IncomingMessage->m_conn);
+            ServerHandleRequest(&Game, ClientIndex, Request, &MessageQueue);
             
-            //Send messages to clients
+            IncomingMessage->Release();
             
-            MessageQueue.MessageCount = 0;
-            
-            enet_host_flush(Server);
+            ServerState.SendFlag = true;
         }
         else
         {
             Sleep(10);
         }
+        
+        if (ServerState.SendFlag)
+        {
+            //Send new state to clients
+            server_packet_game_state GameStatePacket = {Channel_GameState};
+            GameStatePacket.ServerGameState = Game;
+            for (u32 ClientIndex = 0; ClientIndex < ServerState.ClientCount; ClientIndex++)
+            {
+                ServerState.Interface->SendMessageToConnection(ServerState.Clients[ClientIndex], (void*)&GameStatePacket, sizeof(GameStatePacket), k_nSteamNetworkingSend_Reliable, 0);
+            }
+            
+            //Send messages to clients
+            for (u32 MessageIndex = 0; MessageIndex < MessageQueue.MessageCount; MessageIndex++)
+            {
+                server_packet_message* Message = MessageQueue.Messages + MessageIndex;
+                
+                for (u32 ClientIndex = 0; ClientIndex < ServerState.ClientCount; ClientIndex++)
+                {
+                    ServerState.Interface->SendMessageToConnection(ServerState.Clients[ClientIndex], (void*)Message, sizeof(*Message), k_nSteamNetworkingSend_Reliable, 0);
+                }
+            }
+            
+            MessageQueue.MessageCount = 0;
+            
+            ServerState.SendFlag = false;
+        }
+        
+        ServerState.Interface->RunCallbacks();
     }
 }
 

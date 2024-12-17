@@ -1,4 +1,5 @@
-#include <enet/enet.h>
+#include <steam/steamnetworkingsockets.h>
+#include <steam/isteamnetworkingutils.h>
 
 struct world_region
 {
@@ -75,6 +76,8 @@ enum tower_edit_mode
 
 struct player
 {
+    char Name[64];
+    u32 NameLength;
     //u32 ColorIndex
     
     u32 Credits;
@@ -82,7 +85,10 @@ struct player
 
 struct global_game_state
 {
+    b32 GameStarted;
+    
     u32 PlayerCount;
+    u32 MaxPlayers;
     u32 PlayerTurnIndex;
     player Players[4];
     
@@ -95,6 +101,7 @@ struct global_game_state
 enum player_request_type
 {
     Request_Null,
+    Request_StartGame,
     Request_Reset,
     Request_PlaceTower,
     Request_EndTurn,
@@ -115,6 +122,15 @@ struct player_request
     v2 TargetP;
 };
 
+enum channel : u32
+{
+    Channel_Null,
+    Channel_Message,
+    Channel_GameState,
+    
+    Channel_Count
+};
+
 enum server_message_type
 {
     Message_Null,
@@ -123,8 +139,10 @@ enum server_message_type
     Message_NewWorld
 };
 
-struct server_message
+struct server_packet_message
 {
+    channel Channel;
+    
     server_message_type Type;
     
     //Message type = Initialise
@@ -135,17 +153,24 @@ struct server_message
     f32 AnimationRadius;
 };
 
+struct server_packet_game_state
+{
+    channel Channel;
+    global_game_state ServerGameState;
+};
+
 struct server_message_queue
 {
-    server_message Messages[32];
+    server_packet_message Messages[32];
     u32 MessageCount;
 };
 
-struct platform_multiplayer_context
+struct game_networking_sockets_multiplayer_context
 {
-    ENetHost* ServerHost;
-    ENetPeer* ServerPeer;
+    HSteamNetConnection Connection;
 };
+
+typedef game_networking_sockets_multiplayer_context platform_multiplayer_context;
 
 struct multiplayer_context
 {
@@ -227,7 +252,8 @@ struct render_context
 enum app_screen
 {
     Screen_MainMenu,
-    Screen_Game
+    Screen_Game,
+    Screen_GameOver
 };
 
 struct game_assets;

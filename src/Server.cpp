@@ -1,7 +1,9 @@
+const u32 ServerMaxPlayers = 4;
+
 static void
 InitialiseServerState(global_game_state* Game)
 {
-    CreateWorld(&Game->World, 2);
+    Game->MaxPlayers = ServerMaxPlayers;
 }
 
 static void
@@ -17,7 +19,7 @@ InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
 }
 
 static inline void
-AddMessage(server_message_queue* Queue, server_message Message)
+AddMessage(server_message_queue* Queue, server_packet_message Message)
 {
     if (Queue->MessageCount < ArrayCount(Queue->Messages))
     {
@@ -57,7 +59,7 @@ PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
             
             DoExplosion(Game, P, Radius);
             
-            server_message Message = {Message_PlayAnimation};
+            server_packet_message Message = {Channel_Message, Message_PlayAnimation};
             Message.AnimationP = P;
             Message.AnimationRadius = Radius;
             AddMessage(MessageQueue, Message);
@@ -75,6 +77,11 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
     
     switch (Request->Type)
     {
+        case Request_StartGame:
+        {
+            CreateWorld(&Game->World, Game->PlayerCount);
+            Game->GameStarted = true;
+        } break;
         case Request_PlaceTower:
         {
             int Cost = 5;

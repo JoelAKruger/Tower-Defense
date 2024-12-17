@@ -196,7 +196,7 @@ TickAnimations(game_state* Game, f32 DeltaTime)
 }
 
 static void
-HandleMessageFromServer(server_message* Message, game_state* GameState, game_assets* Assets, memory_arena* TArena)
+HandleMessageFromServer(server_packet_message* Message, game_state* GameState, game_assets* Assets, memory_arena* TArena)
 {
     switch (Message->Type)
     {
@@ -302,22 +302,26 @@ NewWorldData(global_game_state* NewGameState)
     
 }
 
-static void 
-GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+static void
+RunLobby(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
-    UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, Assets, SecondsPerFrame);
+    global_game_state* Server = &GameState->GlobalState;
     
-    GameState->Time += SecondsPerFrame;
+    BeginGUI(Input, Assets);
     
-    CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
-    
-    for (u32 MessageIndex = 0; MessageIndex < GameState->MultiplayerContext.MessageQueue.MessageCount; MessageIndex++)
+    panel_layout Layout = DefaultPanelLayout(-0.9f, 0.9f);
+    Layout.Text(ArenaPrint(Allocator.Transient, "In Lobby (%u / %u)", Server->PlayerCount, Server->MaxPlayers));
+    Layout.NextRow();
+    if (Layout.Button("Start Game"))
     {
-        HandleMessageFromServer(GameState->MultiplayerContext.MessageQueue.Messages + MessageIndex, GameState,
-                                Assets, Allocator.Transient);
+        player_request Request = {Request_StartGame};
+        SendPacket(&GameState->MultiplayerContext, &Request);
     }
-    GameState->MultiplayerContext.MessageQueue.MessageCount = 0;
-    
+}
+
+static void
+RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+{
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MultiplayerContext.MyClientID) &&
         (GameState->Mode == Mode_Waiting))
@@ -548,6 +552,33 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     SetShader(GUIFontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
+}
+
+static void 
+GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+{
+    UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, Assets, SecondsPerFrame);
+    
+    GameState->Time += SecondsPerFrame;
+    
+    CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
+    
+    for (u32 MessageIndex = 0; MessageIndex < GameState->MultiplayerContext.MessageQueue.MessageCount; MessageIndex++)
+    {
+        HandleMessageFromServer(GameState->MultiplayerContext.MessageQueue.Messages + MessageIndex, GameState,
+                                Assets, Allocator.Transient);
+    }
+    GameState->MultiplayerContext.MessageQueue.MessageCount = 0;
+    
+    if (GameState->GlobalState.GameStarted)
+    {
+        RunGame(GameState, Assets, SecondsPerFrame, Input, Allocator);
+    }
+    else
+    {
+        RunLobby(GameState, Assets, SecondsPerFrame, Input, Allocator);
+    }
+    
     DrawGUIString(String(GameState->MultiplayerContext.Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
     DrawGUIString(ArenaPrint(Allocator.Transient, "My client ID: %u", GameState->MultiplayerContext.MyClientID), V2(-0.95f, -0.05f));
     DrawGUIString(ArenaPrint(Allocator.Transient, "Current Turn: %u", GameState->GlobalState.PlayerTurnIndex), V2(-0.95f, -0.10f));
@@ -559,18 +590,6 @@ void Command_p(int, string*, console* Console, game_state* GameState, game_asset
 {
     string String = ArenaPrint(Arena, "X: %f, Y: %f, Z: %f", GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
     AddLine(Console, String);
-}
-
-void Command_name(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets*, memory_arena* Arena)
-{
-    if (ArgCount == 3)
-    {
-        u32 RegionIndex = StringToU32(Args[1]);
-        string Name = Args[2];
-        
-        world_region* Region = ServerState_->World.Regions + RegionIndex;
-        SetName(Region, Name);
-    }
 }
 
 void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets*, memory_arena* Arena)
@@ -586,7 +605,7 @@ void Command_create_server(int ArgCount, string* Args, console* Console, game_st
 
 void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
-    ConnectToServer(&Game->MultiplayerContext, "localhost");
+    ConnectToServer(&Game->MultiplayerContext, "127.0.0.1");
 }
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)

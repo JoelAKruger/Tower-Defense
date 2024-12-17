@@ -457,3 +457,23 @@ DrawString_(string String)
 {
     
 }
+
+static ssao_kernel
+CreateSSAOKernel()
+{
+    ssao_kernel Kernel = {};
+    for (u64 I = 0; I < ArrayCount(Kernel.Samples); I++)
+    {
+        v3 Sample = {Random() * 2.0f - 1.0f, Random() * 2.0f - 1.0f, Random()};
+        
+        f32 Scale = (f32)I / ArrayCount(Kernel.Samples);
+        Scale = LinearInterpolate(0.1f, 1.0f, Square(Scale));
+        
+        Kernel.Samples[I] = Scale * UnitV(Sample);
+    }
+    
+    for (u64 I = 0; I < ArrayCount(Kernel.Noise); I++)
+    {
+        Kernel.Noise[I] = UnitV(V3(Random() * 2.0f - 1.0f, Random() * 2.0f - 1.0f, 0.0f));
+    }
+}

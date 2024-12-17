@@ -3,7 +3,7 @@ CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
 {
     span<vertex> Vertices = LoadModel(Allocator, Path, SwitchOrder);
     
-    CalculateModelVertexNormals((tri*)Vertices.Memory, Vertices.Count / 3);
+    //CalculateModelVertexNormals((tri*)Vertices.Memory, Vertices.Count / 3);
     
     renderer_vertex_buffer VertexBuffer = CreateVertexBuffer(Vertices.Memory, Vertices.Count * sizeof(vertex),
                                                              D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
@@ -59,9 +59,9 @@ LoadAssets(allocator Allocator)
     
     Assets->ShadowMaps[0] = CreateShadowDepthTexture(4096, 4096);
     
-    Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", false);
-    Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", true);
-    Assets->VertexBuffers[VertexBuffer_Mine]   = CreateModelVertexBuffer(Allocator, "assets/models/cube.obj", true);
+    Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", true);
+    Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", false);
+    Assets->VertexBuffers[VertexBuffer_Mine]   = CreateModelVertexBuffer(Allocator, "assets/models/crate.obj", false);
     
     LoadSkybox(Assets);
     
@@ -75,6 +75,11 @@ LoadAssets(allocator Allocator)
     Assets->Crystal = CreateTexture("assets/textures/crystal.png");
     
     Assets->Font = LoadFont("assets/fonts/TitilliumWeb-Regular.ttf", 75.0f, Allocator.Transient);
+    
+    Assets->ModelTextures.Ambient = CreateTexture("assets/textures/Carvalho-Munique_ambient.jpg");
+    Assets->ModelTextures.Diffuse = CreateTexture("assets/textures/Carvalho-Munique_Diffuse.jpg");
+    Assets->ModelTextures.Normal = CreateTexture("assets/textures/Carvalho-Munique_normal.jpg");
+    Assets->ModelTextures.Specular = CreateTexture("assets/textures/Carvalho-Munique_specular.jpg");
     
     return Assets;
 }

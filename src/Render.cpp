@@ -57,6 +57,7 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
         }
         else
         {
+            
             Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), Normal, Color};
             Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
             Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
@@ -96,7 +97,7 @@ DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4
     else if (Type == Tower_Mine)
     {
         VertexBuffer = VertexBuffer_Mine;
-        Transform = ScaleTransform(0.01f, 0.01f, 0.01f);
+        Transform = TranslateTransform(0.0f, 0.0f, -0.2f) * ScaleTransform(0.1f, 0.1f, 0.1f);
     }
     else
     {
@@ -108,6 +109,11 @@ DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4
     PushModel(RenderGroup, VertexBuffer);
     PushColor(RenderGroup, Color);
     PushModelTransform(RenderGroup, ModelTransform);
+    
+    if (Type == Tower_Mine)
+    {
+        PushShader(RenderGroup, Shader_TexturedModel);
+    }
 }
 
 static void
@@ -208,7 +214,6 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     //Draw normal world
     Constants->ClipPlane = {};
     
-    //PushTexturedRect(&RenderGroup, Assets->WaterReflection.Texture, V3(-1.5f, -1.5f, 0.0f), V3(-1.0f, -1.0f, 0.0f));
     DrawWater(&RenderGroup, Game);
     
     //Set reflection and refraction textures
@@ -219,6 +224,12 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     SetTexture(Assets->WaterDuDv, 4);
     SetTexture(Assets->WaterFlow, 5);
     SetTexture(Assets->WaterNormal, 6);
+    
+    SetTexture(Assets->ModelTextures.Ambient, 7);
+    SetTexture(Assets->ModelTextures.Diffuse, 8);
+    SetTexture(Assets->ModelTextures.Normal, 9);
+    SetTexture(Assets->ModelTextures.Specular, 10);
+    
     
     SetTransform(WorldTransform);
     SetLightTransform(LightTransform);
