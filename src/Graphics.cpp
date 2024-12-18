@@ -476,4 +476,6 @@ CreateSSAOKernel()
     {
         Kernel.Noise[I] = UnitV(V3(Random() * 2.0f - 1.0f, Random() * 2.0f - 1.0f, 0.0f));
     }
+    
+    return Kernel;
 }

@@ -151,6 +151,54 @@ DrawWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, rend
     DrawTowers(RenderGroup, Game, Context);
 }
 
+static m4x4
+MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
+{
+    m4x4 InvWorldTransform = Inverse(Game->WorldTransform);
+    
+    m4x4 LightViewTransform = ViewTransform(LightP, LightP + LightDirection);
+    
+    f32 MinWorldZ = -0.2f;
+    f32 MaxWorldZ = 0.1f;
+    
+    v3 WorldPositions[8] = {
+        V3(ScreenToWorld(Game, V2(-1, -1), MinWorldZ), MinWorldZ),
+        V3(ScreenToWorld(Game, V2(-1, 1), MinWorldZ), MinWorldZ),
+        V3(ScreenToWorld(Game, V2(1, -1), MinWorldZ), MinWorldZ),
+        V3(ScreenToWorld(Game, V2(1, 1), MinWorldZ), MinWorldZ),
+        V3(ScreenToWorld(Game, V2(-1, -1), MaxWorldZ), MaxWorldZ),
+        V3(ScreenToWorld(Game, V2(-1, 1), MaxWorldZ), MaxWorldZ),
+        V3(ScreenToWorld(Game, V2(1, -1), MaxWorldZ), MaxWorldZ),
+        V3(ScreenToWorld(Game, V2(1, 1), MaxWorldZ), MaxWorldZ),
+    };
+    
+    f32 Right = FLT_MIN;
+    f32 Top = FLT_MIN;
+    f32 Far = FLT_MIN;
+    f32 Left = FLT_MAX;
+    f32 Bottom = FLT_MAX;
+    f32 Near = FLT_MAX;
+    
+    for (u64 PosIndex = 0; PosIndex < ArrayCount(WorldPositions); PosIndex++)
+    {
+        v3 WorldP = WorldPositions[PosIndex];
+        
+        v4 LightP_ = V4(WorldP, 1.0f) * LightViewTransform;
+        v3 LightP =  (1.0f / LightP_.W) * LightP_.XYZ;
+        
+        Right  = Max(LightP.X, Right);
+        Top    = Max(LightP.Y, Top);
+        Far    = Max(LightP.Z, Far);
+        Left = Min(LightP.X, Left);
+        Bottom = Min(LightP.Y, Bottom);
+        Near = Min(LightP.Z, Near);
+    }
+    
+    m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(Left, Right, Bottom, Top, Near, Far);
+    
+    return LightTransform;
+}
+
 static void RenderWorld(game_state* Game, game_assets* Assets, render_context* Context, shader_constants* Constants)
 {
     m4x4 WorldTransform = Game->WorldTransform;
@@ -164,8 +212,9 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     */
     
     v3 LightP = V3(-1.0f, -1.0f, -1.0f);
-    v3 LightDirection = V3(1.0f, 1.0f, 1.0f);
-    m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-0.7f, 0.7f, -0.7f, 0.3f, 0.0f, 3.0f);
+    v3 LightDirection = UnitV(V3(1.0f, 1.0f, 1.0f));
+    //m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(-0.7f, 0.7f, -0.7f, 0.3f, 0.0f, 3.0f);
+    m4x4 LightTransform = MakeLightTransform(Game, LightP, LightDirection);
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Context->Arena; //TODO: Fix this
@@ -176,14 +225,17 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     Constants->WorldToLightTransform = LightTransform;
     Constants->Time = Game->Time; //TODO: Maybe make this periodic?
     Constants->CameraPos = Game->CameraP;
+    Constants->LightDirection = LightDirection;
     
-    //Draw 
+    //Draw shadow map
     SetDepthTest(true);
+    SetFrontCullMode(true);
     UnsetShadowMap();
     ClearOutput(Assets->ShadowMaps[0]);
     SetOutput(Assets->ShadowMaps[0]);
     SetTransform(LightTransform);
     DrawRenderGroup(&RenderGroup, Assets, *Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
+    SetFrontCullMode(false);
     
     Constants->WorldToClipTransform = WorldTransform;
     

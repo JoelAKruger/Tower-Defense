@@ -27,9 +27,11 @@ cbuffer Constants : register(b5)
 
 	float4 clip_plane;
 	float3 camera_pos;
+	float3 light_direction;
 };
 
 float GetShadowValue(float2 shadow_uv, float pixel_depth);
+float GetShadowValueBetter(float2 shadow_uv, float pixel_depth, float3 normal);
 
 Texture2D shadow_map : register(t1);
 SamplerComparisonState shadow_sampler : register(s1);
@@ -101,19 +103,19 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 
 	float ambient = 0.3f;
 
-	float3 light_dir = 1.0f * normalize(float3(1.0f, -1.0f, 1.0f)); //TODO: make this a constant!
-	float diffuse = 0.5f + 0.5f * dot(input.normal, -1.0f * light_dir);
+	float diffuse = 0.5f + 0.5f * dot(input.normal, -1.0f * light_direction);
 
 	float3 view_dir = normalize(camera_pos - input.pos_world);
-	float3 reflect_dir = reflect(light_dir, input.normal);
+	float3 reflect_dir = reflect(light_direction, input.normal);
 
-	float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 40);
+	float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
 
-	float shadow = GetShadowValue(shadow_uv, pixel_depth);
+	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
 
 	float light = ambient + diffuse * (1.0f - 0.8f * shadow) + specular * (1.0f - shadow);
 
 	return float4(light * input.color.rgb, input.color.a);
+	//return float4(float3(0.5f, 0.5f, 0.5f) + 0.5f * input.normal, 1.0f);
 }
 
 Texture2D reflection_texture : register(t2);
@@ -246,23 +248,32 @@ float GetShadowValue(float2 shadow_uv, float pixel_depth)
 {
 	float light = 0.0f;
 	
-	float texture_width, texture_height;
-	shadow_map.GetDimensions(texture_width, texture_height);
+	float lit = shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - 0.000f);
 
-	float texel_width = 1.0f / texture_width;
-	float texel_height = 1.0f / texture_height;
+	return 1.0f - lit;
+}
 
-	float epsilon = 0.001f;
-		
+float GetShadowValueBetter(float2 shadow_uv, float pixel_depth, float3 normal)
+{
+	float light = 0.0f;
 
-	for (int x = -2; x <= 2; x++)
+	float cos_angle = dot(normal, light_direction);
+	if (cos_angle > 0.0f)
 	{
-		for (int y = -2; y <= 2; y++)
+		return 1.0f;
+	}
+
+	float lit = shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - 0.001f);
+
+	if (lit > 0.0f)
+	{
+		if (cos_angle > -0.2f)
 		{
-			light += shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv + 2.0f * float2(texel_width, texel_height), pixel_depth - epsilon);
+			float shadow = 1.0f + cos_angle * 5.0f;
+
+			return shadow;
 		}
 	}
-	
-	light /= 25.0f;
-	return 1.0f - light;
+
+	return 1.0f - lit;
 }

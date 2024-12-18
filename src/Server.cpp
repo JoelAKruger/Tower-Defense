@@ -48,6 +48,8 @@ DoExplosion(global_game_state* Game, v2 P, f32 Radius)
 static void
 PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
 {
+    player* Player = Game->Players + Game->PlayerTurnIndex;
+    
     for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
     {
         tower* Tower = Game->Towers + TowerIndex;
@@ -63,6 +65,11 @@ PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
             Message.AnimationP = P;
             Message.AnimationRadius = Radius;
             AddMessage(MessageQueue, Message);
+        }
+        
+        if (Tower->Type == Tower_Mine)
+        {
+            Player->Credits += 5;
         }
     }
 }

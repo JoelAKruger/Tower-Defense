@@ -57,7 +57,7 @@ LoadAssets(allocator Allocator)
     
     LoadShaders(Assets);
     
-    Assets->ShadowMaps[0] = CreateShadowDepthTexture(4096, 4096);
+    Assets->ShadowMaps[0] = CreateShadowDepthTexture(2048, 2048);
     
     Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", true);
     Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", false);

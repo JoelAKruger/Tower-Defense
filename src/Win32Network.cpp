@@ -51,6 +51,10 @@ Client_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
             GlobalClientContext->Connected = true;
             LOG("(CLIENT) Connected");
         } break;
+        case k_ESteamNetworkingConnectionState_Connecting:
+        {
+        }break;
+        default: Assert(0);
     }
 }
 
@@ -230,6 +234,7 @@ Server_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
             
             ServerState.SendFlag = true;
         } break;
+        default: Assert(0);
     }
 }
 

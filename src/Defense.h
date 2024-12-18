@@ -197,6 +197,7 @@ struct game_state
     v3 CameraP;
     f32 CameraTargetZ;
     v3 CameraDirection;
+    int CameraZoomLevel;
     f32 FOV;
     
     m4x4 WorldTransform;

@@ -706,6 +706,27 @@ SetDepthTest(bool Value)
 }
 
 static void
+SetFrontCullMode(bool Value)
+{
+    D3D11_RASTERIZER_DESC RasteriserDesc = {};
+    RasteriserDesc.FillMode = D3D11_FILL_SOLID;
+    RasteriserDesc.CullMode = D3D11_CULL_BACK; //Value ? D3D11_CULL_FRONT : D3D11_CULL_BACK;
+    RasteriserDesc.DepthClipEnable = true;
+    
+    if (Value)
+    {
+        RasteriserDesc.SlopeScaledDepthBias = 1.0f; 
+    }
+    
+    ID3D11RasterizerState* Rasteriser;
+    D3D11Device->CreateRasterizerState(&RasteriserDesc, &Rasteriser);
+    
+    D3D11DeviceContext->RSSetState(Rasteriser);
+    
+    Rasteriser->Release();
+}
+
+static void
 ClearOutput(render_output Output)
 {
     if (Output.RenderTargetView)

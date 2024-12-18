@@ -258,9 +258,9 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
         Vertices[FaceIndex * 3 + 1].P = Positions[Face->Vertices[1].PositionIndex - 1];
         Vertices[FaceIndex * 3 + 2].P = Positions[Face->Vertices[2].PositionIndex - 1];
         
-        Vertices[FaceIndex * 3 + 0].Normal = -1.0f * Normals[Face->Vertices[0].NormalIndex - 1];
-        Vertices[FaceIndex * 3 + 1].Normal = -1.0f * Normals[Face->Vertices[1].NormalIndex - 1];
-        Vertices[FaceIndex * 3 + 2].Normal = -1.0f * Normals[Face->Vertices[2].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 0].Normal = Normals[Face->Vertices[0].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 1].Normal = Normals[Face->Vertices[1].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 2].Normal = Normals[Face->Vertices[2].NormalIndex - 1];
         
         if (Face->Vertices[0].TexCoordIndex && Face->Vertices[1].TexCoordIndex && Face->Vertices[2].TexCoordIndex)
         {
@@ -274,6 +274,10 @@ LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
             vertex Temp = Vertices[FaceIndex * 3 + 0];
             Vertices[FaceIndex * 3 + 0] = Vertices[FaceIndex * 3 + 2];
             Vertices[FaceIndex * 3 + 2] = Temp;
+            
+            Vertices[FaceIndex * 3 + 0].Normal = -1.0f * Vertices[FaceIndex * 3 + 0].Normal;
+            Vertices[FaceIndex * 3 + 1].Normal = -1.0f * Vertices[FaceIndex * 3 + 1].Normal;
+            Vertices[FaceIndex * 3 + 2].Normal = -1.0f * Vertices[FaceIndex * 3 + 2].Normal;
         }
     }
     

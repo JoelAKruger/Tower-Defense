@@ -12,6 +12,7 @@ void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer);
 void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio = 1.0f);
 void ClearOutput(render_output Output);
 void SetOutput(render_output Output);
+void SetFrontCullMode(bool Value);
 void SetFrameBufferAsOutput();
 render_output CreateShadowDepthTexture(int Width, int Height);
 void LoadShaders(game_assets* Assets);

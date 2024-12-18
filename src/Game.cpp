@@ -352,22 +352,19 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         SetMode(GameState, Mode_MyTurn);
     }
     
+    if ((Input->Button & Button_LMouse) == 0)
+    {
+        GameState->Dragging = false;
+    }
+    
     if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_Waiting)
     {
         //Handle moving the camera
-        if ((Input->Button & Button_LMouse) == 0)
-        {
-            GameState->Dragging = false;
-        }
-        
         if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
             GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
             GameState->Dragging = true;
         }
-        
-        //v2 ScreenMiddle = V2(0.5f, 0.5f * ScreenTop);
-        //v2 ScreenMiddleWorldPos = ScreenToWorld(GameState, ScreenMiddle);
         
         if (GameState->Dragging)
         {
@@ -381,10 +378,23 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     GameState->CameraP.X += SecondsPerFrame * Input->Movement.X;
     GameState->CameraP.Y += SecondsPerFrame * Input->Movement.Y;
     
-    GameState->CameraTargetZ = Clamp(GameState->CameraTargetZ + 0.25f * Input->ScrollDelta, -1.25f, -0.25f);
+    //Handle zooming
+    f32 ZoomLevels[] = {-0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
+    int DeltaZoom = -(int)Input->ScrollDelta;
+    GameState->CameraZoomLevel = Clamp(GameState->CameraZoomLevel + DeltaZoom, 0, ArrayCount(ZoomLevels) - 1);
+    
+    GameState->CameraTargetZ = ZoomLevels[GameState->CameraZoomLevel];
     
     f32 CameraSpeed = 15.0f;
     GameState->CameraP.Z = LinearInterpolate(GameState->CameraP.Z, GameState->CameraTargetZ, CameraSpeed * SecondsPerFrame);
+    
+    if (GameState->Dragging)
+    {
+        v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
+        v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
+        GameState->CameraP.X -= DeltaP.X;
+        GameState->CameraP.Y -= DeltaP.Y;
+    }
     
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 1500.0f);

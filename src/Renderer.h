@@ -37,6 +37,9 @@ struct shader_constants
     
     v3 CameraPos;
     f32 Pad1;
+    
+    v3 LightDirection;
+    f32 Pad2;
 };
 
 enum shader_index
