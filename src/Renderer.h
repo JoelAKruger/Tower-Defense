@@ -53,6 +53,7 @@ enum shader_index
     Shader_TexturedModel,
     Shader_Background,
     Shader_OnlyDepth,
+    Shader_Bloom,
     
     Shader_GUI_Color,
     Shader_GUI_Texture,
@@ -129,6 +130,7 @@ struct game_assets
     texture WaterFlow; //Dynamic
     
     render_output ShadowMaps[1];
+    render_output Output1;
     
     texture Button;
     texture Panel;

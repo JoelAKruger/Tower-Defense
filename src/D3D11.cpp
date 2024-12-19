@@ -150,7 +150,7 @@ CreateRenderOutput(int Width, int Height)
     Desc.Height = Height;
     Desc.MipLevels = 1;
     Desc.ArraySize = 1;
-    Desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    Desc.Format = DXGI_FORMAT_R11G11B10_FLOAT ;//DXGI_FORMAT_B8G8R8A8_UNORM;
     Desc.SampleDesc.Count = 1;
     Desc.SampleDesc.Quality = 0;
     Desc.Usage = D3D11_USAGE_DEFAULT;
@@ -163,7 +163,7 @@ CreateRenderOutput(int Width, int Height)
     
     //Create shader resource view for colour texture
     D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc = {};
-    ShaderResourceViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    ShaderResourceViewDesc.Format = DXGI_FORMAT_R11G11B10_FLOAT; //DXGI_FORMAT_B8G8R8A8_UNORM;
     ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDesc.Texture2D.MipLevels = 1;
     //TODO: Check if ShaderResourceViewDesc can be null

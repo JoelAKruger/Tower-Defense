@@ -269,7 +269,8 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     DrawWater(&RenderGroup, Game);
     
     //Set reflection and refraction textures
-    SetFrameBufferAsOutput();
+    ClearOutput(Assets->Output1);
+    SetOutput(Assets->Output1);
     SetShadowMap(Assets->ShadowMaps[0]);
     SetTexture(Assets->WaterReflection.Texture, 2);
     SetTexture(Assets->WaterRefraction.Texture, 3);
@@ -282,7 +283,6 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     SetTexture(Assets->ModelTextures.Normal, 9);
     SetTexture(Assets->ModelTextures.Specular, 10);
     
-    
     SetTransform(WorldTransform);
     SetLightTransform(LightTransform);
     DrawRenderGroup(&RenderGroup, Assets, *Constants, Draw_Regular);
@@ -293,4 +293,23 @@ static void RenderWorld(game_state* Game, game_assets* Assets, render_context* C
     UnsetTexture(4);
     UnsetTexture(5);
     UnsetTexture(6);
+    
+    //Bloom pass
+    gui_vertex Vertices[6] = {
+        {V2(-1, -1), {}, V2(0, 1)},
+        {V2(-1, 1), {}, V2(0, 0)},
+        {V2(1, 1), {}, V2(1, 0)},
+        {V2(1, 1), {}, V2(1, 0)},
+        {V2(1, -1), {}, V2(1, 1)},
+        {V2(-1, -1), {}, V2(0, 1)}
+    };
+    
+    Constants->WorldToClipTransform = IdentityTransform();
+    SetTransform(IdentityTransform());
+    SetFrameBufferAsOutput();
+    SetShaderConstants(*Constants);
+    SetTexture(Assets->Output1.Texture);
+    SetShader(Assets->Shaders[Shader_GUI_Texture]);
+    
+    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
 }

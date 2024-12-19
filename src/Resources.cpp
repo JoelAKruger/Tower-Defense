@@ -70,6 +70,8 @@ LoadAssets(allocator Allocator)
     Assets->WaterDuDv   = CreateTexture("assets/textures/water_dudv.png");
     Assets->WaterNormal = CreateTexture("assets/textures/water_normal.png");
     
+    Assets->Output1 = CreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
+    
     Assets->Button = CreateTexture("assets/textures/wenrexa_gui/Btn_TEST.png");
     Assets->Panel = CreateTexture("assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
     Assets->Crystal = CreateTexture("assets/textures/crystal.png");
