@@ -403,20 +403,17 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     world_region* HoveringRegion = 0;
     v2 CursorWorldPos = {};
     
-    u64 HoveringRegionIndex = GetHoveredRegionIndex(GameState, Input->Cursor);
-    if (HoveringRegionIndex)
+    GameState->HoveringRegionIndex = GetHoveredRegionIndex(GameState, Input->Cursor);
+    if (GameState->HoveringRegionIndex)
     {
-        HoveringRegion = GameState->GlobalState.World.Regions + HoveringRegionIndex;
+        HoveringRegion = GameState->GlobalState.World.Regions + GameState->HoveringRegionIndex;
         CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, HoveringRegion->Z);
     }
     
-    render_context RenderContext = {};
-    RenderContext.Arena = Allocator.Transient;
-    RenderContext.HoveringRegion = HoveringRegion;
-    RenderContext.SelectedTower = GameState->SelectedTower;
+    render_group RenderGroup = {};
+    RenderGroup.Arena = Allocator.Transient;
     
     shader_constants Constants = {};
-    RenderWorld(GameState, Assets, &RenderContext, &Constants);
     
     //Draw animations
     TickAnimations(GameState, SecondsPerFrame);
@@ -427,7 +424,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     {
         if (Input->ButtonDown & Button_LMouse)
         {
-            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, &GameState->GlobalState, HoveringRegionIndex);
+            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, &GameState->GlobalState, GameState->HoveringRegionIndex);
             if (NearestTower.Distance < TowerRadius)
             {
                 SetMode(GameState, Mode_EditTower);
@@ -450,7 +447,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         bool Placeable = (!HoveringRegion->IsWater &&
                           HoveringRegion->OwnerIndex == GameState->MultiplayerContext.MyClientID && 
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
-                          NearestTowerTo(P, &GameState->GlobalState, HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+                          NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
         f32 Z = 0.0f;
         if (HoveringRegion)
@@ -474,22 +471,24 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         //Draw slightly above a normal tower to prevent z-fighting
         //TODO: This is a waste
-        render_group RenderGroup = {};
         DrawTower(&RenderGroup, GameState, Type, V3(P, Z - 0.001f), Color);
-        
-        DrawRenderGroup(&RenderGroup, Assets, Constants);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
             player_request Request = {Request_PlaceTower};
             
             Request.TowerP = P;
-            Request.TowerRegionIndex = HoveringRegionIndex;
+            Request.TowerRegionIndex = GameState->HoveringRegionIndex;
             Request.TowerType = Type;
             
             SendPacket(&GameState->MultiplayerContext, &Request);
         }
     }
+    
+    //Draw world
+    RenderWorld(&RenderGroup, GameState, Assets, &Constants);
+    
+    //Draw GUI
     
     SetDepthTest(false);
     SetTransform(IdentityTransform());

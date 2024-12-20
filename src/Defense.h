@@ -212,6 +212,8 @@ struct game_state
     u32    SelectedTowerIndex;
     tower_edit_mode TowerEditMode;
     
+    u32 HoveringRegionIndex;
+    
     global_game_state GlobalState;
     multiplayer_context MultiplayerContext;
     
@@ -241,13 +243,6 @@ struct map_file_region
     v2 Center;
     v2 Vertices[63];
     u32 VertexCount;
-};
-
-struct render_context
-{
-    memory_arena* Arena;
-    world_region* HoveringRegion;
-    tower* SelectedTower;
 };
 
 enum app_screen
