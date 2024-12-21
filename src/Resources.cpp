@@ -83,5 +83,26 @@ LoadAssets(allocator Allocator)
     Assets->ModelTextures.Normal = CreateTexture("assets/textures/Carvalho-Munique_normal.jpg");
     Assets->ModelTextures.Specular = CreateTexture("assets/textures/Carvalho-Munique_specular.jpg");
     
+    Assets->BloomMipmaps[0] = CreateRenderOutput(1024, 1024);
+    Assets->BloomMipmaps[1] = CreateRenderOutput(512, 512);
+    Assets->BloomMipmaps[2] = CreateRenderOutput(256, 256);
+    Assets->BloomMipmaps[3] = CreateRenderOutput(128, 128);
+    Assets->BloomMipmaps[4] = CreateRenderOutput(64, 64);
+    Assets->BloomMipmaps[5] = CreateRenderOutput(32, 32);
+    Assets->BloomMipmaps[6] = CreateRenderOutput(16, 16);
+    Assets->BloomMipmaps[7] = CreateRenderOutput(8, 8);
+    
+    Assets->BloomAccum = CreateRenderOutput(1024, 1024);
+    
     return Assets;
+}
+
+static void
+ResizeAssets(game_assets* Assets)
+{
+    if (Assets)
+    {
+        Delete(&Assets->Output1);
+        Assets->Output1 = CreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
+    }
 }

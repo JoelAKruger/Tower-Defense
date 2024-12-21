@@ -500,6 +500,19 @@ DeleteTexture(texture* Texture)
     *Texture = {};
 }
 
+#define SafeRelease(ComPtr) if (ComPtr) {(ComPtr)->Release();}
+
+void Delete(render_output* Output)
+{
+    SafeRelease(Output->RenderTargetView);
+    SafeRelease(Output->DepthStencilView);
+    SafeRelease(Output->ShaderResourceView);
+    SafeRelease(Output->DepthStencilShaderResourceView);
+    //DeleteTexture(&Output->Texture);
+    
+    *Output = {};
+}
+
 static texture
 CreateTexture(char* Path)
 {
@@ -727,12 +740,51 @@ SetFrontCullMode(bool Value)
 }
 
 static void
-ClearOutput(render_output Output)
+SetBlendMode(blend_mode Mode)
+{
+    D3D11_BLEND_DESC BlendDesc = {};
+    BlendDesc.AlphaToCoverageEnable = false;
+    BlendDesc.IndependentBlendEnable = false;
+    
+    if (Mode == BlendMode_Blend)
+    {
+        BlendDesc.RenderTarget[0].BlendEnable = true;
+        BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+        BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+        BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+        
+        BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+        BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+        BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+        BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    }
+    
+    if (Mode == BlendMode_Add)
+    {
+        BlendDesc.RenderTarget[0].BlendEnable = TRUE;
+        BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+        BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+        BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+        
+        BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+        BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+        BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+        BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    }
+    
+    ID3D11BlendState* BlendState;
+    HRESULT HResult = D3D11Device->CreateBlendState(&BlendDesc, &BlendState);
+    Assert(SUCCEEDED(HResult));
+    D3D11DeviceContext->OMSetBlendState(BlendState, NULL, 0xFFFFFFFF);
+    //BlendState->Release();
+}
+
+static void
+ClearOutput(render_output Output, v4 Color)
 {
     if (Output.RenderTargetView)
     {
-        FLOAT Color[4] = {0.2f, 0.4f, 0.6f, 1.0f};
-        D3D11DeviceContext->ClearRenderTargetView(Output.RenderTargetView, Color);
+        D3D11DeviceContext->ClearRenderTargetView(Output.RenderTargetView, (FLOAT*)&Color);
     }
     
     if (Output.DepthStencilView)
@@ -782,10 +834,6 @@ LoadShaders(game_assets* Assets)
     };
     
     //Used for the GUI
-    Assets->Shaders[Shader_Color] = CreateShader(L"assets/colourshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
-    
-    Assets->Shaders[Shader_Font]= CreateShader(L"assets/fontshaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc));
-    
     Assets->Shaders[Shader_Texture]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
                                                   "PixelShader_Texture", "MyVertexShader");
     
@@ -809,4 +857,9 @@ LoadShaders(game_assets* Assets)
     
     Assets->Shaders[Shader_GUI_Font] = CreateShader(L"assets/guishaders.hlsl", 
                                                     GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Font", "GUI_VertexShader");
+    Assets->Shaders[Shader_Bloom_Filter] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Filter", "Bloom_VertexShader");
+    
+    Assets->Shaders[Shader_Bloom_Downsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Downsample", "Bloom_VertexShader");
+    
+    Assets->Shaders[Shader_Bloom_Upsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Upsample", "Bloom_VertexShader");
 }

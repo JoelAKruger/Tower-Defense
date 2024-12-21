@@ -59,6 +59,10 @@ enum shader_index
     Shader_GUI_Texture,
     Shader_GUI_Font,
     
+    Shader_Bloom_Filter,
+    Shader_Bloom_Downsample,
+    Shader_Bloom_Upsample,
+    
     Shader_Count
 };
 
@@ -69,7 +73,6 @@ enum vertex_buffer_index
     VertexBuffer_Turret,
     VertexBuffer_World,
     VertexBuffer_Mine,
-    
     
     VertexBuffer_Count
 };
@@ -95,6 +98,12 @@ struct font_asset
     texture Texture;
     stbtt_bakedchar BakedChars[128];
     f32 Size;
+};
+
+enum blend_mode
+{
+    BlendMode_Add,
+    BlendMode_Blend
 };
 
 struct render_group
@@ -132,6 +141,9 @@ struct game_assets
     render_output ShadowMaps[1];
     render_output Output1;
     
+    render_output BloomMipmaps[8];
+    render_output BloomAccum;
+    
     texture Button;
     texture Panel;
     texture Crystal;
@@ -156,6 +168,7 @@ struct ssao_kernel
 texture CreateTexture(char* Path);
 texture CreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
 void DeleteTexture(texture* Texture);
+void Delete(render_output* Output);
 render_output CreateShadowDepthTexture(int Width, int Height);
 render_output CreateRenderOutput(int Width, int Height);
 

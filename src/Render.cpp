@@ -208,6 +208,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants->CameraPos = Game->CameraP;
     Constants->LightDirection = LightDirection;
     
+    SetBlendMode(BlendMode_Blend);
+    
     //Draw shadow map
     SetDepthTest(true);
     SetFrontCullMode(true);
@@ -275,7 +277,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     UnsetTexture(5);
     UnsetTexture(6);
     
-    //Bloom pass
+    //Bloom pass, first copy pixels with large values
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
         {V2(-1, 1), {}, V2(0, 0)},
@@ -285,12 +287,52 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         {V2(-1, -1), {}, V2(0, 1)}
     };
     
-    Constants->WorldToClipTransform = IdentityTransform();
     SetTransform(IdentityTransform());
-    SetFrameBufferAsOutput();
-    SetShaderConstants(*Constants);
-    SetTexture(Assets->Output1.Texture);
-    SetShader(Assets->Shaders[Shader_GUI_Texture]);
+    SetDepthTest(false);
+    
+    ClearOutput(Assets->BloomMipmaps[0]);
+    SetOutput(Assets->BloomMipmaps[0]);
+    
+    SetTexture(Assets->Output1.Texture, 11);
+    
+    SetShader(Assets->Shaders[Shader_Bloom_Filter]);
     
     DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    
+    //Downsampling
+    SetShader(Assets->Shaders[Shader_Bloom_Downsample]);
+    for (u64 MipmapIndex = 1; MipmapIndex < ArrayCount(Assets->BloomMipmaps); MipmapIndex++)
+    {
+        ClearOutput(Assets->BloomMipmaps[MipmapIndex]);
+        SetOutput(Assets->BloomMipmaps[MipmapIndex]);
+        
+        SetTexture(Assets->BloomMipmaps[MipmapIndex - 1].Texture, 11);
+        DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    }
+    
+    //Upsampling
+    SetShader(Assets->Shaders[Shader_Bloom_Upsample]);
+    SetBlendMode(BlendMode_Add);
+    ClearOutput(Assets->BloomAccum, V4(0, 0, 0, 0));
+    SetOutput(Assets->BloomAccum);
+    for (u64 MipmapIndex = 0; MipmapIndex < ArrayCount(Assets->BloomMipmaps); MipmapIndex++)
+    {
+        SetTexture(Assets->BloomMipmaps[MipmapIndex].Texture, 11);
+        DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    }
+    
+    //Composing
+    SetFrameBufferAsOutput();
+    
+    SetShader(Assets->Shaders[Shader_GUI_Texture]);
+    
+    SetBlendMode(BlendMode_Blend);
+    SetTexture(Assets->Output1.Texture, 0);
+    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    
+    SetBlendMode(BlendMode_Add);
+    SetTexture(Assets->BloomAccum.Texture, 0);
+    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    
+    SetBlendMode(BlendMode_Blend);
 }

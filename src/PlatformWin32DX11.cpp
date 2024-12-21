@@ -106,24 +106,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     CreateD3D11Device();
     IDXGISwapChain1* SwapChain = CreateD3D11SwapChain(Window);
     RenderOutput = GetDefaultRenderOutput(SwapChain);
-    
-    D3D11_BLEND_DESC BlendDesc = {};
-    BlendDesc.AlphaToCoverageEnable = false;
-    BlendDesc.IndependentBlendEnable = false;
-    BlendDesc.RenderTarget[0].BlendEnable = true;
-    BlendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-    BlendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-    BlendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-    
-    BlendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-    BlendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-    BlendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-    BlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-    
-    ID3D11BlendState* BlendState;
-    HRESULT HResult = D3D11Device->CreateBlendState(&BlendDesc, &BlendState);
-    Assert(SUCCEEDED(HResult));
-    D3D11DeviceContext->OMSetBlendState(BlendState, NULL, 0xFFFFFFFF);
+    SetBlendMode(BlendMode_Blend);
     
     //Set default shadow map comparison
     D3D11_SAMPLER_DESC SamplerDesc = {};
@@ -203,6 +186,8 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
             GlobalOutputHeight = RenderOutput.Height;
             
             GlobalWindowDidResize = false;
+            
+            ResizeAssets(AppState.Assets);
         }
         
         //-------------------------
