@@ -137,7 +137,7 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 {
 	float4 water_color = float4(0.0f, 0.2f, 0.05f, 1.0f);
 	float distortion_strength = 0.01f;
-	float distortion_scaling = 4.0f;
+	float distortion_scaling = 8.0f;
 	float wave_speed = 0.03f;
 
 	float2 flow_map = water_flow_texture.Sample(water_flow_sampler, input.uv).rg * 2.0f + float2(-1.0f, -1.0f);

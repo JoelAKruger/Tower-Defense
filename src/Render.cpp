@@ -62,6 +62,7 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
             Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
             Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
             Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, Z), Normal, Color};
+            
             Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
         }
         
@@ -126,7 +127,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game)
         v4 RegionColor = Region->Color;
         
         v4 Color = V4(0.7f * RegionColor.RGB, RegionColor.A);
-        if (TowerIndex == Game->SelectedTowerIndex)
+        if (Game->SelectedTower && TowerIndex == Game->SelectedTowerIndex)
         {
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)Game->Time);
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
