@@ -111,7 +111,7 @@ PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11
 }
 
 static void
-PushModel(render_group* RenderGroup, vertex_buffer_index VertexBuffer)
+PushModel(render_group* RenderGroup, renderer_vertex_buffer* VertexBuffer)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     Command->VertexBuffer = VertexBuffer;
@@ -157,10 +157,9 @@ PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4
                 
                 mesh* Mesh = Assets->Meshes + MeshHandle;
                 
-                PushModel(RenderGroup, VertexBuffer_Null);
-                render_command* Command = GetLastEntry(RenderGroup);
-                Command->VertexBuffer_ = Mesh->VertexBuffer;
+                PushModel(RenderGroup, &Mesh->VertexBuffer);
                 PushModelTransform(RenderGroup, ModelTransform);
+                
                 v4 Color = V4(1, 1, 1, 1);
                 
                 material* Material = FindMaterial(Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
@@ -282,6 +281,7 @@ static void
 DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type)
 {
     //TODO: Optimise this
+    
     for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
     {
         render_command* Command = Group->Commands + CommandIndex;
@@ -305,72 +305,35 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         SetTexture(Command->Texture);
         
         //TODO: Remove these
-        SetModelTransform(Command->ModelTransform);
-        SetModelColor(Command->Color);
-        
         SetDepthTest(!Command->DisableDepthTest);
         
-        SetShaderConstants(Constants);
+        SetGraphicsShaderConstants(Constants);
         
         if (Command->VertexBuffer)
         {
-            DrawVertexBuffer(Assets->VertexBuffers[Command->VertexBuffer]);
+            DrawVertexBuffer(*Command->VertexBuffer);
         }
         else
         {
-            if (Command->VertexBuffer_.Buffer)
-            {
-                DrawVertexBuffer(Command->VertexBuffer_);
-            }
-            else
-            {
-                DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
-            }
+            DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
         }
     }
 }
 
 static void
-SetTransform(m4x4 Transform)
+SetTransformForNonGraphicsShader(m4x4 Transform)
 {
     Transform = Transpose(Transform);
-    SetShaderConstant(0, &Transform, sizeof(Transform));
+    SetNonGraphicsShaderConstant(&Transform, sizeof(Transform));
 }
 
 static void
-SetLightTransform(m4x4 Transform)
-{
-    Transform = Transpose(Transform);
-    SetShaderConstant(4, &Transform, sizeof(Transform));
-}
-
-static void
-SetShaderTime(f32 Time)
-{
-    f32 Constant[4] = {Time};
-    SetShaderConstant(1, Constant, sizeof(Constant));
-}
-
-static void
-SetModelTransform(m4x4 Transform)
-{
-    Transform = Transpose(Transform);
-    SetShaderConstant(2, &Transform, sizeof(Transform));
-}
-
-static void
-SetModelColor(v4 Color)
-{
-    SetShaderConstant(3, &Color, sizeof(Color));
-}
-
-static void
-SetShaderConstants(shader_constants Constants)
+SetGraphicsShaderConstants(shader_constants Constants)
 {
     Constants.WorldToClipTransform  = Transpose(Constants.WorldToClipTransform);
     Constants.ModelToWorldTransform = Transpose(Constants.ModelToWorldTransform);
     Constants.WorldToLightTransform = Transpose(Constants.WorldToLightTransform);
-    SetShaderConstant(5, &Constants, sizeof(Constants));
+    SetGraphicsShaderConstant(&Constants, sizeof(Constants));
 }
 
 static m4x4

@@ -255,8 +255,10 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
     
     CalculateModelVertexNormals(Triangles.Memory, Triangles.Count);
     
-    Assets->VertexBuffers[VertexBuffer_World] = CreateVertexBuffer(Triangles.Memory, Triangles.Count * sizeof(tri), 
-                                                                   D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
+    renderer_vertex_buffer WorldVertexBuffer = CreateVertexBuffer(Triangles.Memory, Triangles.Count * sizeof(tri), 
+                                                                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
+    
+    LoadVertexBuffer(Assets, "World", WorldVertexBuffer);
 }
 
 static void

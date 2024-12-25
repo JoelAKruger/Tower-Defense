@@ -85,8 +85,7 @@ struct render_command
     
     D3D11_PRIMITIVE_TOPOLOGY Topology;
     shader_index Shader;
-    vertex_buffer_index VertexBuffer; //If VertexBuffer is null, then data is in VertexData
-    renderer_vertex_buffer VertexBuffer_;
+    renderer_vertex_buffer* VertexBuffer;
     texture Texture;
     m4x4 ModelTransform;
     v4 Color;
@@ -158,7 +157,10 @@ struct model
 
 struct game_assets
 {
-    renderer_vertex_buffer VertexBuffers[VertexBuffer_Count];
+    renderer_vertex_buffer VertexBuffers_[VertexBuffer_Count];
+    renderer_vertex_buffer VertexBuffersNew[128];
+    int VertexBufferCount;
+    
     shader Shaders[Shader_Count];
     texture Textures[32];
     cube_map Skybox;
@@ -247,16 +249,16 @@ m4x4 ViewTransform(v3 Eye, v3 At);
 m4x4 OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f32 Far);
 
 //Shader constants
-void SetShaderConstants(shader_constants Constants);
-void SetTransform(m4x4 Transform);
-void SetLightTransform(m4x4 Transform);
-void SetShaderTime(f32 Time);
-void SetModelTransform(m4x4 Transform);
-void SetModelColor(v4 Color);
+void SetTransformForNonGraphicsShader(m4x4 Transform);
+void SetGraphicsShaderConstants(shader_constants Constants);
 
 //Utility functions
 void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);
 void SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform);
+
+//Assets
+void LoadVertexBuffer(game_assets* Assets, char* Description, renderer_vertex_buffer Buffer);
+renderer_vertex_buffer* FindVertexBuffer(game_assets* Assets, char* Description_);
 
 extern f32 GlobalAspectRatio;
 extern int GlobalOutputWidth;

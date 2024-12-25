@@ -96,7 +96,6 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
         //TODO: Fix this
         //SetShader(TextureShader);
         //SetTexture(TargetTexture);
-        SetTransform(Game->WorldTransform);
         DrawTexture(V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
     }
     
@@ -108,7 +107,6 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
         //TODO: Fix this
         //SetShader(TextureShader);
         //SetTexture(TargetTexture);
-        SetTransform(Game->WorldTransform);
         DrawTexture(V3(CursorP - 0.5f * TargetSize, TargetZ), V3(CursorP + 0.5f * TargetSize, TargetZ));
         
         if (Input->ButtonUp & Button_LMouse)
@@ -119,11 +117,8 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
             SendPacket(&Game->MultiplayerContext, &Request);
         }
         
-        SetTransform(IdentityTransform());
     }
     
-    SetTransform(IdentityTransform());
-    SetShader(GUIColorShader); //TODO: Remove
     GUI_DrawRectangle(V2(0.6f, 0.3f), V2(0.4f, 1.0f), V4(0.0f, 0.0f, 0.0f, 0.5f));
     
     gui_layout Layout = DefaultLayout(0.65f, 0.95f);
@@ -210,7 +205,6 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
         } break;
         case Message_NewWorld:
         {
-            FreeVertexBuffer(Assets->VertexBuffers[VertexBuffer_World]);
             CreateWorldVertexBuffer(Assets, &GameState->GlobalState.World, TArena);
             CreateWaterFlowMap(&GameState->GlobalState.World, Assets, TArena);
         } break;
@@ -471,7 +465,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         //Draw slightly above a normal tower to prevent z-fighting
         //TODO: This is a waste
-        DrawTower(&RenderGroup, GameState, Type, V3(P, Z - 0.001f), Color);
+        DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, Z - 0.001f), Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
@@ -491,7 +485,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     //Draw GUI
     
     SetDepthTest(false);
-    SetTransform(IdentityTransform());
+    SetTransformForNonGraphicsShader(IdentityTransform());
     
     f32 WorldInfoZThreshold = -0.51f;
     

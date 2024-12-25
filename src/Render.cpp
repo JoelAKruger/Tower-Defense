@@ -79,24 +79,24 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
 }
 
 static void
-DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
+DrawTower(render_group* RenderGroup, game_state* Game, game_assets* Assets, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
 {
-    vertex_buffer_index VertexBuffer = {};
+    renderer_vertex_buffer* VertexBuffer = 0;
     m4x4 Transform;
     
     if (Type == Tower_Castle)
     {
-        VertexBuffer = VertexBuffer_Castle;
+        VertexBuffer = FindVertexBuffer(Assets, "Castle");
         Transform = Game->CastleTransform;
     }
     else if (Type == Tower_Turret)
     {
-        VertexBuffer = VertexBuffer_Turret;
+        VertexBuffer = FindVertexBuffer(Assets, "Turret");
         Transform = Game->TurretTransform * RotateTransform(-1.0f * Angle); //idk why it is -1.0f
     }
     else if (Type == Tower_Mine)
     {
-        VertexBuffer = VertexBuffer_Mine;
+        VertexBuffer = FindVertexBuffer(Assets, "Mine");
         Transform = TranslateTransform(0.0f, 0.0f, -0.2f) * ScaleTransform(0.1f, 0.1f, 0.1f);
     }
     else
@@ -117,7 +117,7 @@ DrawTower(render_group* RenderGroup, game_state* Game, tower_type Type, v3 P, v4
 }
 
 static void
-DrawTowers(render_group* RenderGroup, game_state* Game)
+DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
 {
     for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
@@ -133,7 +133,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(RenderGroup, Game, Tower->Type, V3(Tower->P, Region->Z), Color, Tower->Rotation);
+        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, Region->Z), Color, Tower->Rotation);
     }
 }
 
@@ -189,13 +189,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
 {
     DrawSkybox(RenderGroup, Assets);
     
-    PushModel(RenderGroup, VertexBuffer_World);
+    PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
     if (Game->HoveringRegionIndex)
     {
         DrawRegionOutline(RenderGroup, Game->GlobalState.World.Regions + Game->HoveringRegionIndex);
     }
     
-    DrawTowers(RenderGroup, Game);
+    DrawTowers(RenderGroup, Game, Assets);
     
     world* World = &Game->GlobalState.World;
     for (u64 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
@@ -225,7 +225,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     UnsetShadowMap();
     ClearOutput(Assets->ShadowMaps[0]);
     SetOutput(Assets->ShadowMaps[0]);
-    SetTransform(LightTransform);
     DrawRenderGroup(RenderGroup, Assets, *Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     SetFrontCullMode(false);
     
@@ -275,8 +274,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetTexture(Assets->ModelTextures.Normal, 9);
     SetTexture(Assets->ModelTextures.Specular, 10);
     
-    SetTransform(WorldTransform);
-    SetLightTransform(LightTransform);
     DrawRenderGroup(RenderGroup, Assets, *Constants, Draw_Regular);
     
     UnsetShadowMap();
@@ -286,17 +283,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     UnsetTexture(5);
     UnsetTexture(6);
     
-    //Bloom pass, first copy pixels with large values
-    gui_vertex Vertices[6] = {
-        {V2(-1, -1), {}, V2(0, 1)},
-        {V2(-1, 1), {}, V2(0, 0)},
-        {V2(1, 1), {}, V2(1, 0)},
-        {V2(1, 1), {}, V2(1, 0)},
-        {V2(1, -1), {}, V2(1, 1)},
-        {V2(-1, -1), {}, V2(0, 1)}
-    };
-    
-    SetTransform(IdentityTransform());
+    SetTransformForNonGraphicsShader(IdentityTransform());
     SetDepthTest(false);
     
     ClearOutput(Assets->BloomMipmaps[0]);
@@ -306,7 +293,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     SetShader(Assets->Shaders[Shader_Bloom_Filter]);
     
-    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    renderer_vertex_buffer WholeScreen = *FindVertexBuffer(Assets, "GUIWholeScreen");
+    DrawVertexBuffer(WholeScreen);
     
     //Downsampling
     SetShader(Assets->Shaders[Shader_Bloom_Downsample]);
@@ -316,7 +304,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         SetOutput(Assets->BloomMipmaps[MipmapIndex]);
         
         SetTexture(Assets->BloomMipmaps[MipmapIndex - 1].Texture, 11);
-        DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+        DrawVertexBuffer(WholeScreen);
     }
     
     //Upsampling
@@ -327,7 +315,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     for (u64 MipmapIndex = 0; MipmapIndex < ArrayCount(Assets->BloomMipmaps); MipmapIndex++)
     {
         SetTexture(Assets->BloomMipmaps[MipmapIndex].Texture, 11);
-        DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+        DrawVertexBuffer(WholeScreen);
     }
     
     //Composing
@@ -337,11 +325,11 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     SetBlendMode(BlendMode_Blend);
     SetTexture(Assets->Output1.Texture, 0);
-    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    DrawVertexBuffer(WholeScreen);
     
     SetBlendMode(BlendMode_Add);
     SetTexture(Assets->BloomAccum.Texture, 0);
-    DrawVertices((f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(Vertices[0]));
+    DrawVertexBuffer(WholeScreen);
     
     SetBlendMode(BlendMode_Blend);
 }

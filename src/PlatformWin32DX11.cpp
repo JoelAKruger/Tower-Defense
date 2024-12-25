@@ -236,7 +236,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         }
         
         // Draw profiling information
-        SetTransform(IdentityTransform());
+        SetTransformForNonGraphicsShader(IdentityTransform());
         SetShader(GUIFontShader);
         f32 X = -0.99f;
         f32 Y = 0.95f;

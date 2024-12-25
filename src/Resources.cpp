@@ -50,6 +50,41 @@ LoadFont(char* Path, f32 Size, memory_arena* Arena)
     return Result;
 }
 
+static renderer_vertex_buffer*
+FindVertexBuffer(game_assets* Assets, char* Description_)
+{
+    string Description = String(Description_);
+    renderer_vertex_buffer* Result = 0;
+    
+    for (u64 VertexBufferIndex = 0; VertexBufferIndex < Assets->VertexBufferCount; VertexBufferIndex++)
+    {
+        renderer_vertex_buffer* VertexBuffer = Assets->VertexBuffersNew + VertexBufferIndex;
+        
+        if (StringsAreEqual(VertexBuffer->Description, Description))
+        {
+            Result = VertexBuffer;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+static void
+LoadVertexBuffer(game_assets* Assets, char* Description, renderer_vertex_buffer Buffer)
+{
+    renderer_vertex_buffer* VertexBuffer = FindVertexBuffer(Assets, Description);
+    
+    if (!VertexBuffer)
+    {
+        VertexBuffer = Assets->VertexBuffersNew + (Assets->VertexBufferCount++);
+        Assert(Assets->VertexBufferCount <= ArrayCount(Assets->VertexBuffersNew));
+    }
+    
+    *VertexBuffer = Buffer;
+    VertexBuffer->Description = String(Description);
+}
+
 static game_assets*
 LoadAssets(allocator Allocator)
 {
@@ -59,9 +94,9 @@ LoadAssets(allocator Allocator)
     
     Assets->ShadowMaps[0] = CreateShadowDepthTexture(2048, 2048);
     
-    Assets->VertexBuffers[VertexBuffer_Castle] = CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", true);
-    Assets->VertexBuffers[VertexBuffer_Turret] = CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", false);
-    Assets->VertexBuffers[VertexBuffer_Mine]   = CreateModelVertexBuffer(Allocator, "assets/models/crate.obj", false);
+    LoadVertexBuffer(Assets, "Castle", CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", true));
+    LoadVertexBuffer(Assets, "Turret", CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", false));
+    LoadVertexBuffer(Assets, "Mine",   CreateModelVertexBuffer(Allocator, "assets/models/crate.obj", false));
     
     LoadSkybox(Assets);
     
@@ -101,6 +136,18 @@ LoadAssets(allocator Allocator)
     LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    gui_vertex Vertices[6] = {
+        {V2(-1, -1), {}, V2(0, 1)},
+        {V2(-1, 1), {}, V2(0, 0)},
+        {V2(1, 1), {}, V2(1, 0)},
+        {V2(1, 1), {}, V2(1, 0)},
+        {V2(1, -1), {}, V2(1, 1)},
+        {V2(-1, -1), {}, V2(0, 1)}
+    };
+    
+    renderer_vertex_buffer WholeScreen = CreateVertexBuffer((f32*)Vertices, ArrayCount(Vertices) * sizeof(gui_vertex),
+                                                            D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
+    LoadVertexBuffer(Assets, "GUIWholeScreen", WholeScreen);
     
     return Assets;
 }
