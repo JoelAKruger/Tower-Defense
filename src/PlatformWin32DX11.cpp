@@ -126,7 +126,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     SetDepthTest(false);
     
-    memory_arena TransientArena = Win32CreateMemoryArena(Megabytes(16), TRANSIENT);
+    memory_arena TransientArena = Win32CreateMemoryArena(Megabytes(64), TRANSIENT);
     memory_arena PermanentArena = Win32CreateMemoryArena(Megabytes(16), PERMANENT);
     GraphicsArena = Win32CreateMemoryArena(Megabytes(16), TRANSIENT);
     GlobalDebugArena = Win32CreateMemoryArena(Megabytes(1), PERMANENT);

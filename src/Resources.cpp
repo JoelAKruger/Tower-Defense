@@ -94,6 +94,14 @@ LoadAssets(allocator Allocator)
     
     Assets->BloomAccum = CreateRenderOutput(1024, 1024);
     
+    void LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library);
+    void LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path);
+    LoadMaterialsFromFile(Assets, Allocator, "assets/models/Environment.mtl", "Environment.mtl");
+    LoadMaterialsFromFile(Assets, Allocator, "assets/models/Flower.mtl", "Flower.mtl");
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
+    
+    SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
     return Assets;
 }
 
@@ -104,5 +112,291 @@ ResizeAssets(game_assets* Assets)
     {
         Delete(&Assets->Output1);
         Assets->Output1 = CreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
+    }
+}
+
+static renderer_vertex_buffer
+CreateMeshVertexBuffer(dynamic_array<v3> Positions, dynamic_array<v3> Normals, dynamic_array<v2> TexCoords, dynamic_array<obj_file_face> Faces, allocator Allocator)
+{
+    u64 VertexCount = Faces.Count * 3;
+    vertex* Vertices = AllocArray(Allocator.Transient, vertex, VertexCount);
+    
+    for (u32 FaceIndex = 0; FaceIndex < Faces.Count; FaceIndex++)
+    {
+        obj_file_face* Face = Faces + FaceIndex;
+        
+        Vertices[FaceIndex * 3 + 0].P = Positions[Face->Vertices[0].PositionIndex - 1];
+        Vertices[FaceIndex * 3 + 1].P = Positions[Face->Vertices[1].PositionIndex - 1];
+        Vertices[FaceIndex * 3 + 2].P = Positions[Face->Vertices[2].PositionIndex - 1];
+        
+        Vertices[FaceIndex * 3 + 0].Normal = Normals[Face->Vertices[0].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 1].Normal = Normals[Face->Vertices[1].NormalIndex - 1];
+        Vertices[FaceIndex * 3 + 2].Normal = Normals[Face->Vertices[2].NormalIndex - 1];
+        
+        if (Face->Vertices[0].TexCoordIndex && Face->Vertices[1].TexCoordIndex && Face->Vertices[2].TexCoordIndex)
+        {
+            Vertices[FaceIndex * 3 + 0].UV = TexCoords[Face->Vertices[0].TexCoordIndex - 1];
+            Vertices[FaceIndex * 3 + 1].UV = TexCoords[Face->Vertices[1].TexCoordIndex - 1];
+            Vertices[FaceIndex * 3 + 2].UV = TexCoords[Face->Vertices[2].TexCoordIndex - 1];
+        }
+    }
+    
+    renderer_vertex_buffer Result = CreateVertexBuffer(Vertices, VertexCount * sizeof(vertex), 
+                                                       D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
+    return Result;
+}
+
+static void
+LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
+{
+    span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
+    file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
+    
+    string CurrentMaterialLibrary = {};
+    string CurrentMaterialName = {};
+    
+    model* CurrentModel = 0;
+    string CurrentObjectName = {};
+    
+    //For file
+    dynamic_array<v3> Positions = {};
+    Positions.Arena = Allocator.Transient;
+    
+    dynamic_array<v3> Normals = {};
+    Normals.Arena = Allocator.Transient;
+    
+    dynamic_array<v2> TexCoords = {};
+    TexCoords.Arena = Allocator.Transient;
+    
+    //For current mesh
+    dynamic_array<obj_file_face> Faces = {};
+    Faces.Arena = Allocator.Transient;
+    
+    while (!AtEnd(&Reader))
+    {
+        if (Consume(&Reader, "#")) //Comment
+        {
+        }
+        
+        else if (Consume(&Reader, "mtllib ")) //New material
+        {
+            string Library = ParseString(&Reader);
+            CurrentMaterialLibrary = CopyString(Allocator.Permanent, Library);
+        }
+        
+        else if (Consume(&Reader, "o ")) //Object name -> new mesh then new model?
+        {
+            //TODO: This code is copied from below (fix)
+            if (Faces.Count > 0)
+            {
+                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh* Mesh = Assets->Meshes + MeshIndex;
+                Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
+                
+                Mesh->MaterialLibrary = CurrentMaterialLibrary;
+                Mesh->MaterialName = CurrentMaterialName;
+                Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+                
+                CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
+                Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
+                
+                Faces.Count = 0;
+            }
+            
+            if (CurrentModel)
+            {
+                CurrentModel = Assets->Models + (Assets->ModelCount++);
+                Assert(Assets->ModelCount <= ArrayCount(Assets->Models));
+            }
+            
+            CurrentModel = Assets->Models + (Assets->ModelCount++);
+            Assert(Assets->ModelCount <= ArrayCount(Assets->Models));
+            
+            string Name = ParseString(&Reader);
+            CurrentModel->Name = CopyString(Allocator.Permanent, Name);
+        }
+        
+        else if (Consume(&Reader, "v ")) //Vertex position
+        {
+            v3 P = ParseVector3(&Reader);
+            Add(&Positions, P);
+        }
+        
+        else if (Consume(&Reader, "vn ")) //Vertex normal
+        {
+            v3 N = ParseVector3(&Reader);
+            Add(&Normals, N);
+        }
+        
+        else if (Consume(&Reader, "vt ")) //Vertex texcoord
+        {
+            v2 T = ParseVector2(&Reader);
+            Add(&TexCoords, T);
+        }
+        
+        else if (Consume(&Reader, "s ")) //Smooth shading (ignored)
+        {
+        }
+        
+        else if (Consume(&Reader, "usemtl ")) //Material name -> New mesh?
+        {
+            if (Faces.Count > 0)
+            {
+                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh* Mesh = Assets->Meshes + MeshIndex;
+                Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
+                
+                Mesh->MaterialLibrary = CurrentMaterialLibrary;
+                Mesh->MaterialName = CurrentMaterialName;
+                Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+                
+                CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
+                Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
+                
+                Faces.Count = 0;
+            }
+            
+            string MaterialName = ParseString(&Reader);
+            CurrentMaterialName = CopyString(Allocator.Permanent, MaterialName);
+        }
+        
+        else if (Consume(&Reader, "f "))
+        {
+            obj_file_face Face;
+            Face.Vertices[0] = ParseVertex(&Reader);
+            Consume(&Reader, " ");
+            Face.Vertices[1] = ParseVertex(&Reader);
+            Consume(&Reader, " ");
+            Face.Vertices[2] = ParseVertex(&Reader);
+            Add(&Faces, Face);
+        }
+        
+        else
+        {
+            Assert(0);
+        }
+        
+        NextLine(&Reader);
+    }
+    
+    //TODO: This code is copied from above (fix)
+    if (Faces.Count > 0)
+    {
+        mesh_index MeshIndex = (Assets->MeshCount++);
+        mesh* Mesh = Assets->Meshes + MeshIndex;
+        Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
+        
+        Mesh->MaterialLibrary = CurrentMaterialLibrary;
+        Mesh->MaterialName = CurrentMaterialName;
+        Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+        
+        CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
+        Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
+        
+        Faces.Count = 0;
+    }
+}
+
+static void
+LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library)
+{
+    span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
+    file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
+    
+    material* Material = 0;
+    
+    while (!AtEnd(&Reader))
+    {
+        if (Consume(&Reader, "#")) //Comment
+        {
+        }
+        
+        if (Consume(&Reader, "newmtl ")) //New material
+        {
+            Material = Assets->Materials + (Assets->MaterialCount++);
+            Assert(Assets->MaterialCount <= ArrayCount(Assets->Materials));
+            
+            string Name = ParseString(&Reader);
+            
+            Material->Name = CopyString(Allocator.Permanent, Name);
+            Material->Library = CopyString(Allocator.Permanent, String(Library));
+        }
+        
+        if (Consume(&Reader, "Ns "))
+        {
+            Material->SpecularFocus = ParseFloat(&Reader);
+        }
+        
+        //TODO: Fix this
+        
+        if (Consume(&Reader, "Ka "))
+        {
+            Material->AmbientColor.X = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->AmbientColor.Y = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->AmbientColor.Z = ParseFloat(&Reader);
+        }
+        
+        if (Consume(&Reader, "Kd "))
+        {
+            Material->DiffuseColor.X = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->DiffuseColor.Y = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->DiffuseColor.Z = ParseFloat(&Reader);
+        }
+        
+        if (Consume(&Reader, "Ks "))
+        {
+            Material->SpecularColor.X = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->SpecularColor.Y = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->SpecularColor.Z = ParseFloat(&Reader);
+        }
+        
+        if (Consume(&Reader, "Ke "))
+        {
+            Material->EmissiveColor.X = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->EmissiveColor.Y = ParseFloat(&Reader);
+            Consume(&Reader, " ");
+            Material->EmissiveColor.Z = ParseFloat(&Reader);
+        }
+        
+        if (Consume(&Reader, "Ni "))
+        {
+            Material->OpticalDensity = ParseFloat(&Reader);
+        }
+        
+        if (Consume(&Reader, "d "))
+        {
+            Material->Dissolve = ParseFloat(&Reader);
+        }
+        
+        if (Consume(&Reader, "illum"))
+        {
+            Material->IlluminationMode = ParseInt(&Reader);
+        }
+        
+        NextLine(&Reader);
+    }
+}
+
+static void
+SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform)
+{
+    string ModelName = String(ModelName_);
+    
+    for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
+    {
+        model* Model = Assets->Models + ModelIndex;
+        
+        if (StringsAreEqual(Model->Name, ModelName))
+        {
+            Model->LocalTransform = Transform;
+            break;
+        }
     }
 }

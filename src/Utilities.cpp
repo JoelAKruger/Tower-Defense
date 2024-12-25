@@ -22,7 +22,7 @@ typedef u32 b32;
 struct string
 {
 	char* Text;
-	u32 Length;
+	u64 Length;
 };
 
 //TODO: This does not seem to actually calculate the length at compile time :(
@@ -183,6 +183,16 @@ ArenaPrint(memory_arena* Arena, char* Format, ...)
 	return Result;
 }
 
+static string
+CopyString(memory_arena* Arena, string String)
+{
+    string Result = {};
+    Result.Text = (char*)Alloc(Arena, String.Length);
+    Result.Length = String.Length;
+    memcpy(Result.Text, String.Text, String.Length);
+    return Result;
+}
+
 template <typename type>
 struct span
 {
@@ -295,6 +305,7 @@ static span<type> ToSpan(static_array<type> Array)
 template <typename type>
 struct dynamic_array
 {
+    memory_arena* Arena;
 	type* Memory;
 	u32 Count;
     u32 Capacity;
@@ -311,9 +322,7 @@ struct dynamic_array
     
     type& operator[] (u32 Index)
     {
-#if DEBUG
         Assert(Index < Count);
-#endif
         return Memory[Index];
     }
     
@@ -326,19 +335,19 @@ type* operator+(dynamic_array<type> Array, u32 Index)
 }
 
 template <typename type>
-void Add(dynamic_array<type>* Array, type* NewElement, memory_arena* Arena)
+void Add(dynamic_array<type>* Array, type NewElement)
 {
     if (Array->Count >= Array->Capacity)
     {
         //Note: Old memory is not freed
         u32 NewCapacity = Max(Array->Capacity * 2, 4);
-        type* NewMemory = AllocArray(Arena, type, NewCapacity);
+        type* NewMemory = AllocArray(Array->Arena, type, NewCapacity);
         memcpy(NewMemory, Array->Memory, Array->Count * sizeof(type));
         
         Array->Memory = NewMemory;
         Array->Capacity = NewCapacity;
     }
-    Array->Memory[Array->Count++] = *NewElement;
+    Array->Memory[Array->Count++] = NewElement;
 }
 
 template <typename type>

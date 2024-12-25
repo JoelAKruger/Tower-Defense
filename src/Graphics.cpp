@@ -119,6 +119,64 @@ PushModel(render_group* RenderGroup, vertex_buffer_index VertexBuffer)
     Command->ModelTransform = IdentityTransform();
 }
 
+static material*
+FindMaterial(game_assets* Assets, string Library, string Name)
+{
+    material* Result = 0;
+    
+    for (u64 MaterialIndex = 0; MaterialIndex < Assets->MaterialCount; MaterialIndex++)
+    {
+        material* Material = Assets->Materials + MaterialIndex;
+        
+        if (StringsAreEqual(Library, Material->Library) && StringsAreEqual(Name, Material->Name))
+        {
+            Result = Material;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+static void
+PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4x4 Transform)
+{
+    //TODO: Make more functions
+    string Name = String(ModelName);
+    
+    for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
+    {
+        model* Model = Assets->Models + ModelIndex;
+        if (StringsAreEqual(Model->Name, Name))
+        {
+            m4x4 ModelTransform = Model->LocalTransform * Transform;
+            
+            for (u64 MeshHandleIndex = 0; MeshHandleIndex < Model->MeshCount; MeshHandleIndex++)
+            {
+                mesh_index MeshHandle = Model->Meshes[MeshHandleIndex];
+                
+                mesh* Mesh = Assets->Meshes + MeshHandle;
+                
+                PushModel(RenderGroup, VertexBuffer_Null);
+                render_command* Command = GetLastEntry(RenderGroup);
+                Command->VertexBuffer_ = Mesh->VertexBuffer;
+                PushModelTransform(RenderGroup, ModelTransform);
+                v4 Color = V4(1, 1, 1, 1);
+                
+                material* Material = FindMaterial(Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
+                if (Material)
+                {
+                    Color = V4(Material->DiffuseColor, 1.0f);
+                }
+                
+                PushColor(RenderGroup, Color);
+            }
+            break;
+        }
+    }
+}
+
+
 static void
 PushColor(render_group* RenderGroup, v4 Color)
 {
@@ -260,7 +318,14 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         }
         else
         {
-            DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
+            if (Command->VertexBuffer_.Buffer)
+            {
+                DrawVertexBuffer(Command->VertexBuffer_);
+            }
+            else
+            {
+                DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
+            }
         }
     }
 }
@@ -353,6 +418,17 @@ ModelRotateTransform()
     Result.Values[0][0] = 1.0f;
     Result.Values[2][1] = 1.0f;
     Result.Values[1][2] = -1.0f;
+    Result.Values[3][3] = 1.0f;
+    return Result;
+}
+
+static m4x4
+ModelRotateTransformNew()
+{
+    m4x4 Result = {};
+    Result.Values[0][0] = 1.0f;
+    Result.Values[2][1] = 1.0f;
+    Result.Values[1][2] = 1.0f;
     Result.Values[3][3] = 1.0f;
     return Result;
 }

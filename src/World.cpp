@@ -281,7 +281,7 @@ CreateWorld(world* World, u64 PlayerCount)
     World->Cols = 13;
     
     f32 HexagonRadius = 0.5f * World->Height / World->Rows;
-    f32 HexagonSideLength = 1.118034f * HexagonRadius;
+    f32 HexagonSideLength = 1.1f * HexagonRadius;
     
     //Region 0 is invalid
     int RegionIndex = 1;

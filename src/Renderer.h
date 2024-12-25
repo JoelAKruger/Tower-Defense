@@ -86,6 +86,7 @@ struct render_command
     D3D11_PRIMITIVE_TOPOLOGY Topology;
     shader_index Shader;
     vertex_buffer_index VertexBuffer; //If VertexBuffer is null, then data is in VertexData
+    renderer_vertex_buffer VertexBuffer_;
     texture Texture;
     m4x4 ModelTransform;
     v4 Color;
@@ -109,7 +110,7 @@ enum blend_mode
 struct render_group
 {
     memory_arena* Arena;
-    render_command Commands[512];
+    render_command Commands[1024];
     u32 CommandCount;
 };
 
@@ -120,6 +121,39 @@ struct model_textures
     //texture Displacement;
     texture Normal;
     texture Specular;
+};
+
+// .mtl material
+struct material
+{
+    string Library;
+    string Name;
+    f32 SpecularFocus;
+    v3 AmbientColor;
+    v3 DiffuseColor;
+    v3 SpecularColor;
+    v3 EmissiveColor;
+    f32 OpticalDensity;
+    f32 Dissolve;
+    int IlluminationMode;
+};
+typedef u64 material_index;
+
+struct mesh
+{
+    string MaterialLibrary;
+    string MaterialName;
+    renderer_vertex_buffer VertexBuffer;
+};
+typedef u64 mesh_index;
+
+struct model
+{
+    string Name;
+    
+    mesh_index Meshes[16];
+    int MeshCount;
+    m4x4 LocalTransform;
 };
 
 struct game_assets
@@ -149,6 +183,15 @@ struct game_assets
     texture Crystal;
     
     model_textures ModelTextures;
+    
+    material Materials[32];
+    int MaterialCount;
+    
+    mesh Meshes[128];
+    int MeshCount;
+    
+    model Models[128];
+    int ModelCount;
 };
 
 enum render_draw_type
@@ -213,6 +256,7 @@ void SetModelColor(v4 Color);
 
 //Utility functions
 void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);
+void SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform);
 
 extern f32 GlobalAspectRatio;
 extern int GlobalOutputWidth;

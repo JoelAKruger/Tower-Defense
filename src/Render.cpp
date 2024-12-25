@@ -197,6 +197,14 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     DrawTowers(RenderGroup, Game);
     
+    world* World = &Game->GlobalState.World;
+    for (u64 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
+        PushModelNew(RenderGroup, Assets, "2FPinkPlant_Plane.084", Transform);
+    }
+    
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;
     v3 LightP = V3(-1.0f, -1.0f, -1.0f);

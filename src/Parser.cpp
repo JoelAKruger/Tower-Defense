@@ -4,6 +4,15 @@ struct file_reader
     char* End;
 };
 
+enum token_type
+{
+    Token_None,
+    Token_Text,
+    Token_Int,
+    Token_Float,
+    Token_Slash
+};
+
 static f32
 ParseFloat(file_reader* Reader)
 {
@@ -90,9 +99,32 @@ Consume(file_reader* Reader, string String)
 }
 
 static bool
-Consume(file_reader* Reader, char* Str)
+Consume(file_reader* Reader, char* CStr)
 {
-    return Consume(Reader, String(Str));
+    return Consume(Reader, String(CStr));
+}
+
+static bool
+IsWhitespace(char C)
+{
+    return (C == ' ' || C == '\t' || C == '\n' || C == '\r');
+}
+
+static string
+ParseString(file_reader* Reader)
+{
+    char* Start = Reader->At;
+    
+    while (!AtEnd(Reader) && !IsWhitespace(*Reader->At))
+    {
+        Reader->At++;
+    }
+    
+    char* End = Reader->At;
+    
+    string Result = {Start, (u64)(End - Start)};
+    
+    return Result;
 }
 
 static void
@@ -129,6 +161,28 @@ ParseVertex(file_reader* Reader)
     Result.TexCoordIndex = ParseInt(Reader);
     Consume(Reader, "/");
     Result.NormalIndex   = ParseInt(Reader);
+    return Result;
+}
+
+static v2
+ParseVector2(file_reader* Reader)
+{
+    v2 Result = {};
+    Result.X = ParseFloat(Reader);
+    Consume(Reader, " ");
+    Result.Y = ParseFloat(Reader);
+    return Result;
+}
+
+static v3
+ParseVector3(file_reader* Reader)
+{
+    v3 Result = {};
+    Result.X = ParseFloat(Reader);
+    Consume(Reader, " ");
+    Result.Y = ParseFloat(Reader);
+    Consume(Reader, " ");
+    Result.Z = ParseFloat(Reader);
     return Result;
 }
 
