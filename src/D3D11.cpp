@@ -668,12 +668,12 @@ SetGraphicsShaderConstant(void* Data, u32 Bytes)
         ConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         
         D3D11Device->CreateBuffer(&ConstantBufferDesc, 0, &GraphicsShaderConstantBuffer);
+        
+        D3D11DeviceContext->VSSetConstantBuffers(Index, 1, &GraphicsShaderConstantBuffer);
+        D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &GraphicsShaderConstantBuffer);
     }
     
     D3D11DeviceContext->UpdateSubresource(GraphicsShaderConstantBuffer, 0, 0, Data, 0, 0);
-    
-    D3D11DeviceContext->VSSetConstantBuffers(Index, 1, &GraphicsShaderConstantBuffer);
-    D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &GraphicsShaderConstantBuffer);
 }
 
 ID3D11Buffer* NonGraphicsShaderConstantBuffer;
@@ -691,12 +691,12 @@ SetNonGraphicsShaderConstant(void* Data, u32 Bytes)
         ConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         
         D3D11Device->CreateBuffer(&ConstantBufferDesc, 0, &NonGraphicsShaderConstantBuffer);
+        
+        D3D11DeviceContext->VSSetConstantBuffers(Index, 1, &NonGraphicsShaderConstantBuffer);
+        D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &NonGraphicsShaderConstantBuffer);
     }
     
     D3D11DeviceContext->UpdateSubresource(NonGraphicsShaderConstantBuffer, 0, 0, Data, 0, 0);
-    
-    D3D11DeviceContext->VSSetConstantBuffers(Index, 1, &NonGraphicsShaderConstantBuffer);
-    D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &NonGraphicsShaderConstantBuffer);
 }
 
 static void
@@ -875,6 +875,9 @@ LoadShaders(game_assets* Assets)
     
     Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
                                                     "PixelShader_TexturedModel", "MyVertexShader");
+    
+    Assets->Shaders[Shader_PBR]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                              "PixelShader_PBR", "MyVertexShader");
     
     Assets->Shaders[Shader_GUI_Color] = CreateShader(L"assets/guishaders.hlsl", 
                                                      GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Color", "GUI_VertexShader");

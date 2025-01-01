@@ -158,6 +158,7 @@ PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4
                 mesh* Mesh = Assets->Meshes + MeshHandle;
                 
                 PushModel(RenderGroup, &Mesh->VertexBuffer);
+                GetLastEntry(RenderGroup)->Shader = Shader_PBR;
                 PushModelTransform(RenderGroup, ModelTransform);
                 
                 v4 Color = V4(1, 1, 1, 1);
@@ -281,6 +282,14 @@ static void
 DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type)
 {
     //TODO: Optimise this
+    //Start with a known state
+    bool DepthTestIsEnabled = true;
+    shader_index CurrentShader = Shader_Null;
+    texture CurrentTexture = {};
+    
+    SetDepthTest(DepthTestIsEnabled);
+    SetShader({});
+    SetTexture({});
     
     for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
     {
@@ -291,21 +300,36 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
             continue;
         }
         
-        shader Shader = Assets->Shaders[Command->Shader];
+        shader_index Shader = Command->Shader;
         
+        //Override shader if only position is needed
         if (Type & Draw_OnlyDepth)
         {
-            Shader = Assets->Shaders[Shader_OnlyDepth];
+            Shader = Shader_OnlyDepth;
         }
         
         Constants.ModelToWorldTransform = Command->ModelTransform;
         Constants.Color = Command->Color;
         
-        SetShader(Shader);
-        SetTexture(Command->Texture);
+        if (CurrentShader != Shader)
+        {
+            SetShader(Assets->Shaders[Shader]);
+            CurrentShader = Shader;
+        }
         
-        //TODO: Remove these
-        SetDepthTest(!Command->DisableDepthTest);
+        if (Command->Texture.TextureView && (Command->Texture.TextureView == CurrentTexture.TextureView))
+        {
+            SetTexture(Command->Texture);
+            CurrentTexture = Command->Texture;
+        }
+        
+        bool EnableDepthTest = !Command->DisableDepthTest;
+        
+        if (DepthTestIsEnabled != EnableDepthTest)
+        {
+            SetDepthTest(EnableDepthTest);
+            DepthTestIsEnabled = EnableDepthTest;
+        }
         
         SetGraphicsShaderConstants(Constants);
         

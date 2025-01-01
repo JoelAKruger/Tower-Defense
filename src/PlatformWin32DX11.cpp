@@ -260,13 +260,15 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         {
             OutputDebugStringA("Can't keep up\n");
         }
+        
         float TimeTaken = (float)(PerformanceCount.QuadPart - StartCount.QuadPart) / CounterFrequency.QuadPart;
         float CurrentFrameRate = 1.0f / TimeTaken;
         
-        while (PerformanceCount.QuadPart - StartCount.QuadPart < CountsPerFrame)
+        /*while (PerformanceCount.QuadPart - StartCount.QuadPart < CountsPerFrame)
         {
             QueryPerformanceCounter(&PerformanceCount);
         }
+*/
         
         ResetArena(&PerFrameDebugInfoArena);
         Profile = GetProfileReadout(&PerFrameDebugInfoArena);

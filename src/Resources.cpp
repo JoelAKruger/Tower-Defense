@@ -92,7 +92,7 @@ LoadAssets(allocator Allocator)
     
     LoadShaders(Assets);
     
-    Assets->ShadowMaps[0] = CreateShadowDepthTexture(2048, 2048);
+    Assets->ShadowMaps[0] = CreateShadowDepthTexture(4096, 4096);
     
     LoadVertexBuffer(Assets, "Castle", CreateModelVertexBuffer(Allocator, "assets/models/castle.obj", true));
     LoadVertexBuffer(Assets, "Turret", CreateModelVertexBuffer(Allocator, "assets/models/turret.obj", false));
@@ -135,7 +135,16 @@ LoadAssets(allocator Allocator)
     LoadMaterialsFromFile(Assets, Allocator, "assets/models/Flower.mtl", "Flower.mtl");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
     
-    SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * ModelRotateTransform() * ScaleTransform(0.05f, 0.05f, 0.05f));
+    
+    SetModelLocalTransform(Assets, "Rock6_Cube.014", TranslateTransform(-25.553f, 0.0f, -21.882f) * ModelRotateTransform() * ScaleTransform(0.02f, 0.02f, 0.02f));
+    
+    SetModelLocalTransform(Assets, "Bush2_Cube.046", TranslateTransform(2.067f, 0.0f, 0.0f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "RibbonPlant2_Plane.079", TranslateTransform(1.82f, 0.0f, -13.517f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
         {V2(-1, 1), {}, V2(0, 0)},
@@ -165,26 +174,38 @@ ResizeAssets(game_assets* Assets)
 static renderer_vertex_buffer
 CreateMeshVertexBuffer(dynamic_array<v3> Positions, dynamic_array<v3> Normals, dynamic_array<v2> TexCoords, dynamic_array<obj_file_face> Faces, allocator Allocator)
 {
-    u64 VertexCount = Faces.Count * 3;
+    u64 VertexCount = Faces.Count * 3 * 2;
     vertex* Vertices = AllocArray(Allocator.Transient, vertex, VertexCount);
     
     for (u32 FaceIndex = 0; FaceIndex < Faces.Count; FaceIndex++)
     {
         obj_file_face* Face = Faces + FaceIndex;
         
-        Vertices[FaceIndex * 3 + 0].P = Positions[Face->Vertices[0].PositionIndex - 1];
-        Vertices[FaceIndex * 3 + 1].P = Positions[Face->Vertices[1].PositionIndex - 1];
-        Vertices[FaceIndex * 3 + 2].P = Positions[Face->Vertices[2].PositionIndex - 1];
+        Vertices[FaceIndex * 6 + 0].P = Positions[Face->Vertices[0].PositionIndex - 1];
+        Vertices[FaceIndex * 6 + 1].P = Positions[Face->Vertices[1].PositionIndex - 1];
+        Vertices[FaceIndex * 6 + 2].P = Positions[Face->Vertices[2].PositionIndex - 1];
         
-        Vertices[FaceIndex * 3 + 0].Normal = Normals[Face->Vertices[0].NormalIndex - 1];
-        Vertices[FaceIndex * 3 + 1].Normal = Normals[Face->Vertices[1].NormalIndex - 1];
-        Vertices[FaceIndex * 3 + 2].Normal = Normals[Face->Vertices[2].NormalIndex - 1];
+        Vertices[FaceIndex * 6 + 0].Normal = Normals[Face->Vertices[0].NormalIndex - 1];
+        Vertices[FaceIndex * 6 + 1].Normal = Normals[Face->Vertices[1].NormalIndex - 1];
+        Vertices[FaceIndex * 6 + 2].Normal = Normals[Face->Vertices[2].NormalIndex - 1];
+        
+        Vertices[FaceIndex * 6 + 3].P = Positions[Face->Vertices[0].PositionIndex - 1];
+        Vertices[FaceIndex * 6 + 5].P = Positions[Face->Vertices[1].PositionIndex - 1];
+        Vertices[FaceIndex * 6 + 4].P = Positions[Face->Vertices[2].PositionIndex - 1];
+        
+        Vertices[FaceIndex * 6 + 3].Normal = -1.0f * Normals[Face->Vertices[0].NormalIndex - 1];
+        Vertices[FaceIndex * 6 + 5].Normal = -1.0f * Normals[Face->Vertices[1].NormalIndex - 1];
+        Vertices[FaceIndex * 6 + 4].Normal = -1.0f * Normals[Face->Vertices[2].NormalIndex - 1];
         
         if (Face->Vertices[0].TexCoordIndex && Face->Vertices[1].TexCoordIndex && Face->Vertices[2].TexCoordIndex)
         {
-            Vertices[FaceIndex * 3 + 0].UV = TexCoords[Face->Vertices[0].TexCoordIndex - 1];
-            Vertices[FaceIndex * 3 + 1].UV = TexCoords[Face->Vertices[1].TexCoordIndex - 1];
-            Vertices[FaceIndex * 3 + 2].UV = TexCoords[Face->Vertices[2].TexCoordIndex - 1];
+            Vertices[FaceIndex * 6 + 0].UV = TexCoords[Face->Vertices[0].TexCoordIndex - 1];
+            Vertices[FaceIndex * 6 + 1].UV = TexCoords[Face->Vertices[1].TexCoordIndex - 1];
+            Vertices[FaceIndex * 6 + 2].UV = TexCoords[Face->Vertices[2].TexCoordIndex - 1];
+            
+            Vertices[FaceIndex * 6 + 3].UV = TexCoords[Face->Vertices[0].TexCoordIndex - 1];
+            Vertices[FaceIndex * 6 + 5].UV = TexCoords[Face->Vertices[1].TexCoordIndex - 1];
+            Vertices[FaceIndex * 6 + 4].UV = TexCoords[Face->Vertices[2].TexCoordIndex - 1];
         }
     }
     

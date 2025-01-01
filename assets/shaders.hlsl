@@ -88,6 +88,87 @@ float4 PixelShader_Color(VS_Output_Default input) : SV_TARGET
 	return input.color;
 }
 
+float trowbridge_reitz_normal_distribution(float n_dot_h, float roughness)
+{
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float NdotH2 = n_dot_h * n_dot_h;
+    float denominator = 3.141592f * pow((alpha2 - 1) * NdotH2 + 1, 2);
+    return alpha2 / denominator;
+}
+
+float3 fresnel(float3 F0, float NdotV, float roughness)
+{
+    return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - NdotV, 5.0);
+}
+
+float schlick_beckmann_geometry_attenuation_function(float dotProduct, float roughness)
+{
+    float alpha = roughness * roughness;
+    float k = alpha * 0.797884560803;  // sqrt(2 / PI)
+    return dotProduct / (dotProduct * (1 - k) + k);
+}
+
+float3 lambert_diffuse(float3 albedo)
+{
+    return albedo / 3.141592f;
+}
+
+float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
+{
+	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
+	if (clip_plane_distance < 0)
+	{
+		discard;
+	}
+
+	float2 shadow_uv;
+	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
+	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
+	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
+	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
+
+	float lit = (1.0f - 0.8f * shadow);
+	
+	float3 light_vec = -1.0f * light_direction;
+	float3 view_vec = normalize(camera_pos - input.pos_world);
+	float3 half_vec = normalize(light_vec + view_vec);
+
+	float3 reflect_vec = -1.0f * reflect(view_vec, input.normal);
+
+	float n_dot_l = max(dot(input.normal, light_vec), 0.0f);
+	float n_dot_h = max(dot(input.normal, half_vec), 0.0f);
+	float h_dot_v = max(dot(half_vec, view_vec), 0.0f);
+	float n_dot_v = max(dot(input.normal, view_vec), 0.0f);
+
+	float3 albedo = input.color;
+
+	//Hard code these for now
+	float roughness = 0.9f;
+	float metallic = 0.0f;
+	float occlusion = 1.0f;
+	float3 light_color = float3(1.0f, 1.0f, 1.0f);
+	float3 fresnel_color = float3(1.0f, 1.0f, 1.0f);
+
+	float3 f0 = lerp(float3(0.04f, 0.04f, 0.04f), fresnel_color * albedo, metallic);
+
+	float d = trowbridge_reitz_normal_distribution(n_dot_h, roughness);
+	float3 f = fresnel(f0, n_dot_v, roughness);
+	float g = schlick_beckmann_geometry_attenuation_function(n_dot_v, roughness) * schlick_beckmann_geometry_attenuation_function(n_dot_l, roughness);
+
+	float lambert_direct = max(dot(input.normal, light_vec), 0.0f);
+	float3 direct_radiance = light_color * occlusion;
+
+	float3 diffuse_direct_term = lambert_diffuse(albedo) * (1.0f - f) * (1.0f - metallic) * input.color;
+	float3 specular_direct_term = g * d * f / (4.0f * n_dot_v * n_dot_l + 0.00001f);
+
+	float3 brdf_direct_output  = (diffuse_direct_term + specular_direct_term) * lambert_direct * direct_radiance * lit;
+
+	return float4(brdf_direct_output, 1.0f);
+
+}
+
+
 float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 {
 	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
@@ -267,9 +348,9 @@ float GetShadowValueBetter(float2 shadow_uv, float pixel_depth, float3 normal)
 
 	if (lit > 0.0f)
 	{
-		if (cos_angle > -0.2f)
+		if (cos_angle > -3.0f/10.0f)
 		{
-			float shadow = 1.0f + cos_angle * 5.0f;
+			float shadow = 1.0f + cos_angle * 10.0f/3.0f;
 
 			return shadow;
 		}

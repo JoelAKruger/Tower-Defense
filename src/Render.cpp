@@ -202,7 +202,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     {
         world_region* Region = World->Regions + RegionIndex;
         m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
-        PushModelNew(RenderGroup, Assets, "2FPinkPlant_Plane.084", Transform);
+        PushModelNew(RenderGroup, Assets, "RibbonPlant2_Plane.079", Transform);
     }
     
     //Make constants

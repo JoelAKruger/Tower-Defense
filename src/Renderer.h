@@ -54,6 +54,7 @@ enum shader_index
     Shader_Background,
     Shader_OnlyDepth,
     Shader_Bloom,
+    Shader_PBR,
     
     Shader_GUI_Color,
     Shader_GUI_Texture,
