@@ -1,6 +1,23 @@
 #include <steam/steamnetworkingsockets.h>
 #include <steam/isteamnetworkingutils.h>
 
+enum foliage_type
+{
+    Foliage_Null,
+    Foliage_Seaweed,
+    Foliage_PinkFlower,
+    Foliage_Bush,
+    Foliage_RibbonPlant,
+    Foliage_Grass,
+    Foliage_Rock,
+};
+
+struct foliage
+{
+    foliage_type Type;
+    v3 P;
+};
+
 struct world_region
 {
     //Defined relative to world
@@ -27,6 +44,8 @@ struct world
     
     world_region Regions[256];
     u32 RegionCount;
+    
+    foliage Foliage[512];
 };
 
 struct editor
@@ -45,7 +64,8 @@ enum game_mode
     Mode_MyTurn,
     Mode_Edit,
     Mode_Place,
-    Mode_EditTower
+    Mode_EditTower,
+    Mode_TowerPOV,
 };
 
 enum tower_type
@@ -195,10 +215,15 @@ struct game_state
     editor Editor;
     
     v3 CameraP;
-    f32 CameraTargetZ;
+    v3 CameraTargetP;
     v3 CameraDirection;
-    int CameraZoomLevel;
+    v3 CameraTargetDirection;
+    
+    int TopDownCameraZoomLevel;
+    v3 TopDownCameraP;
+    
     f32 FOV;
+    f32 TargetFOV;
     
     m4x4 WorldTransform;
     
@@ -211,6 +236,9 @@ struct game_state
     tower* SelectedTower;     
     u32    SelectedTowerIndex;
     tower_edit_mode TowerEditMode;
+    
+    //Valid when mode is Mode_TowerPOV
+    tower* TowerPerspective;
     
     u32 HoveringRegionIndex;
     
@@ -231,6 +259,10 @@ struct game_state
     //These are constants
     f32 ApproxTowerZ;
     v4 Colors[4];
+    
+    v3 SkyColor;
+    v3 LightP;
+    v3 LightDirection;
 };
 
 struct map_file_header

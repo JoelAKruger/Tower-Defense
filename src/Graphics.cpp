@@ -1,3 +1,67 @@
+static material*
+FindMaterial(game_assets* Assets, string Library, string Name)
+{
+    material* Result = 0;
+    
+    for (u64 MaterialIndex = 0; MaterialIndex < Assets->MaterialCount; MaterialIndex++)
+    {
+        material* Material = Assets->Materials + MaterialIndex;
+        
+        if (StringsAreEqual(Library, Material->Library) && StringsAreEqual(Name, Material->Name))
+        {
+            Result = Material;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+static model*
+FindModel(game_assets* Assets, string Name)
+{
+    model* Result = 0;
+    
+    for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
+    {
+        model* Model = Assets->Models + ModelIndex;
+        if (StringsAreEqual(Model->Name, Name))
+        {
+            Result = Model;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+static render_command*
+Push(render_group* RenderGroup)
+{
+    Assert(RenderGroup->CommandCount < ArrayCount(RenderGroup->Commands));
+    
+    render_command* Result = RenderGroup->Commands + (RenderGroup->CommandCount++);
+    
+    //Create default render command
+    Result->ModelTransform = IdentityTransform();
+    Result->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    
+    return Result;
+}
+
+static render_command*
+PushMesh(render_group* RenderGroup, game_assets* Assets, mesh_index MeshIndex, m4x4 Transform)
+{
+    mesh* Mesh = Assets->Meshes + MeshIndex;
+    
+    render_command* Command = Push(RenderGroup);
+    Command->Shader = Shader_PBR;
+    Command->ModelTransform = Transform;
+    Command->VertexBuffer = &Mesh->VertexBuffer;
+    Command->Material = FindMaterial(Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
+    return Command;
+}
+
 static render_command*
 GetNextEntry(render_group* RenderGroup)
 {
@@ -115,32 +179,15 @@ PushModel(render_group* RenderGroup, renderer_vertex_buffer* VertexBuffer)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     Command->VertexBuffer = VertexBuffer;
-    Command->Shader = Shader_Model;
+    Command->Shader = Shader_PBR;
     Command->ModelTransform = IdentityTransform();
 }
 
-static material*
-FindMaterial(game_assets* Assets, string Library, string Name)
-{
-    material* Result = 0;
-    
-    for (u64 MaterialIndex = 0; MaterialIndex < Assets->MaterialCount; MaterialIndex++)
-    {
-        material* Material = Assets->Materials + MaterialIndex;
-        
-        if (StringsAreEqual(Library, Material->Library) && StringsAreEqual(Name, Material->Name))
-        {
-            Result = Material;
-            break;
-        }
-    }
-    
-    return Result;
-}
-
-static void
+static span<render_command*>
 PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4x4 Transform)
 {
+    span<render_command*> Result = {};
+    
     //TODO: Make more functions
     string Name = String(ModelName);
     
@@ -151,29 +198,22 @@ PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4
         {
             m4x4 ModelTransform = Model->LocalTransform * Transform;
             
-            for (u64 MeshHandleIndex = 0; MeshHandleIndex < Model->MeshCount; MeshHandleIndex++)
+            Result = AllocSpan(RenderGroup->Arena, render_command*, Model->MeshCount);
+            
+            for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
             {
-                mesh_index MeshHandle = Model->Meshes[MeshHandleIndex];
+                mesh_index Mesh = Model->Meshes[MeshIndex];
                 
-                mesh* Mesh = Assets->Meshes + MeshHandle;
-                
-                PushModel(RenderGroup, &Mesh->VertexBuffer);
-                GetLastEntry(RenderGroup)->Shader = Shader_PBR;
-                PushModelTransform(RenderGroup, ModelTransform);
-                
-                v4 Color = V4(1, 1, 1, 1);
-                
-                material* Material = FindMaterial(Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
-                if (Material)
-                {
-                    Color = V4(Material->DiffuseColor, 1.0f);
-                }
-                
-                PushColor(RenderGroup, Color);
+                render_command* Command = PushMesh(RenderGroup, Assets, Mesh, ModelTransform);
+                Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
+                                                 Assets->Meshes[Mesh].MaterialName);
+                Result[MeshIndex] = Command;
             }
             break;
         }
     }
+    
+    return Result;
 }
 
 
@@ -317,7 +357,7 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
             CurrentShader = Shader;
         }
         
-        if (Command->Texture.TextureView && (Command->Texture.TextureView == CurrentTexture.TextureView))
+        if (Command->Texture.TextureView && (Command->Texture.TextureView != CurrentTexture.TextureView))
         {
             SetTexture(Command->Texture);
             CurrentTexture = Command->Texture;
@@ -330,6 +370,18 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
             SetDepthTest(EnableDepthTest);
             DepthTestIsEnabled = EnableDepthTest;
         }
+        
+        material* Material = Command->Material;
+        if (!Material)
+        {
+            Material = &Assets->Materials[0];
+        }
+        
+        Constants.Albedo = Material->DiffuseColor;
+        Constants.Roughness = (1000.0f - Material->SpecularFocus) / 1000.0f;
+        Constants.Metallic = Material->SpecularFocus / 1000.0f;
+        Constants.Occlusion = 1.0f;
+        Constants.FresnelColor = Material->SpecularColor;
         
         SetGraphicsShaderConstants(Constants);
         
@@ -515,11 +567,7 @@ TextPixelSize(font_asset* Font, string String)
     return {Width, Height};
 }
 
-static void
-DrawString_(string String)
-{
-    
-}
+
 
 static ssao_kernel
 CreateSSAOKernel()

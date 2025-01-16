@@ -28,13 +28,34 @@ cbuffer Constants : register(b5)
 	float4 clip_plane;
 	float3 camera_pos;
 	float3 light_direction;
+	float3 light_color;
+
+	float3 Albedo;
+    float Roughness;
+    float Metallic;
+    float Occlusion;
+    float3 FresnelColor;
 };
 
 float GetShadowValue(float2 shadow_uv, float pixel_depth);
 float GetShadowValueBetter(float2 shadow_uv, float pixel_depth, float3 normal);
 
+Texture2D default_texture : register(t0);
+SamplerState default_sampler : register(s0);
+
 Texture2D shadow_map : register(t1);
 SamplerComparisonState shadow_sampler : register(s1);
+
+Texture2D reflection_texture   : register(t2);
+Texture2D refraction_texture   : register(t3);
+Texture2D water_dudv_texture   : register(t4);
+Texture2D water_flow_texture   : register(t5);
+Texture2D water_normal_texture : register(t6);
+
+Texture2D ambient_texture  : register(t7);
+Texture2D diffuse_texture  : register(t8);
+Texture2D normal_texture   : register(t9);
+Texture2D specular_texture : register(t10);
 
 // Normal shaders
 VS_Output_Default MyVertexShader(VS_Input input) 
@@ -47,7 +68,7 @@ VS_Output_Default MyVertexShader(VS_Input input)
 	output.pos_world = world_pos.xyz / world_pos.w;
 	output.pos_light_space = mul(world_pos, world_to_light);
 	output.pos_clip = pos_clip;
-	output.color = input.color + color;
+	output.color = input.color + color + float4(Albedo, 1);
 	output.normal = normalize((float3)mul(float4(input.normal, 0.0f), model_to_world));
 	output.uv = input.uv;
 	
@@ -114,6 +135,35 @@ float3 lambert_diffuse(float3 albedo)
     return albedo / 3.141592f;
 }
 
+float3 brdf_unity(float3 albedo, float3 world_pos, float3 light_dir, float3 normal)
+{
+	float3 light_vec = -1.0f * light_dir;
+	float3 view_vec = normalize(camera_pos - world_pos);
+	float3 half_vec = normalize(light_vec + view_vec);
+
+	float3 reflect_vec = -1.0f * reflect(view_vec, normal);
+
+	float n_dot_l = max(dot(normal, light_vec), 0.0f);
+	float n_dot_h = max(dot(normal, half_vec), 0.0f);
+	float h_dot_v = max(dot(half_vec, view_vec), 0.0f);
+	float n_dot_v = max(dot(normal, view_vec), 0.0f);
+
+	float3 f0 = lerp(float3(0.04f, 0.04f, 0.04f), FresnelColor * albedo, Metallic);
+
+	float d = trowbridge_reitz_normal_distribution(n_dot_h, Roughness);
+	float3 f = fresnel(f0, n_dot_v, Roughness);
+	float g = schlick_beckmann_geometry_attenuation_function(n_dot_v, Roughness) * schlick_beckmann_geometry_attenuation_function(n_dot_l, Roughness);
+
+	float lambert_direct = max(dot(normal, light_vec), 0.0f);
+	float3 direct_radiance = light_color * Occlusion;
+
+	float3 diffuse_direct_term = lambert_diffuse(albedo) * (1.0f - f) * (1.0f - Metallic) * albedo;
+	float3 specular_direct_term = g * d * f / (4.0f * n_dot_v * n_dot_l + 0.00001f);
+
+	float3 brdf_direct_output  = (diffuse_direct_term + specular_direct_term) * lambert_direct * direct_radiance;
+	return brdf_direct_output;
+}
+
 float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 {
 	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
@@ -127,47 +177,15 @@ float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
 	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
 	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
-
-	float lit = (1.0f - 0.8f * shadow);
 	
-	float3 light_vec = -1.0f * light_direction;
-	float3 view_vec = normalize(camera_pos - input.pos_world);
-	float3 half_vec = normalize(light_vec + view_vec);
+	float3 result = float3(0, 0, 0);
+	result += 0.1f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - shadow));
+	result += 0.3f * brdf_unity(input.color, input.pos_world, normalize(float3(1, 1, 1)), input.normal);
+	result += 0.3f * brdf_unity(input.color, input.pos_world, normalize(float3(-1, 1, 1)), input.normal);
+	result += 0.3f * brdf_unity(input.color, input.pos_world, normalize(float3(0, -1, 1)), input.normal);
 
-	float3 reflect_vec = -1.0f * reflect(view_vec, input.normal);
-
-	float n_dot_l = max(dot(input.normal, light_vec), 0.0f);
-	float n_dot_h = max(dot(input.normal, half_vec), 0.0f);
-	float h_dot_v = max(dot(half_vec, view_vec), 0.0f);
-	float n_dot_v = max(dot(input.normal, view_vec), 0.0f);
-
-	float3 albedo = input.color;
-
-	//Hard code these for now
-	float roughness = 0.9f;
-	float metallic = 0.0f;
-	float occlusion = 1.0f;
-	float3 light_color = float3(1.0f, 1.0f, 1.0f);
-	float3 fresnel_color = float3(1.0f, 1.0f, 1.0f);
-
-	float3 f0 = lerp(float3(0.04f, 0.04f, 0.04f), fresnel_color * albedo, metallic);
-
-	float d = trowbridge_reitz_normal_distribution(n_dot_h, roughness);
-	float3 f = fresnel(f0, n_dot_v, roughness);
-	float g = schlick_beckmann_geometry_attenuation_function(n_dot_v, roughness) * schlick_beckmann_geometry_attenuation_function(n_dot_l, roughness);
-
-	float lambert_direct = max(dot(input.normal, light_vec), 0.0f);
-	float3 direct_radiance = light_color * occlusion;
-
-	float3 diffuse_direct_term = lambert_diffuse(albedo) * (1.0f - f) * (1.0f - metallic) * input.color;
-	float3 specular_direct_term = g * d * f / (4.0f * n_dot_v * n_dot_l + 0.00001f);
-
-	float3 brdf_direct_output  = (diffuse_direct_term + specular_direct_term) * lambert_direct * direct_radiance * lit;
-
-	return float4(brdf_direct_output, 1.0f);
-
+	return float4(result, 1.0f);
 }
-
 
 float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 {
@@ -199,29 +217,14 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 	//return float4(float3(0.5f, 0.5f, 0.5f) + 0.5f * input.normal, 1.0f);
 }
 
-Texture2D reflection_texture : register(t2);
-SamplerState reflection_sampler : register(s2);
-
-Texture2D refraction_texture : register(t3);
-SamplerState refraction_sampler : register(s3);
-
-Texture2D water_dudv_texture : register(t4);
-SamplerState water_dudv_sampler : register(s4);
-
-Texture2D water_flow_texture : register(t5);
-SamplerState water_flow_sampler : register(s5);
-
-Texture2D water_normal_texture : register(t6);
-SamplerState water_normal_sampler : register(s6);
-
 float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 {
 	float4 water_color = float4(0.0f, 0.2f, 0.05f, 1.0f);
 	float distortion_strength = 0.01f;
-	float distortion_scaling = 8.0f;
+	float distortion_scaling = 800.0f;
 	float wave_speed = 0.03f;
 
-	float2 flow_map = water_flow_texture.Sample(water_flow_sampler, input.uv).rg * 2.0f + float2(-1.0f, -1.0f);
+	float2 flow_map = water_flow_texture.Sample(default_sampler, input.uv).rg * 2.0f + float2(-1.0f, -1.0f);
 	float phase0 = frac((time / 5.0f));
 	float phase1 = frac((time / 5.0f) + 0.5f);
 	float t = abs(2.0 * frac(time / 5.0f) - 1.0);
@@ -234,15 +237,15 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	float2 reflect_coords = screen_uv;
 	float2 refract_coords = float2(screen_uv.x, 1.0f - screen_uv.y);
 
-	float2 distortion0 = water_dudv_texture.Sample(water_dudv_sampler, uv0).rg * 2.0f - 1.0f;
-	float2 distortion1 = water_dudv_texture.Sample(water_dudv_sampler, uv1).rg * 2.0f - 1.0f;
+	float2 distortion0 = water_dudv_texture.Sample(default_sampler, uv0).rg * 2.0f - 1.0f;
+	float2 distortion1 = water_dudv_texture.Sample(default_sampler, uv1).rg * 2.0f - 1.0f;
 
-	float3 normal0 = water_normal_texture.Sample(water_normal_sampler, uv0).rgb * 2.0f - 1.0f;
-	float3 normal1 = water_normal_texture.Sample(water_normal_sampler, uv1).rgb * 2.0f - 1.0f;
+	float3 normal0 = water_normal_texture.Sample(default_sampler, uv0).rgb * 2.0f - 1.0f;
+	float3 normal1 = water_normal_texture.Sample(default_sampler, uv1).rgb * 2.0f - 1.0f;
 	normal0 = normalize(normal0);
 	normal1 = normalize(normal1);
 
-	float3 light_dir = normalize(float3(1.0f, 1.0f, 1.0f));
+	float3 light_dir = normalize(light_direction);
 	float3 view_dir = normalize(camera_pos - input.pos_world);
 	float3 reflect_dir = reflect(light_dir, normal0);
 	float specular0 = pow(max(dot(view_dir, reflect_dir), 0.0), 32);	
@@ -258,26 +261,15 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	reflect_coords = clamp(reflect_coords, 0.001f, 0.999f);
 	refract_coords = clamp(refract_coords, 0.001f, 0.999f);
 
-	float4 reflection_color = reflection_texture.Sample(reflection_sampler, reflect_coords);
-	float4 refraction_color = refraction_texture.Sample(refraction_sampler, refract_coords);
+	float4 reflection_color = reflection_texture.Sample(default_sampler, reflect_coords);
+	float4 refraction_color = refraction_texture.Sample(default_sampler, refract_coords);
 
-	float4 color = lerp(reflection_color, refraction_color, 0.5f);
-	color = lerp(color, water_color, 0.12f) + 0.2f * specular * float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float4 color = lerp(reflection_color, refraction_color, 0.85f);
+	color = lerp(color, water_color, 0.1f) + 0.2f * specular * float4(1.0f, 1.0f, 1.0f, 1.0f);
 	
 	return color;
 }
 
-Texture2D ambient_texture : register(t7);
-SamplerState ambient_sampler : register(s7);
-
-Texture2D diffuse_texture : register(t8);
-SamplerState diffuse_sampler : register(s8);
-
-Texture2D normal_texture : register(t9);
-SamplerState normal_sampler : register(s9);
-
-Texture2D specular_texture : register(t10);
-SamplerState specular_sampler : register(s10);
 
 float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
 {
@@ -292,9 +284,9 @@ float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
 	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
 	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
 
-	float ambient = (float)ambient_texture.Sample(ambient_sampler, input.uv);
+	float ambient = (float)ambient_texture.Sample(default_sampler, input.uv);
 
-	float3 normal = normal_texture.Sample(normal_sampler, input.uv);
+	float3 normal = normal_texture.Sample(default_sampler, input.uv);
 	normal = 2.0f * normal - float3(1.0f, 1.0f, 1.0f);
 
 	float3 light_dir = 1.0f * normalize(float3(1.0f, -1.0f, 1.0f)); //TODO: make this a constant!
@@ -305,18 +297,15 @@ float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
 	float3 reflect_dir = reflect(light_dir, normal);
 
 	float shinyness = 8.0f;
-	float specular = specular_texture.Sample(specular_sampler, input.uv) * pow(max(dot(view_dir, reflect_dir), 0.0), shinyness);
+	float specular = specular_texture.Sample(default_sampler, input.uv) * pow(max(dot(view_dir, reflect_dir), 0.0), shinyness);
 
 	float shadow = GetShadowValue(shadow_uv, pixel_depth);
 
 	float light = ambient + shadow * (diffuse + specular);
-	float3 color = diffuse_texture.Sample(diffuse_sampler, input.uv);
+	float3 color = diffuse_texture.Sample(default_sampler, input.uv);
 
 	return float4((ambient + (1.0f - shadow) * (diffuse + specular)) * color, 1.0f);
 }
-
-Texture2D default_texture : register(t0);
-SamplerState default_sampler : register(s0);
 
 float4 PixelShader_Texture(VS_Output_Default input) : SV_Target
 {

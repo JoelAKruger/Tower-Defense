@@ -1,3 +1,42 @@
+static v3 
+GetSkyColor(int Hour, int Minute) 
+{
+    int TimeOfDay = 60 * (Hour % 24) + Minute;
+    
+    int Hours[] = {0, 6, 9, 12, 17, 20, 24};
+    v3 Colors[] = {
+        {0.10f, 0.10f, 0.44f},
+        {1.00f, 0.55f, 0.00f},
+        {0.53f, 0.81f, 0.98f},
+        {0.27f, 0.51f, 0.71f},
+        {1.00f, 0.55f, 0.00f},
+        {0.10f, 0.10f, 0.44f},
+        {0.10f, 0.10f, 0.44f}
+    };
+    
+    Assert(ArrayCount(Hours) == ArrayCount(Colors));
+    
+    v3 Result = {};
+    for (size_t I = 0; I < ArrayCount(Hours) - 1; I++) 
+    {
+        int Time = 60 * Hours[I];
+        int NextTime = 60 * Hours[(I + 1) % ArrayCount(Hours)];
+        
+        if (TimeOfDay >= Time && TimeOfDay < NextTime)
+        {
+            f32 t = (f32)(TimeOfDay - Time) / (f32)(NextTime - Time);
+            
+            v3 A = Colors[I];
+            v3 B = Colors[(I + 1) % ArrayCount(Colors)];
+            
+            Result = LinearInterpolate(A, B, t);
+        }
+        
+    }
+    
+    return Result;
+}
+
 static v2
 ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
 {
@@ -44,7 +83,7 @@ GameInitialise(allocator Allocator)
     GameState->Mode = Mode_Waiting;
     
     GameState->CameraP = {0.0f, -0.25, 0.0f};
-    GameState->CameraTargetZ = -1.25f;
+    GameState->CameraTargetP = {0.0f, -1.25f, 0.0f};
     GameState->CameraDirection = {0.0f, 2.0f, 5.5f};
     GameState->FOV = 50.0f;
     
@@ -82,10 +121,24 @@ DrawExplosion(v2 P, f32 Z, f32 ExplosionRadius, u32 Frame)
     DrawTexture(V3(P0, Z), V3(P1, Z), UV0, UV1);
 }
 
+static void
+SetMode(game_state* GameState, game_mode NewMode)
+{
+    GameState->Mode = NewMode;
+    
+    //Reset mode-specific variables
+    GameState->PlacementType = {};
+    GameState->SelectedTower = {};
+    GameState->SelectedTowerIndex = {};
+    GameState->TowerEditMode = {};
+    GameState->TowerPerspective = {};
+}
+
 static void 
 RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena* Arena)
 {
     tower* Tower = Game->GlobalState.Towers + TowerIndex;
+    f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
     
     //Draw target
     v2 TargetSize = {0.075f, 0.075f};
@@ -132,18 +185,13 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     
     SetShader(GUIFontShader); //TODO: Remove
     Layout.Label("Tower Editor");
-}
-
-static void
-SetMode(game_state* GameState, game_mode NewMode)
-{
-    GameState->Mode = NewMode;
     
-    //Reset mode-specific variables
-    GameState->PlacementType = {};
-    GameState->SelectedTower = {};
-    GameState->SelectedTowerIndex = {};
-    GameState->TowerEditMode = {};
+    Layout.NextRow();
+    if (Layout.Button("Enter Tower POV"))
+    {
+        SetMode(Game, Mode_TowerPOV);
+        Game->TowerPerspective = Tower;
+    }
 }
 
 static void
@@ -219,8 +267,8 @@ static u64
 GetHoveredRegionIndex(game_state* Game, v2 CursorP)
 {
     //TODO: This is rather inefficient
-    
     u64 Result = 0;
+    f32 ResultDistanceSq = FLT_MAX;
     
     world* World = &Game->GlobalState.World;
     
@@ -233,7 +281,9 @@ GetHoveredRegionIndex(game_state* Game, v2 CursorP)
         
         v2 WorldP = ScreenToWorld(Game, CursorP, Region->Z);
         
-        if (InRegion(Region, WorldP))
+        f32 DistanceToRegionSq = LengthSq(V3(Region->Center, Region->Z) - Game->CameraP);
+        
+        if ((DistanceToRegionSq < ResultDistanceSq) && InRegion(Region, WorldP))
         {
             Result = RegionIndex;
         }
@@ -313,6 +363,14 @@ RunLobby(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_i
     }
 }
 
+static v3
+GetTowerP(game_state* Game, tower* Tower)
+{
+    f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
+    v3 Result = V3(Tower->P, TowerZ);
+    return Result;
+}
+
 static void
 RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
@@ -351,43 +409,56 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         GameState->Dragging = false;
     }
     
-    if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_Waiting)
-    {
-        //Handle moving the camera
-        if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
-        {
-            GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
-            GameState->Dragging = true;
-        }
-        
-        if (GameState->Dragging)
-        {
-            v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
-            v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
-            GameState->CameraP.X -= DeltaP.X;
-            GameState->CameraP.Y -= DeltaP.Y;
-        }
-    }
-    
     GameState->CameraP.X += SecondsPerFrame * Input->Movement.X;
     GameState->CameraP.Y += SecondsPerFrame * Input->Movement.Y;
     
-    //Handle zooming
-    f32 ZoomLevels[] = {-0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
-    int DeltaZoom = -(int)Input->ScrollDelta;
-    GameState->CameraZoomLevel = Clamp(GameState->CameraZoomLevel + DeltaZoom, 0, ArrayCount(ZoomLevels) - 1);
+    //Do camera
+    f32 CameraSpeed = 10.0f;
     
-    GameState->CameraTargetZ = ZoomLevels[GameState->CameraZoomLevel];
-    
-    f32 CameraSpeed = 15.0f;
-    GameState->CameraP.Z = LinearInterpolate(GameState->CameraP.Z, GameState->CameraTargetZ, CameraSpeed * SecondsPerFrame);
-    
-    if (GameState->Dragging)
+    switch (GameState->Mode)
     {
-        v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
-        v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
-        GameState->CameraP.X -= DeltaP.X;
-        GameState->CameraP.Y -= DeltaP.Y;
+        case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: //Top down perspective
+        {
+            if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+            {
+                GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
+                GameState->Dragging = true;
+            }
+            
+            f32 ZoomLevels[] = {-0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
+            int DeltaZoom = -(int)Input->ScrollDelta;
+            GameState->TopDownCameraZoomLevel = Clamp(GameState->TopDownCameraZoomLevel + DeltaZoom, 0, ArrayCount(ZoomLevels) - 1);
+            
+            GameState->CameraTargetP.Z = ZoomLevels[GameState->TopDownCameraZoomLevel];
+            
+            GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
+            
+            if (GameState->Dragging)
+            {
+                v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
+                v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
+                GameState->CameraP.X -= DeltaP.X;
+                GameState->CameraP.Y -= DeltaP.Y;
+                GameState->CameraTargetP.XY = GameState->CameraP.XY;
+            }
+            
+            GameState->CameraDirection = {0.0f, 2.0f, 5.5f};
+            GameState->FOV = 50.0f;
+        } break;
+        case Mode_TowerPOV:
+        {
+            if (GameState->TowerPerspective)
+            {
+                tower* Tower = GameState->TowerPerspective;
+                GameState->CameraTargetP = GetTowerP(GameState, Tower) + V3(0.0f, 0.0f, -0.07f);
+                GameState->CameraTargetDirection = UnitV(V3(cosf(Tower->Rotation), sinf(Tower->Rotation), 0.3f));
+            }
+            
+            GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
+            GameState->CameraDirection = UnitV(LinearInterpolate(GameState->CameraDirection, GameState->CameraTargetDirection, CameraSpeed * SecondsPerFrame));
+            GameState->FOV = LinearInterpolate(GameState->FOV, 90.0f, CameraSpeed * SecondsPerFrame);
+        } break;
+        default: Assert(0);
     }
     
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
@@ -407,10 +478,18 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     render_group RenderGroup = {};
     RenderGroup.Arena = Allocator.Transient;
     
-    shader_constants Constants = {};
-    
     //Draw animations
     TickAnimations(GameState, SecondsPerFrame);
+    
+    f32 Time = 9.0f; //GameState->Time / 1.0f;
+    int CurrentHour = (int)Time % 24;
+    int CurrentMinute = (int)(60.0f * (Time - (int)Time));
+    
+    GameState->SkyColor = V3(1,1,1); //GetSkyColor(CurrentHour, CurrentMinute);
+    f32 t = (CurrentHour * 60 + CurrentMinute) / (24.0f * 60.0f);
+    
+    GameState->LightP = V3(4.0f * sinf(t * 2 * Pi), -1.0f, 4.0f * cosf(t * 2 * Pi));
+    GameState->LightDirection = V3(0, 0, 0) - GameState->LightP;
     
     f32 TowerRadius = 0.03f;
     //Select tower
@@ -480,7 +559,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     }
     
     //Draw world
-    RenderWorld(&RenderGroup, GameState, Assets, &Constants);
+    RenderWorld(&RenderGroup, GameState, Assets);
     
     //Draw GUI
     
@@ -555,6 +634,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     SetShader(GUIFontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
+    string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);
+    DrawGUIString(TimeString, V2(-0.95f, -0.75f));
 }
 
 static void 

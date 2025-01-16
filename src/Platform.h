@@ -20,3 +20,4 @@ void FreeVertexBuffer(renderer_vertex_buffer VertexBuffer);
 void SetBlendMode(blend_mode Mode);
 void SetNonGraphicsShaderConstant(void* Data, u32 Bytes);
 void SetGraphicsShaderConstant(void* Data, u32 Bytes);
+memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);

@@ -197,9 +197,9 @@ template <typename type>
 struct span
 {
 	type* Memory;
-	u32 Count;
+	u64 Count;
     
-    type& operator[](u32 Index)
+    type& operator[](u64 Index)
     {
 #if DEBUG
         Assert(Index < Count);

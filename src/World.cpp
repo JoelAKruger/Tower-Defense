@@ -181,7 +181,7 @@ static v2
 WorldPosFromGridPos(world* World, int X, int Y)
 {
     f32 dX = World->Width / World->Cols;
-    f32 dY = 0.875f * World->Height / World->Rows;
+    f32 dY = 0.866f * World->Height / World->Rows; //0.875f * World->Height / World->Rows;
     
     v2 Result = {World->X0 + X * dX, World->Y0 + Y * dY};
     if (Y % 2 == 1)
@@ -261,9 +261,13 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
     LoadVertexBuffer(Assets, "World", WorldVertexBuffer);
 }
 
+void GenerateFoliage(world* World, memory_arena* Arena);
+
 static void
 CreateWorld(world* World, u64 PlayerCount)
 {
+    memory_arena Arena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
+    
     Assert(PlayerCount <= 4);
     
     static u32 Seed = 2001;
@@ -283,7 +287,6 @@ CreateWorld(world* World, u64 PlayerCount)
     World->Cols = 13;
     
     f32 HexagonRadius = 0.5f * World->Height / World->Rows;
-    f32 HexagonSideLength = 1.1f * HexagonRadius;
     
     //Region 0 is invalid
     int RegionIndex = 1;
@@ -297,12 +300,12 @@ CreateWorld(world* World, u64 PlayerCount)
             
             Assert(ArrayCount(Region->Vertices) == 6);
             Region->Center = WorldPosFromGridPos(World, X, Y);
-            Region->Vertices[0] = Region->Center + HexagonSideLength * V2(0.0f, 1.0f);
-            Region->Vertices[1] = Region->Center + HexagonSideLength * V2(0.86603f, 0.5f);
-            Region->Vertices[2] = Region->Center + HexagonSideLength * V2(0.86603f, -0.5f);
-            Region->Vertices[3] = Region->Center + HexagonSideLength * V2(0.0f, -1.0f);
-            Region->Vertices[4] = Region->Center + HexagonSideLength * V2(-0.86603f, -0.5f);
-            Region->Vertices[5] = Region->Center + HexagonSideLength * V2(-0.86603f, 0.5f);
+            Region->Vertices[0] = Region->Center + HexagonRadius * V2(0.0f, 1.0f);
+            Region->Vertices[1] = Region->Center + HexagonRadius * V2(0.86603f, 0.5f);
+            Region->Vertices[2] = Region->Center + HexagonRadius * V2(0.86603f, -0.5f);
+            Region->Vertices[3] = Region->Center + HexagonRadius * V2(0.0f, -1.0f);
+            Region->Vertices[4] = Region->Center + HexagonRadius * V2(-0.86603f, -0.5f);
+            Region->Vertices[5] = Region->Center + HexagonRadius * V2(-0.86603f, 0.5f);
             
             f32 RegionHeight = GetWorldHeight(Region->Center, Seed);
             Region->Z = 0.25f * (1.0f - RegionHeight);
@@ -323,4 +326,102 @@ CreateWorld(world* World, u64 PlayerCount)
     }
     
     World->RegionCount = RegionIndex;
+    
+    GenerateFoliage(World, &Arena);
+}
+
+static f32
+DistanceToNearestFoliage(foliage* Foliage, int FoliageCount, v3 P)
+{
+    f32 MinDistance = FLT_MAX;
+    
+    for (int FoliageIndex = 0; FoliageIndex < FoliageCount; FoliageIndex++)
+    {
+        MinDistance = Min(MinDistance, Length(P - Foliage[FoliageIndex].P));
+    }
+    
+    return MinDistance;
+}
+
+static world_region*
+GetWorldRegion(world* World, v2 P)
+{
+    world_region* Result = 0;
+    
+    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        
+        if (InRegion(Region, P))
+        {
+            Result = Region;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+static foliage_type
+RandomFoliage(bool Water)
+{
+    if (Water)
+    {
+        foliage_type Types[] = {Foliage_RibbonPlant, Foliage_Grass, Foliage_Rock};
+        int Index = RandomBetween(0, ArrayCount(Types) - 1);
+        return Types[Index];
+    }
+    else
+    {
+        foliage_type Types[] = {Foliage_PinkFlower, Foliage_Bush, Foliage_RibbonPlant, Foliage_Grass, Foliage_Rock};
+        int Index = RandomBetween(0, ArrayCount(Types) - 1);
+        return Types[Index];
+    }
+}
+
+static char*
+GetFoliageAssetName(foliage_type Type)
+{
+    char* Result = {};
+    
+    switch (Type)
+    {
+        case Foliage_PinkFlower:  Result = "2FPinkPlant_Plane.084"; break;
+        case Foliage_Bush:        Result = "Bush2_Cube.046"; break;
+        case Foliage_RibbonPlant: Result = "RibbonPlant2_Plane.079"; break;
+        case Foliage_Grass:       Result = "GrassPatch101_Plane.040"; break;
+        case Foliage_Rock:        Result = "Rock6_Cube.014"; break;
+        default: Assert(0);
+    }
+    
+    return Result;
+}
+
+static void
+GenerateFoliage(world* World, memory_arena* Arena)
+{
+    int FoliageCount = 0;
+    f32 MinDistance = 0.05f;
+    f32 MinDistanceInsideRegion = 0.02f;
+    
+    while (FoliageCount < ArrayCount(World->Foliage))
+    {
+        v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
+        
+        world_region* Region = GetWorldRegion(World, TestP);
+        
+        if (Region)
+        {
+            v3 P = V3(TestP, Region->Z);
+            if (DistanceToNearestFoliage(World->Foliage, FoliageCount, P) >= MinDistance &&
+                DistanceInsideRegion(Region, P.XY) >= MinDistanceInsideRegion)
+            {
+                foliage Foliage = {};
+                Foliage.Type = RandomFoliage(Region->IsWater);
+                Foliage.P = P;
+                
+                World->Foliage[FoliageCount++] = Foliage;
+            }
+        }
+    }
 }

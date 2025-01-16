@@ -8,7 +8,6 @@ struct d3d11_shader
 struct d3d11_font_texture
 {
     stbtt_bakedchar* BakedChars;
-    ID3D11SamplerState* SamplerState;
     ID3D11ShaderResourceView* TextureView;
     
     f32 TextureWidth;
@@ -18,7 +17,6 @@ struct d3d11_font_texture
 
 struct d3d11_texture
 {
-    ID3D11SamplerState* SamplerState;
     ID3D11ShaderResourceView* TextureView;
     int Width, Height;
 };
@@ -62,6 +60,7 @@ render_output RenderOutput;
 font_texture* DefaultFont;
 
 void CreateD3D11Device();
+void CreateSamplers();
 f32 D3D11TextWidth(string String, f32 Size, f32 AspectRatio = 1.0f);
 
 //TODO: Wtf is this

@@ -5,8 +5,9 @@ struct GUI_VS_Input
 	float2 uv : UV;
 };
 
+
 Texture2D bloom_input_texture : register(t11);
-SamplerState bloom_input_sampler : register(s11);
+SamplerState default_sampler : register(s0);
 
 struct Bloom_VS_Output
 {
@@ -31,7 +32,7 @@ float4 Bloom_PixelShader_Filter(Bloom_VS_Output input) : SV_TARGET
 {
 	//return bloom_downsample_input_texture.Sample(bloom_downsample_input_sampler, input.uv);
 
-	float3 color = bloom_input_texture.Sample(bloom_input_sampler, input.uv);
+	float3 color = bloom_input_texture.Sample(default_sampler, input.uv);
 	color = color - float3(1, 1, 1);
 	return float4(color, 1.0f);
 }
@@ -56,7 +57,7 @@ float4 Bloom_PixelShader_Downsample(Bloom_VS_Output input) : SV_TARGET
 	for (int i = 0; i < 13; i++)
 	{
 		float2 uv = input.uv + float2(coords[i].x * dudx, coords[i].y * dudy);
-		result += contributions[i] * bloom_input_texture.Sample(bloom_input_sampler, uv);
+		result += contributions[i] * bloom_input_texture.Sample(default_sampler, uv);
 	}
 
 	return float4(result, 1.0f);
@@ -78,7 +79,7 @@ float4 Bloom_PixelShader_Upsample(Bloom_VS_Output input) : SV_TARGET
 	for (int i = 0; i < 9; i++)
 	{
 		float2 uv = input.uv + radius * coords[i];
-		result += contributions[i] * bloom_input_texture.Sample(bloom_input_sampler, uv);
+		result += contributions[i] * bloom_input_texture.Sample(default_sampler, uv);
 	}
 
 	return float4(result, 1.0f);

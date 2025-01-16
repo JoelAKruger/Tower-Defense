@@ -18,7 +18,7 @@ cbuffer GUI_Constants
 };
 
 Texture2D gui_texture : register(t0);
-SamplerState gui_sampler : register(s0);
+SamplerState default_sampler : register(s0);
 
 VS_Output GUI_VertexShader(GUI_VS_Input input)
 {
@@ -36,12 +36,12 @@ float4 GUI_PixelShader_Color(VS_Output input) : SV_Target
 
 float4 GUI_PixelShader_Texture(VS_Output input) : SV_Target
 {
-	float4 sample = gui_texture.Sample(gui_sampler, input.uv);
+	float4 sample = gui_texture.Sample(default_sampler, input.uv);
 	return sample;
 }
 
 float4 GUI_PixelShader_Font(VS_Output input) : SV_Target
 {
-	float sample = (float)gui_texture.Sample(gui_sampler, input.uv);
+	float sample = (float)gui_texture.Sample(default_sampler, input.uv);
 	return float4(input.color.rgb, sample);
 }

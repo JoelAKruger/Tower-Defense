@@ -5,7 +5,20 @@
 struct v2 { f32 X, Y; };
 struct v2i { i32 X, Y; };
 
-struct v3 { f32 X, Y, Z; };
+struct v3
+{ 
+    union
+    {
+        struct
+        {
+            f32 X, Y, Z;
+        };
+        struct
+        {
+            v2 XY;
+        };
+    };
+};
 
 struct v4
 {
@@ -95,6 +108,12 @@ inline f32
 LengthSq(v2 Vec)
 {
     return Vec.X * Vec.X + Vec.Y * Vec.Y;
+}
+
+inline f32 
+LengthSq(v3 Vec)
+{
+    return Vec.X * Vec.X + Vec.Y * Vec.Y + Vec.Z * Vec.Z;
 }
 
 inline f32 
@@ -380,6 +399,12 @@ LinearInterpolate(f32 X0, f32 X1, f32 T)
 
 static inline v2 
 LinearInterpolate(v2 X0, v2 X1, float T)
+{
+	return T * X1 + (1 - T) * X0;
+}
+
+static inline v3
+LinearInterpolate(v3 X0, v3 X1, float T)
 {
 	return T * X1 + (1 - T) * X0;
 }

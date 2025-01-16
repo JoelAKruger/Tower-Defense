@@ -108,21 +108,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     RenderOutput = GetDefaultRenderOutput(SwapChain);
     SetBlendMode(BlendMode_Blend);
     
-    //Set default shadow map comparison
-    D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; //TODO: Add low graphics option (point filtering)
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS; // Shadow map comparison
-    SamplerDesc.MinLOD = 0;
-    SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    SamplerDesc.MipLODBias = 0.0f;
-    SamplerDesc.MaxAnisotropy = 1;
-    
-    ID3D11SamplerState* ShadowSamplerState;
-    D3D11Device->CreateSamplerState(&SamplerDesc, &ShadowSamplerState);
-    D3D11DeviceContext->PSSetSamplers(1, 1, &ShadowSamplerState);
+    CreateSamplers();
     
     SetDepthTest(false);
     
@@ -264,11 +250,10 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         float TimeTaken = (float)(PerformanceCount.QuadPart - StartCount.QuadPart) / CounterFrequency.QuadPart;
         float CurrentFrameRate = 1.0f / TimeTaken;
         
-        /*while (PerformanceCount.QuadPart - StartCount.QuadPart < CountsPerFrame)
+        while (PerformanceCount.QuadPart - StartCount.QuadPart < CountsPerFrame)
         {
             QueryPerformanceCounter(&PerformanceCount);
         }
-*/
         
         ResetArena(&PerFrameDebugInfoArena);
         Profile = GetProfileReadout(&PerFrameDebugInfoArena);

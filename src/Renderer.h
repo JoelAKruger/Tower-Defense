@@ -26,9 +26,9 @@ struct cube_map
 struct shader_constants
 {
     m4x4 WorldToClipTransform; 
-    m4x4 ModelToWorldTransform; //Per draw call
+    m4x4 ModelToWorldTransform;
     m4x4 WorldToLightTransform;
-    v4 Color; //Per draw call
+    v4 Color;
     
     f32 Time;
     f32 Pad0[3];
@@ -40,6 +40,19 @@ struct shader_constants
     
     v3 LightDirection;
     f32 Pad2;
+    
+    v3 LightColor;
+    f32 Pad3;
+    
+    v3 Albedo;
+    float Roughness;
+    
+    float Metallic;
+    float Occlusion;
+    float Pad4[2];
+    
+    v3 FresnelColor;
+    float Pad5;
 };
 
 enum shader_index
@@ -78,6 +91,8 @@ enum vertex_buffer_index
     VertexBuffer_Count
 };
 
+struct material;
+
 struct render_command
 {
     void* VertexData;
@@ -90,6 +105,7 @@ struct render_command
     texture Texture;
     m4x4 ModelTransform;
     v4 Color;
+    material* Material;
     bool DisableDepthTest;
     bool DisableShadows;
 };
@@ -147,17 +163,23 @@ struct mesh
 };
 typedef u64 mesh_index;
 
+struct renderer_pbr
+{
+    
+};
+
 struct model
 {
     string Name;
     
     mesh_index Meshes[16];
-    int MeshCount;
+    u64 MeshCount;
     m4x4 LocalTransform;
 };
 
 struct game_assets
 {
+    //Old asset system
     renderer_vertex_buffer VertexBuffers_[VertexBuffer_Count];
     renderer_vertex_buffer VertexBuffersNew[128];
     int VertexBufferCount;
@@ -187,8 +209,11 @@ struct game_assets
     
     model_textures ModelTextures;
     
+    //New asset system
     material Materials[32];
     int MaterialCount;
+    
+    material DefaultMaterial;
     
     mesh Meshes[128];
     int MeshCount;

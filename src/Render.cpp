@@ -1,7 +1,14 @@
 static void
+DrawOceanFloor(render_group* RenderGroup)
+{
+    PushRect(RenderGroup, V3(-100.0f, -100.0f, 0.5f), V3(100.0f, 100.0f, 0.5f));
+    PushColor(RenderGroup, V4(0.1f, 0.1f, 0.1f, 1.0f));
+}
+
+static void
 DrawWater(render_group* RenderGroup, game_state* Game)
 {
-    PushRect(RenderGroup, V3(-1.0f, -1.0f, 0.125f), V3(1.0f, 1.0f, 0.125f));
+    PushRect(RenderGroup, V3(-100.0f, -100.0f, 0.125f), V3(100.0f, 100.0f, 0.125f));
     PushShader(RenderGroup, Shader_Water);
 }
 
@@ -10,9 +17,6 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 {
     
     PushTexturedRect(RenderGroup, Assets->Skybox.Textures[5], V3(-100.0f, -100.0f, 100.0f), V3(100.0f, 100.0f, 100.0f));
-    
-    //PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], V3(100.0f, 100.0f, -100.0f), V3(-100.0f, -100.0f, -100.0f));
-    //PushNoDepthTest(RenderGroup);
     
     PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], 
                      V3(-100.0f, 100.0f, -100.0f), V3(-100.0f, -100.0f, -100.0f),
@@ -23,7 +27,7 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 static void
 DrawRegionOutline(render_group* RenderGroup, world_region* Region)
 {
-    v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+    v4 Color = V4(1.15f, 1.15f, 1.15f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = Region->Z - 0.001f;
     
@@ -76,6 +80,7 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
     PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Model);
     PushNoShadow(RenderGroup);
+    PushShader(RenderGroup, Shader_PBR);
 }
 
 static void
@@ -145,7 +150,7 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     m4x4 LightViewTransform = ViewTransform(LightP, LightP + LightDirection);
     
     f32 MinWorldZ = -0.2f;
-    f32 MaxWorldZ = 0.1f;
+    f32 MaxWorldZ = 0.2f;
     
     v3 WorldPositions[8] = {
         V3(ScreenToWorld(Game, V2(-1, -1), MinWorldZ), MinWorldZ),
@@ -185,11 +190,25 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     return LightTransform;
 }
 
-static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, shader_constants* Constants)
+static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets)
 {
-    DrawSkybox(RenderGroup, Assets);
+    world* World = &Game->GlobalState.World;
     
-    PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
+    shader_constants Constants = {};
+    
+    DrawSkybox(RenderGroup, Assets);
+    DrawOceanFloor(RenderGroup);
+    
+    //PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
+    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
+        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Circle", Transform);
+        render_command* Command = Commands[0];
+        Command->Color = Region->Color;
+    }
+    
     if (Game->HoveringRegionIndex)
     {
         DrawRegionOutline(RenderGroup, Game->GlobalState.World.Regions + Game->HoveringRegionIndex);
@@ -197,38 +216,41 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     DrawTowers(RenderGroup, Game, Assets);
     
-    world* World = &Game->GlobalState.World;
-    for (u64 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
+    
+    for (u64 FoliageIndex = 0; FoliageIndex < ArrayCount(World->Foliage); FoliageIndex++)
     {
-        world_region* Region = World->Regions + RegionIndex;
-        m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
-        PushModelNew(RenderGroup, Assets, "RibbonPlant2_Plane.079", Transform);
+        foliage Foliage = World->Foliage[FoliageIndex];
+        
+        m4x4 Transform = TranslateTransform(Foliage.P.X, Foliage.P.Y, Foliage.P.Z);
+        char* Model = GetFoliageAssetName(Foliage.Type);
+        PushModelNew(RenderGroup, Assets, Model, Transform);
     }
     
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;
-    v3 LightP = V3(-1.0f, -1.0f, -1.0f);
-    v3 LightDirection = UnitV(V3(1.0f, 1.0f, 1.0f));
-    m4x4 LightTransform = MakeLightTransform(Game, LightP, LightDirection);
+    m4x4 LightTransform = MakeLightTransform(Game, Game->LightP, Game->LightDirection);
     
-    Constants->WorldToClipTransform = LightTransform;
-    Constants->WorldToLightTransform = LightTransform;
-    Constants->Time = Game->Time; //TODO: Maybe make this periodic?
-    Constants->CameraPos = Game->CameraP;
-    Constants->LightDirection = LightDirection;
+    Constants.WorldToClipTransform = LightTransform;
+    Constants.WorldToLightTransform = LightTransform;
+    Constants.Time = Game->Time; //TODO: Maybe make this periodic?
+    Constants.CameraPos = Game->CameraP;
+    Constants.LightDirection = Game->LightDirection;
+    Constants.LightColor = Game->SkyColor;
     
     SetBlendMode(BlendMode_Blend);
     
     //Draw shadow map
     SetDepthTest(true);
-    SetFrontCullMode(true);
+    SetFrontCullMode(true); //INCORRECTLY NAMED FUNCTION
     UnsetShadowMap();
     ClearOutput(Assets->ShadowMaps[0]);
     SetOutput(Assets->ShadowMaps[0]);
-    DrawRenderGroup(RenderGroup, Assets, *Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
+    DrawRenderGroup(RenderGroup, Assets, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     SetFrontCullMode(false);
+    SetOutput({});
+    SetShadowMap(Assets->ShadowMaps[0]);
     
-    Constants->WorldToClipTransform = WorldTransform;
+    Constants.WorldToClipTransform = WorldTransform;
     
     //Draw reflection texture
     f32 WaterZ = 0.125f;
@@ -241,21 +263,21 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 1500.0f);
     
-    Constants->ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
-    Constants->WorldToClipTransform = ReflectionWorldTransform;
+    Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
+    Constants.WorldToClipTransform = ReflectionWorldTransform;
     ClearOutput(Assets->WaterReflection);
     SetOutput(Assets->WaterReflection);
-    DrawRenderGroup(RenderGroup, Assets, *Constants, Draw_Regular);
+    DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
     
     //Refraction texture
-    Constants->ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
-    Constants->WorldToClipTransform = WorldTransform;
+    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
+    Constants.WorldToClipTransform = WorldTransform;
     ClearOutput(Assets->WaterRefraction);
     SetOutput(Assets->WaterRefraction);
-    DrawRenderGroup(RenderGroup, Assets, *Constants, Draw_Regular);
+    DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
     
     //Draw normal world
-    Constants->ClipPlane = {};
+    Constants.ClipPlane = {};
     
     DrawWater(RenderGroup, Game);
     
@@ -274,7 +296,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetTexture(Assets->ModelTextures.Normal, 9);
     SetTexture(Assets->ModelTextures.Specular, 10);
     
-    DrawRenderGroup(RenderGroup, Assets, *Constants, Draw_Regular);
+    DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
     
     UnsetShadowMap();
     UnsetTexture(2);

@@ -199,20 +199,6 @@ CreateRenderOutput(int Width, int Height)
     
     Result.Width = Width;
     Result.Height = Height;
-    
-    //Create texture
-    D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.BorderColor[0] = 1.0f;
-    SamplerDesc.BorderColor[1] = 1.0f;
-    SamplerDesc.BorderColor[2] = 1.0f;
-    SamplerDesc.BorderColor[3] = 1.0f;
-    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    
-    D3D11Device->CreateSamplerState(&SamplerDesc, &Result.Texture.SamplerState);
     Result.Texture.TextureView = Result.ShaderResourceView;
     
     return Result;
@@ -253,26 +239,29 @@ d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementD
     Assert(SUCCEEDED(HResult));
     
     //Create Pixel Shader
-    ID3DBlob* PixelShaderBlob;
-    HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", 0, 0, &PixelShaderBlob, &CompileErrorsBlob);
-    
-    if (FAILED(HResult))
+    if (PixelShaderEntry)
     {
-        if (HResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+        ID3DBlob* PixelShaderBlob;
+        HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", 0, 0, &PixelShaderBlob, &CompileErrorsBlob);
+        
+        if (FAILED(HResult))
         {
-            OutputDebugStringA("Failed to compile shader, file not found");
+            if (HResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+            {
+                OutputDebugStringA("Failed to compile shader, file not found");
+            }
+            else if (CompileErrorsBlob)
+            {
+                OutputDebugStringA("Failed to compile shader:");
+                OutputDebugStringA((char*)CompileErrorsBlob->GetBufferPointer());
+                CompileErrorsBlob->Release();
+            }
         }
-        else if (CompileErrorsBlob)
-        {
-            OutputDebugStringA("Failed to compile shader:");
-            OutputDebugStringA((char*)CompileErrorsBlob->GetBufferPointer());
-            CompileErrorsBlob->Release();
-        }
+        
+        HResult = D3D11Device->CreatePixelShader(PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), 0, &Result.PixelShader);
+        Assert(SUCCEEDED(HResult));
+        PixelShaderBlob->Release();
     }
-    
-    HResult = D3D11Device->CreatePixelShader(PixelShaderBlob->GetBufferPointer(), PixelShaderBlob->GetBufferSize(), 0, &Result.PixelShader);
-    Assert(SUCCEEDED(HResult));
-    PixelShaderBlob->Release();
     
     HResult = D3D11Device->CreateInputLayout(InputElementDesc, InputElementDescCount, 
                                              VertexShaderBlob->GetBufferPointer(), VertexShaderBlob->GetBufferSize(), 
@@ -388,20 +377,6 @@ font_texture CreateFontTexture(allocator Allocator, char* Path)
     
     stbtt_BakeFontBitmap(TrueTypeFile.Memory, 0, RasterisedSize, TempBuffer, TextureWidth, TextureHeight, 0, 128, BakedChars);
     
-    //Create Sampler
-    D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.BorderColor[0] = 1.0f;
-    SamplerDesc.BorderColor[1] = 1.0f;
-    SamplerDesc.BorderColor[2] = 1.0f;
-    SamplerDesc.BorderColor[3] = 1.0f;
-    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    
-    D3D11Device->CreateSamplerState(&SamplerDesc, &Result.SamplerState);
-    
     D3D11_TEXTURE2D_DESC TextureDesc = {};
     TextureDesc.Width = TextureWidth;
     TextureDesc.Height = TextureHeight;
@@ -436,23 +411,52 @@ static inline DXGI_FORMAT ChannelCountToDXGIFormat(int Channels)
     }
 }
 
+#define SafeRelease(ComPtr) if (ComPtr) { (ComPtr)->Release(); (ComPtr) = 0; }
+
+static void
+CreateSamplers()
+{
+    ID3D11SamplerState* Samplers[2] = {};
+    
+    //Create default texture sampler
+    D3D11_SAMPLER_DESC SamplerDesc = {};
+    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.BorderColor[0] = 0.0f;
+    SamplerDesc.BorderColor[1] = 0.0f;
+    SamplerDesc.BorderColor[2] = 0.0f;
+    SamplerDesc.BorderColor[3] = 0.0f;
+    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    
+    D3D11Device->CreateSamplerState(&SamplerDesc, Samplers + 0);
+    
+    //Create default shadow map comparison
+    SamplerDesc = {};
+    SamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; //TODO: Add low graphics option (point filtering)
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS; // Shadow map comparison
+    SamplerDesc.MinLOD = 0;
+    SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    SamplerDesc.MipLODBias = 0.0f;
+    SamplerDesc.MaxAnisotropy = 1;
+    
+    D3D11Device->CreateSamplerState(&SamplerDesc, Samplers + 1);
+    
+    D3D11DeviceContext->PSSetSamplers(0, 2, Samplers);
+    SafeRelease(Samplers[0]);
+    SafeRelease(Samplers[1]);
+}
+
 static texture
 CreateTexture(u32* TextureData, int Width, int Height, int Channels)
 {
     texture Result = {};
     
-    D3D11_SAMPLER_DESC SamplerDesc = {};
-    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;//D3D11_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR; //
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-    SamplerDesc.BorderColor[0] = 1.0f;
-    SamplerDesc.BorderColor[1] = 1.0f;
-    SamplerDesc.BorderColor[2] = 1.0f;
-    SamplerDesc.BorderColor[3] = 1.0f;
-    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     
-    D3D11Device->CreateSamplerState(&SamplerDesc, &Result.SamplerState);
     
     D3D11_TEXTURE2D_DESC TextureDesc = {};
     TextureDesc.Width = Width;
@@ -489,18 +493,12 @@ CreateTexture(u32* TextureData, int Width, int Height, int Channels)
 static void
 DeleteTexture(texture* Texture)
 {
-    if (Texture->SamplerState)
-    {
-        Texture->SamplerState->Release();
-    }
     if (Texture->TextureView)
     {
         Texture->TextureView->Release();
     }
     *Texture = {};
 }
-
-#define SafeRelease(ComPtr) if (ComPtr) {(ComPtr)->Release();}
 
 void Delete(render_output* Output)
 {
@@ -633,7 +631,6 @@ void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Si
     D3D11DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
     
     D3D11DeviceContext->PSSetShaderResources(0, 1, &Font.TextureView);
-    D3D11DeviceContext->PSSetSamplers(0, 1, &Font.SamplerState);
     
     D3D11DeviceContext->Draw(VertexCount, 0);
     
@@ -703,7 +700,6 @@ static void
 SetTexture(texture Texture, int Index)
 {
     D3D11DeviceContext->PSSetShaderResources(Index, 1, &Texture.TextureView);
-    D3D11DeviceContext->PSSetSamplers(Index, 1, &Texture.SamplerState);
 }
 
 static void
@@ -711,8 +707,6 @@ UnsetTexture(int Index)
 {
     ID3D11ShaderResourceView* ShaderResourceView = 0;
     D3D11DeviceContext->PSSetShaderResources(Index, 1, &ShaderResourceView);
-    ID3D11SamplerState* Sampler = 0;
-    D3D11DeviceContext->PSSetSamplers(Index, 1, &Sampler);
 }
 
 static void
@@ -750,7 +744,7 @@ SetFrontCullMode(bool Value)
 {
     D3D11_RASTERIZER_DESC RasteriserDesc = {};
     RasteriserDesc.FillMode = D3D11_FILL_SOLID;
-    RasteriserDesc.CullMode = D3D11_CULL_BACK; //Value ? D3D11_CULL_FRONT : D3D11_CULL_BACK;
+    RasteriserDesc.CullMode = D3D11_CULL_BACK;
     RasteriserDesc.DepthClipEnable = true;
     
     if (Value)
@@ -803,7 +797,7 @@ SetBlendMode(blend_mode Mode)
     HRESULT HResult = D3D11Device->CreateBlendState(&BlendDesc, &BlendState);
     Assert(SUCCEEDED(HResult));
     D3D11DeviceContext->OMSetBlendState(BlendState, NULL, 0xFFFFFFFF);
-    //BlendState->Release();
+    BlendState->Release();
 }
 
 static void
@@ -874,7 +868,7 @@ LoadShaders(game_assets* Assets)
                                                         "PixelShader_TexturedModel", "MyVertexShader");
     
     Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                    "PixelShader_TexturedModel", "MyVertexShader");
+                                                    0, "MyVertexShader");
     
     Assets->Shaders[Shader_PBR]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
                                               "PixelShader_PBR", "MyVertexShader");
