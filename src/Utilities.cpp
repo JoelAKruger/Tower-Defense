@@ -2,29 +2,6 @@
 #include <cstdarg>
 #include <stdio.h>
 
-typedef uint64_t u64;
-typedef int64_t i64;
-typedef uint32_t u32;
-typedef int32_t i32;
-typedef uint16_t u16;
-typedef int16_t i16;
-typedef uint8_t u8;
-typedef int8_t i8;
-typedef float f32;
-typedef double f64;
-typedef u32 b32;
-
-#define Kilobytes(n) (n * 1024)
-#define Megabytes(n) (n * 1024 * 1024)
-
-#define ArrayCount(x) (sizeof((x))/sizeof((x)[0]))
-
-struct string
-{
-	char* Text;
-	u64 Length;
-};
-
 //TODO: This does not seem to actually calculate the length at compile time :(
 constexpr string
 String(const char* Text)
@@ -60,34 +37,6 @@ StringsAreEqual(string A, string B)
     
     return true;
 }
-
-#if DEBUG
-#define Assert(x) DoAssert(x)
-#else
-#define Assert(x)
-#endif
-
-static inline void
-DoAssert(bool Condition)
-{
-	if (!Condition)
-	{
-		__debugbreak();
-	}
-}
-
-enum memory_arena_type
-{
-	NORMAL, PERMANENT, TRANSIENT
-};
-
-struct memory_arena
-{
-	u8* Buffer;
-	u64 Used;
-	u64 Size;
-	memory_arena_type Type;
-};
 
 #define AllocStruct(Arena, Type) \
 (Type*)Alloc(Arena, sizeof(Type))
@@ -144,12 +93,6 @@ ResetArena(memory_arena* Arena)
 	Arena->Used = 0;
 }
 
-struct allocator
-{
-	memory_arena* Permanent;
-	memory_arena* Transient;
-};
-
 struct context
 {
     allocator Allocator;
@@ -192,21 +135,6 @@ CopyString(memory_arena* Arena, string String)
     memcpy(Result.Text, String.Text, String.Length);
     return Result;
 }
-
-template <typename type>
-struct span
-{
-	type* Memory;
-	u64 Count;
-    
-    type& operator[](u64 Index)
-    {
-#if DEBUG
-        Assert(Index < Count);
-#endif
-        return Memory[Index];
-    }
-};
 
 template <typename type>
 type* begin(span<type> Span)

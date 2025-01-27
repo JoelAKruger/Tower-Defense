@@ -189,7 +189,7 @@ ParseVector3(file_reader* Reader)
 static span<vertex>
 LoadModel(allocator Allocator, char* Path, bool ChangeOrder)
 {
-    span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
+    span<u8> File = LoadFile(Allocator.Transient, Path);
     file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
     
     //First pass: Count elements

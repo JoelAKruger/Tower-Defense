@@ -11,10 +11,7 @@
 
 #include <string>
 
-#include "Utilities.cpp"
-#include "Maths.cpp"
-#include "Timer.cpp"
-#include "Profiler.cpp"
+
 
 #define STBTT_STATIC
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -22,31 +19,19 @@
 #include "stb_truetype.h"
 #include "stb_image.h"
 
-memory_arena GlobalDebugArena;
-#define LOG(...) \
-OutputDebugStringA(ArenaPrint(&GlobalDebugArena, __VA_ARGS__).Text)
-
-void Win32DebugOut(string String);
-void Win32Sleep(int Milliseconds);
-span<u8> Win32LoadFile(memory_arena* Arena, char* Path);
-void Win32SaveFile(char* Path, span<u8> Data);
-
-#define PlatformDebugOut    Win32DebugOut
-#define PlatformSleep       Win32Sleep
-#define PlatformLoadFile    Win32LoadFile
-#define PlatformSaveFile    Win32SaveFile
+#include "Platform.h"
 
 #include "D3D11.h"
-#include "Renderer.h"
-#include "Defense.h"
-#include "Platform.h"
-#include "Input.h"
+#include "Game.cpp"
+
+#include "D3D11.cpp"
 
 #include "Win32Network.cpp"
-#include "Graphics.cpp"
-#include "Defense.cpp"
-#include "D3D11.cpp"
-#include "Renderer.cpp"
+
+#include "Timer.cpp"
+#include "Profiler.cpp"
+
+memory_arena GlobalDebugArena;
 
 static std::string GlobalTextInput;
 static f32 GlobalScrollDelta;
@@ -62,6 +47,10 @@ memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);
 font_texture CreateFontTexture(allocator Allocator, char* Path);
 void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio);
 void Win32DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1);
+void Win32DebugOut(string String);
+void Win32Sleep(int Milliseconds);
+span<u8> LoadFile(memory_arena* Arena, char* Path);
+void Win32SaveFile(char* Path, span<u8> Data);
 
 static bool GlobalWindowDidResize;
 
@@ -222,7 +211,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         }
         
         // Draw profiling information
-        SetTransformForNonGraphicsShader(IdentityTransform());
+        SetGUIShaderConstant(IdentityTransform());
         SetShader(GUIFontShader);
         f32 X = -0.99f;
         f32 Y = 0.95f;
@@ -302,7 +291,7 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
 }
 
 static span<u8> 
-Win32LoadFile(memory_arena* Arena, char* Path)
+LoadFile(memory_arena* Arena, char* Path)
 {
     span<u8> Result = {};
     bool Success = false;
@@ -327,9 +316,9 @@ Win32LoadFile(memory_arena* Arena, char* Path)
     
 #if DEBUG
     if (Success)
-        LOG("Opened file: %s\n", Path);
+        Log("Opened file: %s\n", Path);
     else
-        LOG("Could not open file: %s\n", Path); 
+        Log("Could not open file: %s\n", Path); 
 #endif
     
     return Result;
@@ -354,9 +343,9 @@ Win32SaveFile(char* Path, span<u8> Data)
     
 #if DEBUG
     if (Success)
-        LOG("Saved file: %s\n", Path);
+        Log("Saved file: %s\n", Path);
     else
-        LOG("Could not save file: %s\n", Path); 
+        Log("Could not save file: %s\n", Path); 
 #endif
 }
 
@@ -457,5 +446,26 @@ SetPixelShaderConstant(u32 Index, void* Data, u32 Bytes)
     Buffer->Release();
 }
 */
+
+void Log(char* Format, ...)
+{
+    va_list Args;
+    va_start(Args, Format);
+    
+    string String = ArenaPrint(&GlobalDebugArena, Format, Args);
+    
+    OutputDebugStringA(String.Text);
+    va_end(Args);
+}
+
+void Assert(bool Value)
+{
+#if DEBUG
+    if (Value == false)
+    {
+        __debugbreak();
+    }
+#endif
+}
 
 static_assert(__COUNTER__ <= ArrayCount(GlobalProfileEntries), "Too many profiles");

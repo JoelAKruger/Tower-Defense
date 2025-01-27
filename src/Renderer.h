@@ -23,38 +23,6 @@ struct cube_map
     texture Textures[6];
 };
 
-struct shader_constants
-{
-    m4x4 WorldToClipTransform; 
-    m4x4 ModelToWorldTransform;
-    m4x4 WorldToLightTransform;
-    v4 Color;
-    
-    f32 Time;
-    f32 Pad0[3];
-    
-    v4 ClipPlane;
-    
-    v3 CameraPos;
-    f32 Pad1;
-    
-    v3 LightDirection;
-    f32 Pad2;
-    
-    v3 LightColor;
-    f32 Pad3;
-    
-    v3 Albedo;
-    float Roughness;
-    
-    float Metallic;
-    float Occlusion;
-    float Pad4[2];
-    
-    v3 FresnelColor;
-    float Pad5;
-};
-
 enum shader_index
 {
     Shader_Null,
@@ -117,14 +85,10 @@ struct font_asset
     f32 Size;
 };
 
-enum blend_mode
-{
-    BlendMode_Add,
-    BlendMode_Blend
-};
-
+struct game_assets;
 struct render_group
 {
+    game_assets* Assets;
     memory_arena* Arena;
     render_command Commands[1024];
     u32 CommandCount;
@@ -206,6 +170,7 @@ struct game_assets
     texture Button;
     texture Panel;
     texture Crystal;
+    texture Target;
     
     model_textures ModelTextures;
     
@@ -235,20 +200,13 @@ struct ssao_kernel
     v3 Noise[16];
 };
 
-//Initialisation
-texture CreateTexture(char* Path);
-texture CreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
-void DeleteTexture(texture* Texture);
-void Delete(render_output* Output);
-render_output CreateShadowDepthTexture(int Width, int Height);
-render_output CreateRenderOutput(int Width, int Height);
-
 //Render Group
 render_command* GetNextEntry(render_group* RenderGroup);
 render_command* GetLastEntry(render_group* RenderGroup);
 
 void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
-void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
+void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
+render_command* PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3);
 void PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader);
 void PushColor(render_group* RenderGroup, v4 Color);
@@ -273,10 +231,6 @@ m4x4 RotateTransform(f32 Radians);
 m4x4 PerspectiveTransform(f32 FOV, f32 Near, f32 Far);
 m4x4 ViewTransform(v3 Eye, v3 At);
 m4x4 OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f32 Far);
-
-//Shader constants
-void SetTransformForNonGraphicsShader(m4x4 Transform);
-void SetGraphicsShaderConstants(shader_constants Constants);
 
 //Utility functions
 void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);

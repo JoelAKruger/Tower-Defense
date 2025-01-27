@@ -2,54 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-struct v2 { f32 X, Y; };
-struct v2i { i32 X, Y; };
-
-struct v3
-{ 
-    union
-    {
-        struct
-        {
-            f32 X, Y, Z;
-        };
-        struct
-        {
-            v2 XY;
-        };
-    };
-};
-
-struct v4
-{
-    union
-    {
-        struct
-        {
-            f32 X, Y, Z, W;
-        };
-        struct
-        {
-            v2 XY;
-            //f32 Z, W;
-        };
-        struct
-        {
-            v3 XYZ;
-            //f32 W;
-        };
-        struct
-        {
-            f32 R, G, B, A;
-        };
-        struct
-        {
-            v3 RGB;
-            //f32 A;
-        };
-    };
-};
-
 inline v2 V2(f32 X, f32 Y)
 {
 	v2 Result = {X, Y};
@@ -576,17 +528,6 @@ Inverse(m2x2 M)
 	return Result;
 }
 
-struct m4x4
-{
-    //row major ordering ( [col][row] )
-    union
-    {
-        f32 Values[4][4];
-        v4 Vectors[4];
-    };
-};
-
-
 static m4x4
 M4x4Identity()
 {
@@ -598,34 +539,70 @@ M4x4Identity()
     return Result;
 }
 
-//NOTE: This does not work for all matrices
 static m4x4
 Inverse(m4x4 M)
 {
     m4x4 I = M4x4Identity();
+    int RowMap[4] = {0, 1, 2, 3};
     
     for (int K = 0; K < 4; K++)
     {
-        //One in the pivot
-        f32 Factor = M.Values[K][K];
-        M.Vectors[K] = 1.0f / Factor * M.Vectors[K];
-        I.Vectors[K] = 1.0f / Factor * I.Vectors[K];
+        // Find the pivot
+        int Pivot = K;
+        float MaxValue = fabsf(M.Values[RowMap[K]][K]);
+        for (int i = K + 1; i < 4; i++)
+        {
+            float Value = fabsf(M.Values[RowMap[i]][K]);
+            if (Value > MaxValue)
+            {
+                Pivot = i;
+                MaxValue = Value;
+            }
+        }
         
-        //Zero the column
+        // Swap rows if necessary
+        if (Pivot != K)
+        {
+            int Temp = RowMap[K];
+            RowMap[K] = RowMap[Pivot];
+            RowMap[Pivot] = Temp;
+        }
+        
+        // Scale the pivot row
+        int PivotRow = RowMap[K];
+        float Factor = M.Values[PivotRow][K];
+        for (int j = 0; j < 4; j++)
+        {
+            M.Values[PivotRow][j] /= Factor;
+            I.Values[PivotRow][j] /= Factor;
+        }
+        
+        // Zero out the other rows
         for (int L = 0; L < 4; L++)
         {
-            if (K == L)
-            {
-                continue;
-            }
+            if (L == K) continue;
             
-            f32 Coefficient = M.Values[L][K];
-            M.Vectors[L] = M.Vectors[L] - Coefficient * M.Vectors[K];
-            I.Vectors[L] = I.Vectors[L] - Coefficient * I.Vectors[K];
+            int CurrentRow = RowMap[L];
+            float Coefficient = M.Values[CurrentRow][K];
+            for (int j = 0; j < 4; j++)
+            {
+                M.Values[CurrentRow][j] -= Coefficient * M.Values[PivotRow][j];
+                I.Values[CurrentRow][j] -= Coefficient * I.Values[PivotRow][j];
+            }
         }
     }
     
-    return I;
+    // Reorder rows back to original
+    m4x4 Result = {};
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            Result.Values[i][j] = I.Values[RowMap[i]][j];
+        }
+    }
+    
+    return Result;
 }
 
 static inline bool

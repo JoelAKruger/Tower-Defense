@@ -10,5 +10,5 @@ target_link_libraries(TowerDefense GameNetworkingSockets::shared)
 set_target_properties(TowerDefense PROPERTIES WIN32_EXECUTABLE TRUE)
  
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(TowerDefense PRIVATE -Wno-writable-strings)
+    target_compile_options(TowerDefense PRIVATE -Wno-writable-strings -Wno-reorder-init-list)
 endif()

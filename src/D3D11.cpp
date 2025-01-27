@@ -1,9 +1,5 @@
 memory_arena GraphicsArena;
 
-#ifndef DEBUG
-#define DEBUG
-#endif
-
 static void
 CreateD3D11Device()
 {
@@ -11,11 +7,8 @@ CreateD3D11Device()
     ID3D11DeviceContext* BaseDeviceContext;
     
     D3D_FEATURE_LEVEL FeatureLevels[] = {D3D_FEATURE_LEVEL_11_0};
-    UINT CreationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    UINT CreationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG;
     
-#ifdef DEBUG
-    CreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
     HRESULT HResult = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE,
                                         0, CreationFlags,
                                         FeatureLevels, ArrayCount(FeatureLevels),
@@ -32,7 +25,6 @@ CreateD3D11Device()
     Assert(SUCCEEDED(HResult));
     BaseDeviceContext->Release();
     
-#ifdef DEBUG
     //Setup debug to break on D3D11 error
     ID3D11Debug* D3DDebug;
     D3D11Device->QueryInterface(IID_PPV_ARGS(&D3DDebug));
@@ -48,7 +40,6 @@ CreateD3D11Device()
         }
         D3DDebug->Release();
     }
-#endif
 }
 
 IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
@@ -219,7 +210,7 @@ d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementD
     //Create Vertex Shader
     ID3DBlob* VertexShaderBlob;
     ID3DBlob* CompileErrorsBlob;
-    HRESULT HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, VertexShaderEntry, "vs_5_0", 0, 0, &VertexShaderBlob, &CompileErrorsBlob);
+    HRESULT HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, VertexShaderEntry, "vs_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &VertexShaderBlob, &CompileErrorsBlob);
     
     if (FAILED(HResult))
     {
@@ -242,7 +233,7 @@ d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementD
     if (PixelShaderEntry)
     {
         ID3DBlob* PixelShaderBlob;
-        HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", 0, 0, &PixelShaderBlob, &CompileErrorsBlob);
+        HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &PixelShaderBlob, &CompileErrorsBlob);
         
         if (FAILED(HResult))
         {
@@ -371,7 +362,7 @@ font_texture CreateFontTexture(allocator Allocator, char* Path)
     Result.TextureWidth = (f32)TextureWidth;
     Result.TextureHeight = (f32)TextureHeight;
     
-    span<u8> TrueTypeFile = Win32LoadFile(Allocator.Transient, Path);
+    span<u8> TrueTypeFile = LoadFile(Allocator.Transient, Path);
     
     u8* TempBuffer = Alloc(Allocator.Transient, TextureWidth * TextureHeight * sizeof(u8));
     
@@ -565,78 +556,6 @@ CreateShadowDepthTexture(int Width, int Height)
     return Result;
 }
 
-//TODO: Move this out of the platform layer
-void Win32DrawText(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio)
-{
-    f32 FontTexturePixelsToScreenY = Size / Font.RasterisedSize;
-    f32 FontTexturePixelsToScreenX = FontTexturePixelsToScreenY / AspectRatio;
-    
-    f32 X = Position.X;
-    f32 Y = Position.Y;
-    
-    u32 Stride = sizeof(gui_vertex);
-    u32 Offset = 0;
-    u32 VertexCount = 6 * Text.Length;
-    
-    gui_vertex* VertexData = AllocArray(&GraphicsArena, gui_vertex, VertexCount);
-    
-    for (u32 I = 0; I < Text.Length; I++)
-    {
-        uint8_t Char = (uint8_t)Text.Text[I];
-        Assert(Char < 128);
-        stbtt_bakedchar BakedChar = Font.BakedChars[Char];
-        
-        f32 X0 = X + BakedChar.xoff * FontTexturePixelsToScreenX;
-        f32 Y1 = Y - BakedChar.yoff * FontTexturePixelsToScreenY; //+ 0.5f * Font.RasterisedSize * FontTexturePixelsToScreen;
-        
-        f32 Width = FontTexturePixelsToScreenX * (f32)(BakedChar.x1 - BakedChar.x0);
-        f32 Height = FontTexturePixelsToScreenY * (f32)(BakedChar.y1 - BakedChar.y0);
-        
-        VertexData[6 * I + 0].P = {X0, Y1 - Height};
-        VertexData[6 * I + 1].P = {X0, Y1};
-        VertexData[6 * I + 2].P = {X0 + Width, Y1};
-        VertexData[6 * I + 3].P = {X0 + Width, Y1};
-        VertexData[6 * I + 4].P = {X0 + Width, Y1 - Height};
-        VertexData[6 * I + 5].P = {X0, Y1 - Height};
-        
-        VertexData[6 * I + 0].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
-        VertexData[6 * I + 1].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
-        VertexData[6 * I + 2].UV = {BakedChar.x1 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
-        VertexData[6 * I + 3].UV = {BakedChar.x1 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
-        VertexData[6 * I + 4].UV = {BakedChar.x1 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
-        VertexData[6 * I + 5].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
-        
-        VertexData[6 * I + 0].Color = Color;
-        VertexData[6 * I + 1].Color = Color;
-        VertexData[6 * I + 2].Color = Color;
-        VertexData[6 * I + 3].Color = Color;
-        VertexData[6 * I + 4].Color = Color;
-        VertexData[6 * I + 5].Color = Color;
-        
-        X += BakedChar.xadvance * FontTexturePixelsToScreenX;
-    }
-    
-    D3D11_BUFFER_DESC VertexBufferDesc = {};
-    VertexBufferDesc.ByteWidth = VertexCount * sizeof(gui_vertex);
-    VertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-    VertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    
-    D3D11_SUBRESOURCE_DATA VertexSubresourceData = { VertexData };
-    
-    ID3D11Buffer* VertexBuffer;
-    HRESULT HResult = D3D11Device->CreateBuffer(&VertexBufferDesc, &VertexSubresourceData, &VertexBuffer);
-    Assert(SUCCEEDED(HResult));
-    
-    D3D11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    D3D11DeviceContext->IASetVertexBuffers(0, 1, &VertexBuffer, &Stride, &Offset);
-    
-    D3D11DeviceContext->PSSetShaderResources(0, 1, &Font.TextureView);
-    
-    D3D11DeviceContext->Draw(VertexCount, 0);
-    
-    VertexBuffer->Release();
-}
-
 static f32 
 D3D11TextWidth(string String, f32 Size, f32 AspectRatio)
 {
@@ -653,14 +572,18 @@ D3D11TextWidth(string String, f32 Size, f32 AspectRatio)
 ID3D11Buffer* GraphicsShaderConstantBuffer;
 
 static void
-SetGraphicsShaderConstant(void* Data, u32 Bytes)
+SetGraphicsShaderConstants(shader_constants Constants)
 {
+    Constants.WorldToClipTransform  = Transpose(Constants.WorldToClipTransform);
+    Constants.ModelToWorldTransform = Transpose(Constants.ModelToWorldTransform);
+    Constants.WorldToLightTransform = Transpose(Constants.WorldToLightTransform);
+    
     int Index = 5;
     
     if (!GraphicsShaderConstantBuffer)
     {
         D3D11_BUFFER_DESC ConstantBufferDesc = {};
-        ConstantBufferDesc.ByteWidth = Bytes;
+        ConstantBufferDesc.ByteWidth = sizeof(Constants);
         ConstantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
         ConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         
@@ -670,20 +593,22 @@ SetGraphicsShaderConstant(void* Data, u32 Bytes)
         D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &GraphicsShaderConstantBuffer);
     }
     
-    D3D11DeviceContext->UpdateSubresource(GraphicsShaderConstantBuffer, 0, 0, Data, 0, 0);
+    D3D11DeviceContext->UpdateSubresource(GraphicsShaderConstantBuffer, 0, 0, &Constants, 0, 0);
 }
 
 ID3D11Buffer* NonGraphicsShaderConstantBuffer;
 
 static void
-SetNonGraphicsShaderConstant(void* Data, u32 Bytes)
+SetGUIShaderConstant(m4x4 Transform)
 {
+    Transform = Transpose(Transform);
+    
     int Index = 0;
     
     if (!NonGraphicsShaderConstantBuffer)
     {
         D3D11_BUFFER_DESC ConstantBufferDesc = {};
-        ConstantBufferDesc.ByteWidth = Bytes;
+        ConstantBufferDesc.ByteWidth = sizeof(Transform);
         ConstantBufferDesc.Usage = D3D11_USAGE_DEFAULT;
         ConstantBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
         
@@ -693,13 +618,19 @@ SetNonGraphicsShaderConstant(void* Data, u32 Bytes)
         D3D11DeviceContext->PSSetConstantBuffers(Index, 1, &NonGraphicsShaderConstantBuffer);
     }
     
-    D3D11DeviceContext->UpdateSubresource(NonGraphicsShaderConstantBuffer, 0, 0, Data, 0, 0);
+    D3D11DeviceContext->UpdateSubresource(NonGraphicsShaderConstantBuffer, 0, 0, &Transform, 0, 0);
 }
 
 static void
 SetTexture(texture Texture, int Index)
 {
     D3D11DeviceContext->PSSetShaderResources(Index, 1, &Texture.TextureView);
+}
+
+static void 
+SetFontTexture(font_texture Texture)
+{
+    D3D11DeviceContext->PSSetShaderResources(0, 1, &Texture.TextureView);
 }
 
 static void
@@ -854,9 +785,11 @@ LoadShaders(game_assets* Assets)
         {"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
-    //Used for the GUI
     Assets->Shaders[Shader_Texture]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
                                                   "PixelShader_Texture", "MyVertexShader");
+    
+    Assets->Shaders[Shader_Color]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                "PixelShader_Color", "MyVertexShader");
     
     Assets->Shaders[Shader_Water]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
                                                 "PixelShader_Water", "MyVertexShader");

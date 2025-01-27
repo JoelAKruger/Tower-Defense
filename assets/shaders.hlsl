@@ -96,17 +96,10 @@ float4 PixelShader_Color(VS_Output_Default input) : SV_TARGET
 	float2 shadow_uv;
 	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
 	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
-	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
-   
-	float epsilon = 0.0001f;
-	float lighting = float(shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - epsilon));
+	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;	
+	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
 
-	if (lighting == 0.0f)
-	{
-		input.color.rgb *= 0.2f;
-	}
-
-	return input.color;
+	return float4(input.color.rgb * (1.0f - 0.25 * shadow), 1.0f);
 }
 
 float trowbridge_reitz_normal_distribution(float n_dot_h, float roughness)
@@ -178,11 +171,11 @@ float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
 	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
 	
+	float ambient = 0.08f;
+
 	float3 result = float3(0, 0, 0);
-	result += 0.1f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - shadow));
-	result += 0.3f * brdf_unity(input.color, input.pos_world, normalize(float3(1, 1, 1)), input.normal);
-	result += 0.3f * brdf_unity(input.color, input.pos_world, normalize(float3(-1, 1, 1)), input.normal);
-	result += 0.3f * brdf_unity(input.color, input.pos_world, normalize(float3(0, -1, 1)), input.normal);
+	result += ambient * input.color * light_color;
+	result += 0.9f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - shadow));
 
 	return float4(result, 1.0f);
 }
@@ -219,7 +212,13 @@ float4 PixelShader_Model(VS_Output_Default input) : SV_TARGET
 
 float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 {
-	float4 water_color = float4(0.0f, 0.2f, 0.05f, 1.0f);
+	float2 shadow_uv;
+	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
+	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
+	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
+	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
+
+	float4 water_color = float4(float3(0.0f, 0.2f, 0.05f) * (1.0f - 0.1f * shadow), 1.0f);
 	float distortion_strength = 0.01f;
 	float distortion_scaling = 800.0f;
 	float wave_speed = 0.03f;
@@ -247,6 +246,10 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 
 	float3 light_dir = normalize(light_direction);
 	float3 view_dir = normalize(camera_pos - input.pos_world);
+
+	float refractive_factor = dot(view_dir, input.normal);
+	refractive_factor = pow(refractive_factor, 0.5f);
+
 	float3 reflect_dir = reflect(light_dir, normal0);
 	float specular0 = pow(max(dot(view_dir, reflect_dir), 0.0), 32);	
 
@@ -264,8 +267,8 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	float4 reflection_color = reflection_texture.Sample(default_sampler, reflect_coords);
 	float4 refraction_color = refraction_texture.Sample(default_sampler, refract_coords);
 
-	float4 color = lerp(reflection_color, refraction_color, 0.85f);
-	color = lerp(color, water_color, 0.1f) + 0.2f * specular * float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float4 color = lerp(reflection_color, refraction_color, refractive_factor);
+	color = lerp(color, water_color, 0.1f) + 0.2f * specular * float4(1.0f, 1.0f, 1.0f, 1.0f) * (1.0f - shadow);
 	
 	return color;
 }
@@ -309,7 +312,18 @@ float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
 
 float4 PixelShader_Texture(VS_Output_Default input) : SV_Target
 {
+	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
+	if (clip_plane_distance < 0)
+	{
+		discard;
+	}
+
 	float4 sample = default_texture.Sample(default_sampler, input.uv);
+	if (sample.a == 0.0f)
+	{
+		discard;
+	}
+
 	return sample;
 }
 

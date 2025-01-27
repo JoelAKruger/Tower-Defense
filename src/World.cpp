@@ -23,6 +23,7 @@ static bool
 InRegion(world_region* Region, v2 WorldPos)
 {
     v2 A0 = WorldPos;
+    
     v2 A1 = Region->Center;
     
     u32 IntersectCount = 0;
@@ -108,27 +109,6 @@ NearestTowerTo(v2 P, global_game_state* Game, u32 RegionIndex)
         }
     }
     nearest_tower Result = {sqrtf(NearestDistanceSq), Index, Nearest};
-    return Result;
-}
-
-static void
-SetName(world_region* Region, string Name)
-{
-    Assert(Name.Length < ArrayCount(Region->Name));
-    memcpy(Region->Name, Name.Text, Name.Length);
-    Region->NameLength = Name.Length;
-}
-
-static void
-SetName(world_region* Region, char* Name)
-{
-    SetName(Region, String(Name));
-}
-
-static string
-GetName(world_region* Region)
-{
-    string Result = {Region->Name, Region->NameLength};
     return Result;
 }
 

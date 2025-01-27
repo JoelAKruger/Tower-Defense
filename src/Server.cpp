@@ -15,7 +15,7 @@ InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
     player* Player = Game->Players + PlayerIndex;
     *Player = {};
     
-    Player->Credits = 10;
+    Player->Credits = 100;
 }
 
 static inline void
@@ -77,7 +77,7 @@ PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
 static void
 ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue)
 {
-    LOG("Server: Request!\n");
+    Log("Server: Request!\n");
     
     //TODO: This is not strictly necessary (e.g. a player typing in chat)
     Assert(SenderIndex == Game->PlayerTurnIndex);

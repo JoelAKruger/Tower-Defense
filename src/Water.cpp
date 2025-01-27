@@ -129,5 +129,5 @@ CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena)
     
     u64 Ticks = ReadCPUTimer() - Start;
     f32 Seconds = CPUTimeToSeconds(Ticks, CPUFrequency);
-    LOG("Took %f seconds\n", Seconds);
+    Log("Took %f seconds\n", Seconds);
 }

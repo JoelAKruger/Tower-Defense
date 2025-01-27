@@ -38,7 +38,7 @@ LoadFont(char* Path, f32 Size, memory_arena* Arena)
     int TextureWidth = 512;
     int TextureHeight = 512;
     
-    span<u8> File = PlatformLoadFile(Arena, Path);
+    span<u8> File = LoadFile(Arena, Path);
     u8* TempTexture = Alloc(Arena, TextureWidth * TextureHeight * sizeof(u8));
     
     stbtt_BakeFontBitmap(File.Memory, 0, Size, TempTexture, TextureWidth, TextureHeight, 0, 
@@ -110,6 +110,7 @@ LoadAssets(allocator Allocator)
     Assets->Button = CreateTexture("assets/textures/wenrexa_gui/Btn_TEST.png");
     Assets->Panel = CreateTexture("assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
     Assets->Crystal = CreateTexture("assets/textures/crystal.png");
+    Assets->Target = CreateTexture("assets/target.png");
     
     Assets->Font = LoadFont("assets/fonts/TitilliumWeb-Regular.ttf", 75.0f, Allocator.Transient);
     
@@ -140,6 +141,12 @@ LoadAssets(allocator Allocator)
     Assert(Assets->MaterialCount == 0);
     Assets->Materials[Assets->MaterialCount++] = DefaultMaterial;
     
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/castle.obj");
+    SetModelLocalTransform(Assets, "Castle", ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f));
+    
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/turret.obj");
+    SetModelLocalTransform(Assets, "Turret", ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f));
+    
     LoadMaterialsFromFile(Assets, Allocator, "assets/models/Environment.mtl", "Environment.mtl");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
@@ -153,7 +160,7 @@ LoadAssets(allocator Allocator)
     SetModelLocalTransform(Assets, "RibbonPlant2_Plane.079", TranslateTransform(1.82f, 0.0f, -13.517f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
     
     SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
-    SetModelLocalTransform(Assets, "Circle", TranslateTransform(0.0f, -5.0f, 0.0f) * ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
+    SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
@@ -227,7 +234,7 @@ CreateMeshVertexBuffer(dynamic_array<v3> Positions, dynamic_array<v3> Normals, d
 static void
 LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
 {
-    span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
+    span<u8> File = LoadFile(Allocator.Transient, Path);
     file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
     
     string CurrentMaterialLibrary = {};
@@ -279,12 +286,6 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
                 Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
                 
                 Faces.Count = 0;
-            }
-            
-            if (CurrentModel)
-            {
-                CurrentModel = Assets->Models + (Assets->ModelCount++);
-                Assert(Assets->ModelCount <= ArrayCount(Assets->Models));
             }
             
             CurrentModel = Assets->Models + (Assets->ModelCount++);
@@ -378,7 +379,7 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
 static void
 LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library)
 {
-    span<u8> File = PlatformLoadFile(Allocator.Transient, Path);
+    span<u8> File = LoadFile(Allocator.Transient, Path);
     file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
     
     material* Material = 0;

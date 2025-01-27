@@ -1,33 +1,36 @@
 static void
 DrawOceanFloor(render_group* RenderGroup)
 {
-    PushRect(RenderGroup, V3(-100.0f, -100.0f, 0.5f), V3(100.0f, 100.0f, 0.5f));
-    PushColor(RenderGroup, V4(0.1f, 0.1f, 0.1f, 1.0f));
+    PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, 0.5f), V3(100.0f, 100.0f, 0.5f), V3(0, 0, -1));
+    PushColor(RenderGroup, V4(0.01f, 0.01f, 0.05f, 1.0f));
 }
 
 static void
 DrawWater(render_group* RenderGroup, game_state* Game)
 {
-    PushRect(RenderGroup, V3(-100.0f, -100.0f, 0.125f), V3(100.0f, 100.0f, 0.125f));
+    PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, 0.125f), V3(100.0f, 100.0f, 0.125f), V3(0, 0, -1));
     PushShader(RenderGroup, Shader_Water);
 }
 
 static void
 DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 {
-    
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[5], V3(-100.0f, -100.0f, 100.0f), V3(100.0f, 100.0f, 100.0f));
-    
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], 
-                     V3(-100.0f, 100.0f, -100.0f), V3(-100.0f, -100.0f, -100.0f),
-                     V3(100.0f, -100.0f, -100.0f), V3(100.0f, 100.0f, -100.0f),
-                     V2(1.0f, 1.0f), V2(1.0f, 0.0f), V2(0.0f, 0.0f), V2(0.0f, 1.0f));
+    //East
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[2], V3(100, 100, -100), V3(100, -100, -100), V3(100, -100, 100), V3(100, 100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    //North
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[1], V3(-100, 100, -100), V3(100, 100, -100), V3(100, 100, 100), V3(-100, 100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    //South
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[3], V3(100, -100, -100), V3(-100, -100, -100), V3(-100, -100, 100), V3(100, -100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    //West
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[4], V3(-100, -100, -100), V3(-100, 100, -100), V3(-100, 100, 100), V3(-100, -100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    //Up
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], V3(-100, 100, -100), V3(-100, -100, -100), V3(100, -100, -100),  V3(100, 100, -100),  V2(0, 0), V2(0, 1), V2(1, 1), V2(1, 0));
 }
 
 static void
 DrawRegionOutline(render_group* RenderGroup, world_region* Region)
 {
-    v4 Color = V4(1.15f, 1.15f, 1.15f, 1.0f); 
+    v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = Region->Z - 0.001f;
     
@@ -60,7 +63,6 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
         }
         else
         {
-            
             Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), Normal, Color};
             Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
             Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
@@ -80,24 +82,26 @@ DrawRegionOutline(render_group* RenderGroup, world_region* Region)
     PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Model);
     PushNoShadow(RenderGroup);
-    PushShader(RenderGroup, Shader_PBR);
+    PushShader(RenderGroup, Shader_Color);
 }
 
 static void
 DrawTower(render_group* RenderGroup, game_state* Game, game_assets* Assets, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
 {
+    m4x4 ModelTransform = TranslateTransform(P.X, P.Y, P.Z);
+    
     renderer_vertex_buffer* VertexBuffer = 0;
     m4x4 Transform;
     
     if (Type == Tower_Castle)
     {
-        VertexBuffer = FindVertexBuffer(Assets, "Castle");
-        Transform = Game->CastleTransform;
+        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Castle", ModelTransform);
+        Commands[0]->Color = Color;
     }
     else if (Type == Tower_Turret)
     {
-        VertexBuffer = FindVertexBuffer(Assets, "Turret");
-        Transform = Game->TurretTransform * RotateTransform(-1.0f * Angle); //idk why it is -1.0f
+        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Turret", ModelTransform);
+        Commands[0]->Color = Color;
     }
     else if (Type == Tower_Mine)
     {
@@ -109,7 +113,7 @@ DrawTower(render_group* RenderGroup, game_state* Game, game_assets* Assets, towe
         Assert(0);
     }
     
-    m4x4 ModelTransform = Transform * TranslateTransform(P.X, P.Y, P.Z);
+    
     
     PushModel(RenderGroup, VertexBuffer);
     PushColor(RenderGroup, Color);
@@ -153,14 +157,14 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     f32 MaxWorldZ = 0.2f;
     
     v3 WorldPositions[8] = {
-        V3(ScreenToWorld(Game, V2(-1, -1), MinWorldZ), MinWorldZ),
-        V3(ScreenToWorld(Game, V2(-1, 1), MinWorldZ), MinWorldZ),
-        V3(ScreenToWorld(Game, V2(1, -1), MinWorldZ), MinWorldZ),
-        V3(ScreenToWorld(Game, V2(1, 1), MinWorldZ), MinWorldZ),
-        V3(ScreenToWorld(Game, V2(-1, -1), MaxWorldZ), MaxWorldZ),
-        V3(ScreenToWorld(Game, V2(-1, 1), MaxWorldZ), MaxWorldZ),
-        V3(ScreenToWorld(Game, V2(1, -1), MaxWorldZ), MaxWorldZ),
-        V3(ScreenToWorld(Game, V2(1, 1), MaxWorldZ), MaxWorldZ),
+        ScreenToWorld(Game, V2(-1, -1), MinWorldZ),
+        ScreenToWorld(Game, V2(-1, 1), MinWorldZ),
+        ScreenToWorld(Game, V2(1, -1), MinWorldZ),
+        ScreenToWorld(Game, V2(1, 1), MinWorldZ),
+        ScreenToWorld(Game, V2(-1, -1), MaxWorldZ),
+        ScreenToWorld(Game, V2(-1, 1), MaxWorldZ),
+        ScreenToWorld(Game, V2(1, -1), MaxWorldZ),
+        ScreenToWorld(Game, V2(1, 1), MaxWorldZ),
     };
     
     f32 Right = FLT_MIN;
@@ -204,7 +208,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     {
         world_region* Region = World->Regions + RegionIndex;
         m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
-        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Circle", Transform);
+        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
         render_command* Command = Commands[0];
         Command->Color = Region->Color;
     }
@@ -261,7 +265,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     ReflectionCameraP.Z -= 2.0f * (ReflectionCameraP.Z - WaterZ);
     v3 ReflectionLookAt = ReflectionCameraP + ReflectionDirection;
     
-    m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 1500.0f);
+    m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 150.0f);
     
     Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
     Constants.WorldToClipTransform = ReflectionWorldTransform;
@@ -305,7 +309,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     UnsetTexture(5);
     UnsetTexture(6);
     
-    SetTransformForNonGraphicsShader(IdentityTransform());
+    SetGUIShaderConstant(IdentityTransform());
     SetDepthTest(false);
     
     ClearOutput(Assets->BloomMipmaps[0]);

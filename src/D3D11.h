@@ -1,11 +1,12 @@
-struct d3d11_shader
+struct shader
 {
     ID3D11VertexShader* VertexShader;
     ID3D11PixelShader* PixelShader;
     ID3D11InputLayout* InputLayout;
 };
+typedef shader d3d11_shader;
 
-struct d3d11_font_texture
+struct font_texture
 {
     stbtt_bakedchar* BakedChars;
     ID3D11ShaderResourceView* TextureView;
@@ -14,14 +15,16 @@ struct d3d11_font_texture
     f32 TextureHeight;
     f32 RasterisedSize;
 };
+typedef font_texture d3d11_font_texture;
 
-struct d3d11_texture
+struct texture
 {
     ID3D11ShaderResourceView* TextureView;
     int Width, Height;
 };
+typedef texture d3d11_texture;
 
-struct d3d11_render_output
+struct render_output
 {
     //Drawing to output
     ID3D11RenderTargetView* RenderTargetView;
@@ -36,8 +39,9 @@ struct d3d11_render_output
     
     i32 Width, Height;
 };
+typedef render_output d3d11_render_output;
 
-struct d3d11_vertex_buffer
+struct renderer_vertex_buffer
 {
     string Description;
     
@@ -46,12 +50,7 @@ struct d3d11_vertex_buffer
     u32 VertexCount;
     u32 Stride;
 };
-
-typedef d3d11_shader        shader;
-typedef d3d11_font_texture  font_texture;
-typedef d3d11_render_output render_output;
-typedef d3d11_vertex_buffer renderer_vertex_buffer;
-typedef d3d11_texture       texture;
+typedef renderer_vertex_buffer d3d11_vertex_buffer;
 
 static ID3D11Device1* D3D11Device;
 static ID3D11DeviceContext* D3D11DeviceContext;

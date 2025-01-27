@@ -45,6 +45,7 @@ Push(render_group* RenderGroup)
     //Create default render command
     Result->ModelTransform = IdentityTransform();
     Result->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+    Result->Material = &RenderGroup->Assets->Materials[0];
     
     return Result;
 }
@@ -88,6 +89,7 @@ CopyVertexData(memory_arena* Arena, void* Data, u64 Bytes)
     return Result;
 }
 
+//Deprecated
 void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
@@ -98,8 +100,6 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
         {V3(P1.X, P0.Y, P0.Z), {}, {}, V2(UV1.X, UV0.Y)},
         {V3(P1.X, P1.Y, P0.Z), {}, {}, V2(UV1.X, UV1.Y)}
     };
-    
-    //CalculateModelVertexNormals((tri*)VertexData, 2);
     
     //Get rid of this
     u64 VertexDataBytes = sizeof(VertexData);
@@ -113,7 +113,31 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
     Command->ModelTransform = IdentityTransform();
 }
 
-static void
+//Deprecated
+void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0, v2 UV1)
+{
+    render_command* Command = GetNextEntry(RenderGroup);
+    
+    vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), Normal, {}, V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), Normal, {}, V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), Normal, {}, V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), Normal, {}, V2(UV1.X, UV1.Y)}
+    };
+    
+    //Get rid of this
+    u64 VertexDataBytes = sizeof(VertexData);
+    
+    Command->VertexData = CopyVertexData(RenderGroup->Arena, VertexData, VertexDataBytes);
+    Command->VertexDataStride = sizeof(vertex);
+    Command->VertexDataBytes = VertexDataBytes;
+    
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    Command->Shader = Shader_Model;
+    Command->ModelTransform = IdentityTransform();
+}
+
+static render_command*
 PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
@@ -135,9 +159,11 @@ PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV
     Command->Shader = Shader_Texture;
     Command->Texture = Texture;
     Command->ModelTransform = IdentityTransform();
+    
+    return Command;
 }
 
-
+// Clockwise ordering
 static void
 PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3)
 {
@@ -295,12 +321,66 @@ DrawTexture(v3 P0, v3 P1, v2 UV0, v2 UV1)
     DrawVertices((f32*) VertexData, sizeof(VertexData), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
 }
 
+void DrawString(font_texture Font, string Text, v2 Position, v4 Color, f32 Size, f32 AspectRatio)
+{
+    f32 FontTexturePixelsToScreenY = Size / Font.RasterisedSize;
+    f32 FontTexturePixelsToScreenX = FontTexturePixelsToScreenY / AspectRatio;
+    
+    f32 X = Position.X;
+    f32 Y = Position.Y;
+    
+    u32 Stride = sizeof(gui_vertex);
+    u32 Offset = 0;
+    u32 VertexCount = 6 * Text.Length;
+    
+    gui_vertex* VertexData = AllocArray(&GraphicsArena, gui_vertex, VertexCount);
+    
+    for (u32 I = 0; I < Text.Length; I++)
+    {
+        uint8_t Char = (uint8_t)Text.Text[I];
+        Assert(Char < 128);
+        stbtt_bakedchar BakedChar = Font.BakedChars[Char];
+        
+        f32 X0 = X + BakedChar.xoff * FontTexturePixelsToScreenX;
+        f32 Y1 = Y - BakedChar.yoff * FontTexturePixelsToScreenY; //+ 0.5f * Font.RasterisedSize * FontTexturePixelsToScreen;
+        
+        f32 Width = FontTexturePixelsToScreenX * (f32)(BakedChar.x1 - BakedChar.x0);
+        f32 Height = FontTexturePixelsToScreenY * (f32)(BakedChar.y1 - BakedChar.y0);
+        
+        VertexData[6 * I + 0].P = {X0, Y1 - Height};
+        VertexData[6 * I + 1].P = {X0, Y1};
+        VertexData[6 * I + 2].P = {X0 + Width, Y1};
+        VertexData[6 * I + 3].P = {X0 + Width, Y1};
+        VertexData[6 * I + 4].P = {X0 + Width, Y1 - Height};
+        VertexData[6 * I + 5].P = {X0, Y1 - Height};
+        
+        VertexData[6 * I + 0].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
+        VertexData[6 * I + 1].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
+        VertexData[6 * I + 2].UV = {BakedChar.x1 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
+        VertexData[6 * I + 3].UV = {BakedChar.x1 / Font.TextureWidth, BakedChar.y0 / Font.TextureHeight};
+        VertexData[6 * I + 4].UV = {BakedChar.x1 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
+        VertexData[6 * I + 5].UV = {BakedChar.x0 / Font.TextureWidth, BakedChar.y1 / Font.TextureHeight};
+        
+        VertexData[6 * I + 0].Color = Color;
+        VertexData[6 * I + 1].Color = Color;
+        VertexData[6 * I + 2].Color = Color;
+        VertexData[6 * I + 3].Color = Color;
+        VertexData[6 * I + 4].Color = Color;
+        VertexData[6 * I + 5].Color = Color;
+        
+        X += BakedChar.xadvance * FontTexturePixelsToScreenX;
+    }
+    
+    SetFontTexture(Font);
+    DrawVertices((f32*)VertexData, VertexCount * sizeof(gui_vertex), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
+}
+
 static void
 DrawString(string String, v2 Position, v4 Color, f32 Size, f32 AspectRatio)
 {
     if (String.Length > 0)
     {
-        Win32DrawText(*DefaultFont, String, Position, Color, Size, AspectRatio);
+        DrawString(*DefaultFont, String, Position, Color, Size, AspectRatio);
     }
 }
 
@@ -321,8 +401,6 @@ GUIStringWidth(string String, f32 FontSize)
 static void 
 DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type)
 {
-    //TODO: Optimise this
-    //Start with a known state
     bool DepthTestIsEnabled = true;
     shader_index CurrentShader = Shader_Null;
     texture CurrentTexture = {};
@@ -394,22 +472,6 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
             DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
         }
     }
-}
-
-static void
-SetTransformForNonGraphicsShader(m4x4 Transform)
-{
-    Transform = Transpose(Transform);
-    SetNonGraphicsShaderConstant(&Transform, sizeof(Transform));
-}
-
-static void
-SetGraphicsShaderConstants(shader_constants Constants)
-{
-    Constants.WorldToClipTransform  = Transpose(Constants.WorldToClipTransform);
-    Constants.ModelToWorldTransform = Transpose(Constants.ModelToWorldTransform);
-    Constants.WorldToLightTransform = Transpose(Constants.WorldToLightTransform);
-    SetGraphicsShaderConstant(&Constants, sizeof(Constants));
 }
 
 static m4x4
@@ -567,8 +629,6 @@ TextPixelSize(font_asset* Font, string String)
     return {Width, Height};
 }
 
-
-
 static ssao_kernel
 CreateSSAOKernel()
 {
@@ -589,4 +649,20 @@ CreateSSAOKernel()
     }
     
     return Kernel;
+}
+
+static void 
+CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount)
+{
+    for (u64 TriangleIndex = 0; TriangleIndex < TriangleCount; TriangleIndex++)
+    {
+        tri* Tri = Triangles + TriangleIndex;
+        
+        v3 Normal = UnitV(CrossProduct(Tri->Vertices[1].P - Tri->Vertices[0].P, 
+                                       Tri->Vertices[2].P - Tri->Vertices[1].P));
+        
+        Tri->Vertices[0].Normal = Normal;
+        Tri->Vertices[1].Normal = Normal;
+        Tri->Vertices[2].Normal = Normal;
+    }
 }

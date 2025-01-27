@@ -30,9 +30,6 @@ struct world_region
     
     bool IsWater;
     v4 Color;
-    
-    char Name[64];
-    u32 NameLength;
 };
 
 struct world
@@ -277,6 +274,8 @@ struct map_file_region
     u32 VertexCount;
 };
 
+struct game_assets;
+
 enum app_screen
 {
     Screen_MainMenu,
@@ -284,7 +283,6 @@ enum app_screen
     Screen_GameOver
 };
 
-struct game_assets;
 
 struct app_state
 {
@@ -297,4 +295,4 @@ struct app_state
 void InitialiseServerState(global_game_state* Game);
 
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
-v2 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
+v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);

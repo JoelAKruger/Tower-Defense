@@ -1,3 +1,24 @@
+#define CLAY_IMPLEMENTATION
+#include "clay.h"
+
+#include "Engine.h"
+
+#include "Renderer.h"
+#include "Defense.h"
+
+#include "Utilities.cpp"
+#include "Maths.cpp"
+#include "GUI.cpp"
+#include "Console.cpp"
+#include "Parser.cpp"
+#include "Graphics.cpp"
+
+#include "World.cpp"
+#include "Render.cpp"
+#include "Server.cpp"
+#include "Resources.cpp"
+#include "Water.cpp"
+
 static v3 
 GetSkyColor(int Hour, int Minute) 
 {
@@ -37,7 +58,7 @@ GetSkyColor(int Hour, int Minute)
     return Result;
 }
 
-static v2
+static v3
 ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
 {
     //TODO: Cache inverse matrix?
@@ -52,9 +73,9 @@ ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
     
     f32 T = (Z - WorldZ) / DeltaZ;
     
-    v3 ResultXYZ = P0 + T * (P1 - P0);
+    v3 Result = P0 + T * (P1 - P0);
     
-    return V2(ResultXYZ.X, ResultXYZ.Y);
+    return Result;
 }
 
 static v2
@@ -77,6 +98,15 @@ WorldToScreen(game_state* GameState, v2 WorldPos)
 static game_state* 
 GameInitialise(allocator Allocator)
 {
+    u64 ClayMemorySize = Clay_MinMemorySize();
+    Clay_Arena ClayArena = {};
+    ClayArena.capacity = ClayMemorySize;
+    ClayArena.memory = (char*) Alloc(Allocator.Permanent, ClayMemorySize);
+    
+    Clay_Initialize(ClayArena, Clay_Dimensions {(f32)GlobalOutputWidth, (f32)GlobalOutputHeight});
+    Clay_Dimensions GUI_ClayTextSize(Clay_String* String, Clay_TextElementConfig* Config);
+    Clay_SetMeasureTextFunction(GUI_ClayTextSize);
+    
     game_state* GameState = AllocStruct(Allocator.Permanent, game_state);
     GameState->Console = AllocStruct(Allocator.Permanent, console);
     
@@ -140,33 +170,16 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     tower* Tower = Game->GlobalState.Towers + TowerIndex;
     f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
     
-    //Draw target
-    v2 TargetSize = {0.075f, 0.075f};
-    f32 TargetZ = Game->ApproxTowerZ;
-    
-    if (Tower->Type == Tower_Turret)
-    {
-        //TODO: Fix this
-        //SetShader(TextureShader);
-        //SetTexture(TargetTexture);
-        DrawTexture(V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
-    }
-    
     //Draw new target
     if (Game->TowerEditMode == TowerEdit_SetTarget)
     {
-        v2 CursorP = ScreenToWorld(Game, Input->Cursor);
+        v3 CursorP = ScreenToWorld(Game, Input->Cursor);
         
-        //TODO: Fix this
-        //SetShader(TextureShader);
-        //SetTexture(TargetTexture);
-        DrawTexture(V3(CursorP - 0.5f * TargetSize, TargetZ), V3(CursorP + 0.5f * TargetSize, TargetZ));
-        
-        if (Input->ButtonUp & Button_LMouse)
+        if ((Input->ButtonUp & Button_LMouse) && !GUIInputIsBeingHandled())
         {
             player_request Request = {Request_TargetTower};
             Request.TowerIndex = TowerIndex;
-            Request.TargetP = CursorP;
+            Request.TargetP = CursorP.XY;
             SendPacket(&Game->MultiplayerContext, &Request);
         }
         
@@ -194,6 +207,30 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     }
 }
 
+//TODO: This should not take game_input
+static void
+DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, render_group* RenderGroup)
+{
+    tower* Tower = Game->GlobalState.Towers + TowerIndex;
+    
+    //Draw target
+    v2 TargetSize = {0.075f, 0.075f};
+    f32 TargetZ = Game->ApproxTowerZ;
+    
+    if (Tower->Type == Tower_Turret)
+    {
+        PushTexturedRect(RenderGroup, RenderGroup->Assets->Target, V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
+    }
+    
+    //Draw new target
+    if (Game->TowerEditMode == TowerEdit_SetTarget)
+    {
+        v3 CursorP = ScreenToWorld(Game, Input->Cursor);
+        
+        PushTexturedRect(RenderGroup, RenderGroup->Assets->Target, V3(CursorP.XY - 0.5f * TargetSize, TargetZ), V3(CursorP.XY + 0.5f * TargetSize, TargetZ));
+    }
+}
+
 static void
 BeginAnimation(game_state* Game, v2 P, f32 Radius)
 {
@@ -207,7 +244,7 @@ BeginAnimation(game_state* Game, v2 P, f32 Radius)
     }
     else
     {
-        LOG("Animation could not be started\n");
+        Log("Animation could not be started\n");
     }
 }
 
@@ -272,20 +309,18 @@ GetHoveredRegionIndex(game_state* Game, v2 CursorP)
     
     world* World = &Game->GlobalState.World;
     
-    //Check regions in order, which I think is back to front, so regions
-    //that are further forward will be prioritised?
-    
-    for (u64 RegionIndex = 0; RegionIndex < World->RegionCount; RegionIndex++)
+    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
     {
         world_region* Region = World->Regions + RegionIndex;
         
-        v2 WorldP = ScreenToWorld(Game, CursorP, Region->Z);
+        v3 WorldP = ScreenToWorld(Game, CursorP, Region->Z);
         
         f32 DistanceToRegionSq = LengthSq(V3(Region->Center, Region->Z) - Game->CameraP);
         
-        if ((DistanceToRegionSq < ResultDistanceSq) && InRegion(Region, WorldP))
+        if ((DistanceToRegionSq < ResultDistanceSq) && InRegion(Region, WorldP.XY))
         {
             Result = RegionIndex;
+            ResultDistanceSq = DistanceToRegionSq;
         }
     }
     
@@ -371,6 +406,113 @@ GetTowerP(game_state* Game, tower* Tower)
     return Result;
 }
 
+static Clay_Dimensions 
+GUI_ClayTextSize(Clay_String* String, Clay_TextElementConfig* Config)
+{
+    f32 Width = 0.0f;
+    for (u32 I = 0; I < String->length; I++)
+    {
+        stbtt_bakedchar* BakedChar = DefaultFont->BakedChars + String->chars[I];
+        Width += BakedChar->xadvance;
+    }
+    
+    Clay_Dimensions Result = {};
+    Result.height = DefaultFont->RasterisedSize;
+    Result.width = Width;
+    
+    return Result;
+}
+
+static void
+DoClayHeaderButton(Clay_String Text)
+{
+    CLAY(CLAY_LAYOUT({ .padding = {16, 16} }),
+         CLAY_RECTANGLE({ .color = {0.6f, 0.6f, 0.6f, 1.0f} }))
+    {
+        CLAY_TEXT(Text, CLAY_TEXT_CONFIG({ .fontSize = 64, .textColor = {1,1,1,1} }));
+    }
+}
+
+static void
+RunClayLayoutTest(game_assets* Assets)
+{
+    Clay_BeginLayout();
+    
+    Clay_SetLayoutDimensions( Clay_Dimensions{.width = (f32)GlobalOutputWidth, .height = (f32)GlobalOutputHeight} );
+    
+    Clay_LayoutConfig LayoutElement = Clay_LayoutConfig { .padding = {5} };
+    CLAY(
+         CLAY_RECTANGLE({ .color = {1,0,1,1} }), 
+         CLAY_LAYOUT(
+                     {
+                         .layoutDirection = CLAY_TOP_TO_BOTTOM,
+                         .sizing = {
+                             .width = CLAY_SIZING_GROW(), 
+                             .height = CLAY_SIZING_GROW()
+                         },
+                         .padding = {16, 16},
+                         .childGap = 16,
+                     })
+         )
+    {
+        CLAY(CLAY_ID("HeaderBar"),
+             CLAY_RECTANGLE({ .color = {0.5f, 0.5f, 0.5f, 1.0f} }),
+             CLAY_LAYOUT({ .sizing = { .height = CLAY_SIZING_FIXED(120), .width = CLAY_SIZING_GROW()}, 
+                             .padding = {16}, .childGap = 16, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER }}))
+        {
+            DoClayHeaderButton(CLAY_STRING("FILE"));
+            DoClayHeaderButton(CLAY_STRING("EDIT"));
+        }
+        
+        CLAY(CLAY_ID("LowerContent"),
+             CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}, .childGap = 16}))
+        {
+            CLAY(CLAY_ID("Sidebar"),
+                 CLAY_RECTANGLE({.color = {0.5f, 0.5f, 0.5f, 1.0f}}),
+                 CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(250), .height = CLAY_SIZING_GROW()}})) {}
+            CLAY(CLAY_ID("MainContext"),
+                 CLAY_RECTANGLE({.color = {0.5f, 0.5f, 0.5f, 1.0f}}),
+                 CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}})) {}
+        }
+    }
+    
+    
+    Clay_RenderCommandArray RenderCommands = Clay_EndLayout();
+    
+    for (u64 CommandIndex = 0; CommandIndex < RenderCommands.length; CommandIndex++)
+    {
+        Clay_RenderCommand* Command = RenderCommands.internalArray + CommandIndex;
+        Clay_BoundingBox BoundingBox = Command->boundingBox;
+        
+        switch (Command->commandType)
+        {
+            case CLAY_RENDER_COMMAND_TYPE_RECTANGLE:
+            {
+                Clay_RectangleElementConfig* Config = Command->config.rectangleElementConfig;
+                
+                v2 P = {-1.0f + 2.0f*BoundingBox.x/GlobalOutputWidth, 1.0f - 2.0f*(BoundingBox.y + BoundingBox.height) / GlobalOutputHeight};
+                v2 Size = {2.0f * BoundingBox.width / GlobalOutputWidth, 2.0f*BoundingBox.height / GlobalOutputHeight};
+                v4 Color = V4(Config->color.r, Config->color.g, Config->color.b, Config->color.a);
+                
+                GUI_DrawRectangle(P, Size, Color);
+            } break;
+            case CLAY_RENDER_COMMAND_TYPE_TEXT:
+            {
+                Clay_TextElementConfig* Config = Command->config.textElementConfig;
+                
+                string Text = {(char*)Command->text.chars, (u64)Command->text.length};
+                v4 Color = V4(Config->textColor.r, Config->textColor.g, Config->textColor.b, Config->textColor.a);
+                v2 P = {-1.0f + 2.0f*BoundingBox.x/GlobalOutputWidth, 1.0f - 2.0f*(BoundingBox.y + BoundingBox.height) / GlobalOutputHeight};
+                
+                GUI_DrawText(&Assets->Font, Text, P, Color, 1.0f);
+            } break;
+            default:
+            {
+            } break;
+        }
+    }
+}
+
 static void
 RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
@@ -412,6 +554,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     GameState->CameraP.X += SecondsPerFrame * Input->Movement.X;
     GameState->CameraP.Y += SecondsPerFrame * Input->Movement.Y;
     
+    bool ShouldDrawHealthBars = true;
+    
     //Do camera
     f32 CameraSpeed = 10.0f;
     
@@ -421,7 +565,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         {
             if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
-                GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
+                GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor).XY;
                 GameState->Dragging = true;
             }
             
@@ -435,7 +579,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             
             if (GameState->Dragging)
             {
-                v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor);
+                v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor).XY;
                 v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
                 GameState->CameraP.X -= DeltaP.X;
                 GameState->CameraP.Y -= DeltaP.Y;
@@ -447,11 +591,13 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         } break;
         case Mode_TowerPOV:
         {
+            ShouldDrawHealthBars = false;
+            
             if (GameState->TowerPerspective)
             {
                 tower* Tower = GameState->TowerPerspective;
-                GameState->CameraTargetP = GetTowerP(GameState, Tower) + V3(0.0f, 0.0f, -0.07f);
-                GameState->CameraTargetDirection = UnitV(V3(cosf(Tower->Rotation), sinf(Tower->Rotation), 0.3f));
+                GameState->CameraTargetP = GetTowerP(GameState, Tower) + V3(0.0f, 0.0f, -0.07f); //0.3
+                GameState->CameraTargetDirection = UnitV(V3(cosf(Tower->Rotation), sinf(Tower->Rotation), 0.0f));
             }
             
             GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
@@ -462,7 +608,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     }
     
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
-    GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 1500.0f);
+    GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
     
     //These are only valid if HoveringRegionIndex != 0
     world_region* HoveringRegion = 0;
@@ -472,24 +618,28 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     if (GameState->HoveringRegionIndex)
     {
         HoveringRegion = GameState->GlobalState.World.Regions + GameState->HoveringRegionIndex;
-        CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, HoveringRegion->Z);
+        CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, HoveringRegion->Z).XY;
     }
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Allocator.Transient;
+    RenderGroup.Assets = Assets;
     
     //Draw animations
     TickAnimations(GameState, SecondsPerFrame);
     
-    f32 Time = 9.0f; //GameState->Time / 1.0f;
+    f32 Time = GameState->Time / 1.0f;
     int CurrentHour = (int)Time % 24;
     int CurrentMinute = (int)(60.0f * (Time - (int)Time));
     
-    GameState->SkyColor = V3(1,1,1); //GetSkyColor(CurrentHour, CurrentMinute);
+    GameState->SkyColor = 1.0f *V3(1,1,1); //GetSkyColor(CurrentHour, CurrentMinute);
     f32 t = (CurrentHour * 60 + CurrentMinute) / (24.0f * 60.0f);
     
-    GameState->LightP = V3(4.0f * sinf(t * 2 * Pi), -1.0f, 4.0f * cosf(t * 2 * Pi));
-    GameState->LightDirection = V3(0, 0, 0) - GameState->LightP;
+    //GameState->LightP = V3(4.0f * sinf(t * 2 * Pi), -1.0f, 4.0f * cosf(t * 2 * Pi));
+    //GameState->LightDirection = UnitV(V3(0, 0, 0) - GameState->LightP);
+    
+    GameState->LightDirection = UnitV(V3(1.0f, -0.35f, 0.6f));
+    GameState->LightP = -1.0f * GameState->LightDirection;
     
     f32 TowerRadius = 0.03f;
     //Select tower
@@ -558,18 +708,21 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         }
     }
     
-    //Draw world
+    if (GameState->Mode == Mode_EditTower)
+    {
+        DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup);
+    }
+    
     RenderWorld(&RenderGroup, GameState, Assets);
     
     //Draw GUI
-    
     SetDepthTest(false);
-    SetTransformForNonGraphicsShader(IdentityTransform());
+    SetGUIShaderConstant(IdentityTransform());
     
     f32 WorldInfoZThreshold = -0.51f;
     
     //Draw health bars
-    if (GameState->CameraP.Z > WorldInfoZThreshold)
+    if (ShouldDrawHealthBars && GameState->CameraP.Z > WorldInfoZThreshold)
     {
         SetShader(GUIColorShader);
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
@@ -591,28 +744,20 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         }
     }
     
-    //Draw region names
-    SetShader(GUIFontShader);
-    if (GameState->CameraP.Z > WorldInfoZThreshold)
+    if (HoveringRegion)
     {
-        for (u32 RegionIndex = 0; RegionIndex < GameState->GlobalState.World.RegionCount; RegionIndex++)
+        string RegionText = {};
+        if (HoveringRegion->IsWater)
         {
-            world_region* Region = GameState->GlobalState.World.Regions + RegionIndex;
-            
-            if (!Region->IsWater)
-            {
-                f32 TextSize = 0.1f;
-                string Name = GetName(Region);
-                
-                f32 NameWidth = GUIStringWidth(Name, TextSize);
-                v2 P = WorldToScreen(GameState, Region->Center);
-                P.X -= 0.5f * NameWidth;
-                P.Y -= 0.25f * TextSize;
-                
-                DrawGUIString(Name, P, V4(1.0f, 1.0f, 1.0f, 1.0f), TextSize);
-            }
+            RegionText = String("Ocean");
+        }
+        else
+        {
+            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d", HoveringRegion->OwnerIndex);
         }
         
+        f32 Width = GUIStringWidth(RegionText, 0.1f);
+        GUI_DrawText(&Assets->Font, RegionText, V2(-0.5f * Width, 0.9f));
     }
     
     BeginGUI(Input, Assets);
@@ -629,13 +774,16 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         RunTowerEditor(GameState, GameState->SelectedTowerIndex, Input, Allocator.Transient);
     }
     
-    string PosString = ArenaPrint(Allocator.Transient, "X: %f, Y: %f, Z: %f", 
-                                  GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z);
+    string PosString = ArenaPrint(Allocator.Transient, "CameraP (%f, %f, %f), POV %f, CameraDir (%f, %f, %f)", 
+                                  GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z, GameState->FOV,
+                                  GameState->CameraDirection.X, GameState->CameraDirection.Y, GameState->CameraDirection.Z);
     SetShader(GUIFontShader);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
     string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);
     DrawGUIString(TimeString, V2(-0.95f, -0.75f));
+    
+    //RunClayLayoutTest(Assets);
 }
 
 static void 
@@ -694,4 +842,34 @@ void Command_connect(int ArgCount, string* Args, console* Console, game_state* G
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
+}
+
+
+static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, allocator Allocator)
+{
+    if (!App->Assets)
+    {
+        App->Assets = LoadAssets(Allocator);
+    }
+    
+    switch (App->CurrentScreen)
+    {
+        case Screen_MainMenu:
+        {
+            BeginGUI(Input, App->Assets);
+            
+            f32 ButtonWidth = 0.8f / GlobalAspectRatio;
+            if (Button(V2(-0.5f * ButtonWidth, 0.0f), V2(ButtonWidth, 0.3f), String("Play")))
+            {
+                App->CurrentScreen = Screen_Game;
+                App->GameState = GameInitialise(Allocator);
+            }
+        } break;
+        case Screen_Game:
+        {
+            GameUpdateAndRender(App->GameState, App->Assets, DeltaTime, Input, Allocator);
+        } break;
+        
+        default: Assert(0);
+    }
 }

@@ -3,7 +3,7 @@ const u16 DefaultPort = 22333;
 static void
 SteamDebugOutput(ESteamNetworkingSocketsDebugOutputType Type, const char* Message)
 {
-    LOG("Steam networking message: %s", Message);
+    Log("Steam networking message: %s", Message);
 }
 
 static void
@@ -20,7 +20,7 @@ InitialiseSteamNetworking()
         }
         else
         {
-            LOG("Could not initialise steam networking library: %s\n", Error);
+            Log("Could not initialise steam networking library: %s\n", Error);
         }
     }
 }
@@ -38,7 +38,7 @@ Client_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
             if (Info->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
             {
                 //Disconnected
-                LOG("(CLIENT) Disconnected: Connection %s, reason %d: %s\n",
+                Log("(CLIENT) Disconnected: Connection %s, reason %d: %s\n",
                     Info->m_info.m_szConnectionDescription,
                     Info->m_info.m_eEndReason,
                     Info->m_info.m_szEndDebug);
@@ -49,7 +49,7 @@ Client_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
         case k_ESteamNetworkingConnectionState_Connected:
         {
             GlobalClientContext->Connected = true;
-            LOG("(CLIENT) Connected");
+            Log("(CLIENT) Connected");
         } break;
         case k_ESteamNetworkingConnectionState_Connecting:
         {
@@ -112,7 +112,7 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
             {
                 case Channel_GameState:
                 {
-                    LOG("Client: received game state\n");
+                    Log("Client: received game state\n");
                     Assert(IncomingMessage->m_cbSize == sizeof(server_packet_game_state));
                     server_packet_game_state* Packet = (server_packet_game_state*)IncomingMessage->m_pData;
                     
@@ -123,7 +123,7 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
                 } break;
                 case Channel_Message:
                 {
-                    LOG("Client: received message\n");
+                    Log("Client: received message\n");
                     Assert(IncomingMessage->m_cbSize == sizeof(server_packet_message));
                     server_packet_message* Message = (server_packet_message*)IncomingMessage->m_pData;
                     AddMessage(&Context->MessageQueue, *Message);
@@ -143,7 +143,7 @@ CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
 }
 
 static bool
-PlatformSend(multiplayer_context* Context, u8* Data, u32 Length)
+PlatformSend(multiplayer_context* Context, u8* Data, u64 Length)
 {
     ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
     Interface->SendMessageToConnection(Context->Platform.Connection, Data, Length, k_nSteamNetworkingSend_Reliable, 0);
@@ -194,7 +194,7 @@ Server_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
             if (Info->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
             {
                 //Disconnected
-                LOG("(SERVER) Disconnected: Connection %s, reason %d: %s\n",
+                Log("(SERVER) Disconnected: Connection %s, reason %d: %s\n",
                     Info->m_info.m_szConnectionDescription,
                     Info->m_info.m_eEndReason,
                     Info->m_info.m_szEndDebug);
@@ -208,7 +208,7 @@ Server_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
         
         case k_ESteamNetworkingConnectionState_Connected:
         {
-            LOG("(SERVER) Connected: Connection %s\n", Info->m_info.m_szConnectionDescription);
+            Log("(SERVER) Connected: Connection %s\n", Info->m_info.m_szConnectionDescription);
         } break;
         
         case k_ESteamNetworkingConnectionState_Connecting:
@@ -225,7 +225,7 @@ Server_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* I
             GlobalServerGameState_->PlayerCount = ServerState.ClientCount;
             InitialisePlayer(GlobalServerGameState_, PlayerIndex);
             
-            LOG("(SERVER) Connecting: Connection %s\n", Info->m_info.m_szConnectionDescription);
+            Log("(SERVER) Connecting: Connection %s\n", Info->m_info.m_szConnectionDescription);
             
             server_packet_message Message = {Channel_Message};
             Message.Type = Message_Initialise;
@@ -256,7 +256,7 @@ ServerMain(LPVOID)
     ServerState.PollGroup = ServerState.Interface->CreatePollGroup();
     Assert(ServerState.PollGroup != k_HSteamNetPollGroup_Invalid);
     
-    LOG("Created server\n");
+    Log("Created server\n");
     
     global_game_state Game = {};
     GlobalServerGameState_ = &Game;
@@ -276,7 +276,7 @@ ServerMain(LPVOID)
         {
             Assert(MessageCount == 1 && IncomingMessage);
             
-            LOG("Server: Received data from client\n");
+            Log("Server: Received data from client\n");
             
             Assert(IncomingMessage->m_cbSize == sizeof(player_request));
             player_request* Request = (player_request*)IncomingMessage->m_pData;

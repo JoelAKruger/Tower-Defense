@@ -130,8 +130,6 @@ Button(v2 Position, v2 Size, string String)
 	return (Status == GUI_Pressed);
 }
 
-
-
 struct gui_layout
 {
     f32 X0;
@@ -171,7 +169,7 @@ bool gui_layout::Button(char* Text)
 bool gui_layout::Button(string Text)
 {
     f32 ButtonHeight = 0.7f * RowHeight;
-	f32 ButtonWidth = 3.0f * ButtonHeight / GlobalAspectRatio;
+	f32 ButtonWidth = 6.0f * ButtonHeight / GlobalAspectRatio;
 	bool Result = ::Button(V2(X, Y), V2(ButtonWidth, ButtonHeight), Text);
 	X += ButtonWidth + XPad;
 	return Result;
