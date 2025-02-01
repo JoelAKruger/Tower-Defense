@@ -99,12 +99,9 @@ struct context
 };
 
 static string
-ArenaPrint(memory_arena* Arena, char* Format, ...)
+ArenaPrintInternal(memory_arena* Arena, char* Format, va_list Args)
 {
-	va_list Args;
-	va_start(Args, Format);
-    
-	string Result = {};
+    string Result = {};
 	char* Buffer = (char*)(Arena->Buffer + Arena->Used);
     
     u64 MaxChars = 4096;
@@ -119,11 +116,19 @@ ArenaPrint(memory_arena* Arena, char* Format, ...)
 	Result.Text = Buffer;
 	Result.Length = CharsWritten;
     
-	va_end(Args);
-    
 	Assert(Arena->Used < Arena->Size);
     
-	return Result;
+    return Result;
+}
+
+static string
+ArenaPrint(memory_arena* Arena, char* Format, ...)
+{
+	va_list Args;
+	va_start(Args, Format);
+    string Result = ArenaPrintInternal(Arena, Format, Args);
+    va_end(Args);
+    return Result;
 }
 
 static string
@@ -276,6 +281,15 @@ void Add(dynamic_array<type>* Array, type NewElement)
         Array->Capacity = NewCapacity;
     }
     Array->Memory[Array->Count++] = NewElement;
+}
+
+template <typename type>
+static span<type> ToSpan(dynamic_array<type> Array)
+{
+    span<type> Span = {};
+    Span.Memory = Array.Memory;
+    Span.Count = Array.Count;
+    return Span;
 }
 
 template <typename type>

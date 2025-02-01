@@ -98,6 +98,7 @@ struct player
     //u32 ColorIndex
     
     u32 Credits;
+    bool Initialised;
 };
 
 struct global_game_state
@@ -182,22 +183,6 @@ struct server_message_queue
     u32 MessageCount;
 };
 
-struct game_networking_sockets_multiplayer_context
-{
-    HSteamNetConnection Connection;
-};
-
-typedef game_networking_sockets_multiplayer_context platform_multiplayer_context;
-
-struct multiplayer_context
-{
-    bool Connected;
-    platform_multiplayer_context Platform;
-    
-    server_message_queue MessageQueue;
-    u32 MyClientID;
-};
-
 struct animation
 {
     v2 P;
@@ -240,7 +225,7 @@ struct game_state
     u32 HoveringRegionIndex;
     
     global_game_state GlobalState;
-    multiplayer_context MultiplayerContext;
+    u32 MyClientID;
     
     animation Animations[16];
     u32 AnimationCount;

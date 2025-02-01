@@ -11,8 +11,6 @@
 
 #include <string>
 
-
-
 #define STBTT_STATIC
 #define STB_TRUETYPE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -20,6 +18,7 @@
 #include "stb_image.h"
 
 #include "Platform.h"
+#include "Network.h"
 
 #include "D3D11.h"
 #include "Game.cpp"
@@ -58,8 +57,6 @@ void InitialiseSteamNetworking();
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowCode)
 {
-    InitialiseSteamNetworking();
-    
     //Required for profiling
     GetCPUFrequency(10);
     
@@ -452,7 +449,7 @@ void Log(char* Format, ...)
     va_list Args;
     va_start(Args, Format);
     
-    string String = ArenaPrint(&GlobalDebugArena, Format, Args);
+    string String = ArenaPrintInternal(&GlobalDebugArena, Format, Args);
     
     OutputDebugStringA(String.Text);
     va_end(Args);

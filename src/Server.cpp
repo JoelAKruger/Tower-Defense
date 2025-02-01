@@ -9,13 +9,24 @@ InitialiseServerState(global_game_state* Game)
 static void
 InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
 {
+    Log("(SERVER) Initialising player index %d\n", PlayerIndex);
+    
     Assert(PlayerIndex < ArrayCount(Game->Players));
     Assert(PlayerIndex < Game->PlayerCount);
     
     player* Player = Game->Players + PlayerIndex;
     *Player = {};
     
+    Player->Initialised = true;
     Player->Credits = 100;
+    
+    //Send player initialisation message
+    server_packet_message Message = {.Channel = Channel_Message};
+    Message.Type = Message_Initialise;
+    Message.InitialiseClientID = PlayerIndex;
+    
+    packet Packet = {.Data = (u8*)&Message, .Length = sizeof(Message)};
+    ServerSendPacket(Packet, PlayerIndex);
 }
 
 static inline void
@@ -46,7 +57,7 @@ DoExplosion(global_game_state* Game, v2 P, f32 Radius)
 }
 
 static void
-PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
+PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* MessageQueue)
 {
     player* Player = Game->Players + Game->PlayerTurnIndex;
     
@@ -64,7 +75,7 @@ PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
             server_packet_message Message = {Channel_Message, Message_PlayAnimation};
             Message.AnimationP = P;
             Message.AnimationRadius = Radius;
-            AddMessage(MessageQueue, Message);
+            Add(MessageQueue, Message);
         }
         
         if (Tower->Type == Tower_Mine)
@@ -74,9 +85,11 @@ PlayRound(global_game_state* Game, server_message_queue* MessageQueue)
     }
 }
 
-static void
-ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue)
+static span<server_packet_message>
+ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, memory_arena* Arena, bool* FlushWorld)
 {
+    dynamic_array<server_packet_message> ServerPackets = {.Arena = Arena};
+    
     Log("Server: Request!\n");
     
     //TODO: This is not strictly necessary (e.g. a player typing in chat)
@@ -88,6 +101,7 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         {
             CreateWorld(&Game->World, Game->PlayerCount);
             Game->GameStarted = true;
+            *FlushWorld = true;
         } break;
         case Request_PlaceTower:
         {
@@ -113,6 +127,7 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
             {
                 //TODO: Handle this case
             }
+            *FlushWorld = true;
         } break;
         case Request_Reset:
         {
@@ -120,8 +135,9 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         } break;
         case Request_EndTurn:
         {
-            PlayRound(Game, MessageQueue);
+            PlayRound(Game, &ServerPackets);
             Game->PlayerTurnIndex = (Game->PlayerTurnIndex + 1) % Game->PlayerCount;
+            *FlushWorld = true;
         } break;
         case Request_TargetTower:
         {
@@ -129,16 +145,81 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
             tower* Tower = Game->Towers + Request->TowerIndex;
             Tower->Target = Request->TargetP;
             Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
+            *FlushWorld = true;
         } break;
         default:
         {
             Assert(0);
         }
     }
+    
+    return ToSpan(ServerPackets);
 }
 
 static void
-SendPacket(multiplayer_context* Context, player_request* Request)
+SendPacket(player_request* Request)
 {
-    PlatformSend(Context, (u8*)Request, sizeof(*Request));
+    packet Packet = {.Data = (u8*)Request, .Length = sizeof(*Request)};
+    SendToServer(Packet);
+}
+
+static void
+RunServer()
+{
+    memory_arena Arena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
+    
+    HostServer();
+    
+    global_game_state Game = {};
+    
+    InitialiseServerState(&Game);
+    
+    server_message_queue MessageQueue = {};
+    
+    while (true)
+    {
+        span<packet> Packets = PollServerConnection(&Arena);
+        
+        for (packet Packet : Packets)
+        {
+            player* Sender = Game.Players + Packet.SenderIndex;
+            
+            bool FlushWorld = false;
+            
+            if (!Sender->Initialised)
+            {
+                Game.PlayerCount = Max((i32)Game.PlayerCount, (i32)Packet.SenderIndex + 1); //Hack but realistically fine
+                InitialisePlayer(&Game, Packet.SenderIndex);
+                FlushWorld = true;
+            }
+            
+            if (Packet.Length != 0)
+            {
+                Log("Server: Received data from client\n");
+                Assert(Packet.Length == sizeof(player_request));
+                
+                player_request* Request = (player_request*)Packet.Data;
+                
+                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, Packet.SenderIndex, 
+                                                                                Request, &Arena, &FlushWorld);
+                
+                for (server_packet_message& ServerPacket : ServerPackets)
+                {
+                    packet Packet = {.Data = (u8*)&ServerPacket, .Length = sizeof(ServerPacket)};
+                    ServerBroadcastPacket(Packet);
+                }
+            }
+            
+            if (FlushWorld)
+            {
+                server_packet_game_state GameStatePacket = {.Channel = Channel_GameState};
+                GameStatePacket.ServerGameState = Game;
+                
+                packet Packet = {.Data = (u8*)&GameStatePacket, .Length = sizeof(GameStatePacket)};
+                ServerBroadcastPacket(Packet);
+            }
+        }
+        
+        ResetArena(&Arena);
+    }
 }

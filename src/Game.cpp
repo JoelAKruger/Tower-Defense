@@ -180,7 +180,7 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
             player_request Request = {Request_TargetTower};
             Request.TowerIndex = TowerIndex;
             Request.TargetP = CursorP.XY;
-            SendPacket(&Game->MultiplayerContext, &Request);
+            SendPacket(&Request);
         }
         
     }
@@ -282,7 +282,7 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
     {
         case Message_Initialise:
         {
-            GameState->MultiplayerContext.MyClientID = Message->InitialiseClientID;
+            GameState->MyClientID = Message->InitialiseClientID;
         } break;
         case Message_PlayAnimation:
         {
@@ -330,7 +330,7 @@ GetHoveredRegionIndex(game_state* Game, v2 CursorP)
 static player*
 GetPlayer(game_state* Game)
 {
-    player* Result = &Game->GlobalState.Players[Game->MultiplayerContext.MyClientID];
+    player* Result = &Game->GlobalState.Players[Game->MyClientID];
     return Result;
 }
 
@@ -369,8 +369,8 @@ DoTowerMenu(game_state* Game, game_assets* Assets, memory_arena* Arena)
     Panel.NextRow();
     if (Panel.Button("End Turn"))
     {
-        player_request Request = {Request_EndTurn};
-        SendPacket(&Game->MultiplayerContext, &Request);
+        player_request Request = {.Type = Request_EndTurn};
+        SendPacket(&Request);
     }
 }
 
@@ -393,8 +393,8 @@ RunLobby(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_i
     Layout.NextRow();
     if (Layout.Button("Start Game"))
     {
-        player_request Request = {Request_StartGame};
-        SendPacket(&GameState->MultiplayerContext, &Request);
+        player_request Request = {.Type = Request_StartGame};
+        SendPacket(&Request);
     }
 }
 
@@ -517,13 +517,13 @@ static void
 RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
     //Update modes based on server state
-    if ((GameState->GlobalState.PlayerTurnIndex == GameState->MultiplayerContext.MyClientID) &&
+    if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyClientID) &&
         (GameState->Mode == Mode_Waiting))
     {
         SetMode(GameState, Mode_MyTurn);
     }
     
-    if ((GameState->GlobalState.PlayerTurnIndex != GameState->MultiplayerContext.MyClientID) &&
+    if ((GameState->GlobalState.PlayerTurnIndex != GameState->MyClientID) &&
         (GameState->Mode != Mode_Waiting))
     {
         SetMode(GameState, Mode_Waiting);
@@ -668,7 +668,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         v2 P = CursorWorldPos;
         
         bool Placeable = (!HoveringRegion->IsWater &&
-                          HoveringRegion->OwnerIndex == GameState->MultiplayerContext.MyClientID && 
+                          HoveringRegion->OwnerIndex == GameState->MyClientID && 
                           DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
@@ -698,13 +698,13 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
-            player_request Request = {Request_PlaceTower};
+            player_request Request = {.Type = Request_PlaceTower};
             
             Request.TowerP = P;
             Request.TowerRegionIndex = GameState->HoveringRegionIndex;
             Request.TowerType = Type;
             
-            SendPacket(&GameState->MultiplayerContext, &Request);
+            SendPacket(&Request);
         }
     }
     
@@ -786,6 +786,43 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     //RunClayLayoutTest(Assets);
 }
 
+static void
+ReceiveServerPackets(game_state* Game, game_assets* Assets, memory_arena* Arena)
+{
+    Assert(Arena->Type == TRANSIENT);
+    
+    span<packet> Packets = PollClientConnection(Arena);
+    
+    for (packet RawPacket : Packets)
+    {
+        Assert(RawPacket.Length >= sizeof(channel));
+        
+        channel Channel = *(channel*)RawPacket.Data;
+        switch (Channel)
+        {
+            case Channel_GameState:
+            {
+                Log("Client: received game state\n");
+                Assert(RawPacket.Length == sizeof(server_packet_game_state));
+                server_packet_game_state* Packet = (server_packet_game_state*)RawPacket.Data;
+                
+                Game->GlobalState = Packet->ServerGameState;
+                
+                server_packet_message Message = {.Channel = Channel_Message, .Type = Message_NewWorld};
+                HandleMessageFromServer(&Message, Game, Assets, Arena);
+            } break;
+            case Channel_Message:
+            {
+                Log("Client: received message\n");
+                Assert(RawPacket.Length == sizeof(server_packet_message));
+                server_packet_message* Message = (server_packet_message*)RawPacket.Data;
+                HandleMessageFromServer(Message, Game, Assets, Arena);
+            } break;
+            default: Assert(0);
+        }
+    }
+}
+
 static void 
 GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
@@ -793,14 +830,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     
     GameState->Time += SecondsPerFrame;
     
-    CheckForServerUpdate(&GameState->GlobalState, &GameState->MultiplayerContext);
-    
-    for (u32 MessageIndex = 0; MessageIndex < GameState->MultiplayerContext.MessageQueue.MessageCount; MessageIndex++)
-    {
-        HandleMessageFromServer(GameState->MultiplayerContext.MessageQueue.Messages + MessageIndex, GameState,
-                                Assets, Allocator.Transient);
-    }
-    GameState->MultiplayerContext.MessageQueue.MessageCount = 0;
+    ReceiveServerPackets(GameState, Assets, Allocator.Transient);
     
     if (GameState->GlobalState.GameStarted)
     {
@@ -811,8 +841,8 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
         RunLobby(GameState, Assets, SecondsPerFrame, Input, Allocator);
     }
     
-    DrawGUIString(String(GameState->MultiplayerContext.Connected ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
-    DrawGUIString(ArenaPrint(Allocator.Transient, "My client ID: %u", GameState->MultiplayerContext.MyClientID), V2(-0.95f, -0.05f));
+    DrawGUIString(String(IsConnectedToServer() ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
+    DrawGUIString(ArenaPrint(Allocator.Transient, "My client ID: %u", GameState->MyClientID), V2(-0.95f, -0.05f));
     DrawGUIString(ArenaPrint(Allocator.Transient, "Current Turn: %u", GameState->GlobalState.PlayerTurnIndex), V2(-0.95f, -0.10f));
     
     DrawConsole(GameState->Console, Allocator.Transient);
@@ -826,18 +856,19 @@ void Command_p(int, string*, console* Console, game_state* GameState, game_asset
 
 void Command_reset(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets*, memory_arena* Arena)
 {
-    player_request Request = {Request_Reset};
-    SendPacket(&GameState->MultiplayerContext, &Request);
+    player_request Request = {.Type = Request_Reset};
+    SendPacket(&Request);
 }
 
 void Command_create_server(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
-    Host();
+    void RunServer();
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)RunServer, 0, 0, 0);
 }
 
 void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
-    ConnectToServer(&Game->MultiplayerContext, "127.0.0.1");
+    ConnectToServer("127.0.0.1");
 }
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)

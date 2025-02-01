@@ -1,84 +1,6 @@
-const u16 DefaultPort = 22333;
+#include "Network/GameNetworkingSockets.cpp"
 
-static void
-SteamDebugOutput(ESteamNetworkingSocketsDebugOutputType Type, const char* Message)
-{
-    Log("Steam networking message: %s", Message);
-}
-
-static void
-InitialiseSteamNetworking()
-{
-    static bool Initialised = false;
-    if (!Initialised)
-    {
-        SteamNetworkingErrMsg Error;
-        if (GameNetworkingSockets_Init(0, Error))
-        {
-            SteamNetworkingUtils()->SetDebugOutputFunction(k_ESteamNetworkingSocketsDebugOutputType_Msg, SteamDebugOutput);
-            Initialised = true;
-        }
-        else
-        {
-            Log("Could not initialise steam networking library: %s\n", Error);
-        }
-    }
-}
-
-static multiplayer_context* GlobalClientContext;
-
-static void
-Client_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* Info)
-{
-    switch (Info->m_info.m_eState)
-    {
-        case k_ESteamNetworkingConnectionState_ClosedByPeer:
-        case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-        {
-            if (Info->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
-            {
-                //Disconnected
-                Log("(CLIENT) Disconnected: Connection %s, reason %d: %s\n",
-                    Info->m_info.m_szConnectionDescription,
-                    Info->m_info.m_eEndReason,
-                    Info->m_info.m_szEndDebug);
-                
-                GlobalClientContext->Connected = false;
-            }
-        } break;
-        case k_ESteamNetworkingConnectionState_Connected:
-        {
-            GlobalClientContext->Connected = true;
-            Log("(CLIENT) Connected");
-        } break;
-        case k_ESteamNetworkingConnectionState_Connecting:
-        {
-        }break;
-        default: Assert(0);
-    }
-}
-
-static void
-ConnectToServer(multiplayer_context* Context, char* Hostname)
-{
-    GlobalClientContext = Context;
-    
-    ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
-    
-    SteamNetworkingIPAddr Address;
-    Address.Clear();
-    Address.ParseString(Hostname);
-    Address.m_port = DefaultPort;
-    
-    SteamNetworkingConfigValue_t Config;
-    Config.SetPtr(k_ESteamNetworkingConfig_Callback_ConnectionStatusChanged, (void*)Client_SteamConnectionStatusChanged);
-    
-    Context->Platform.Connection = Interface->ConnectByIPAddress(Address, 1, &Config);
-    
-    Assert(Context->Platform.Connection != k_HSteamNetConnection_Invalid);
-}
-
-
+#if 0
 static void
 DisconnectFromServer()
 {
@@ -87,66 +9,47 @@ DisconnectFromServer()
 static void AddMessage(server_message_queue* Queue, server_packet_message Message);
 
 static void
-CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context)
+CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context, memory_arena* Arena)
 {
-    if (!Context->Platform.Connection)
-    {
-        return;
-    }
+    Assert(Arena->Type == TRANSIENT);
     
-    ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
-    while (true)
+    span<packet> Packets = PollClientConnection(Arena);
+    
+    for (packet RawPacket : Packets)
     {
-        ISteamNetworkingMessage* IncomingMessage = 0;
-        int MessageCount = Interface->ReceiveMessagesOnConnection(Context->Platform.Connection, 
-                                                                  &IncomingMessage, 1);
+        Assert(RawPacket.Length >= sizeof(channel));
         
-        Assert(MessageCount >= 0);
-        
-        if (MessageCount > 0)
+        channel Channel = *(channel*)RawPacket.Data;
+        switch (Channel)
         {
-            Assert(MessageCount == 1 && IncomingMessage);
-            
-            channel Channel = *(channel*)IncomingMessage->m_pData;
-            switch (Channel)
+            case Channel_GameState:
             {
-                case Channel_GameState:
-                {
-                    Log("Client: received game state\n");
-                    Assert(IncomingMessage->m_cbSize == sizeof(server_packet_game_state));
-                    server_packet_game_state* Packet = (server_packet_game_state*)IncomingMessage->m_pData;
-                    
-                    *Game = Packet->ServerGameState;
-                    
-                    server_packet_message Message = {Channel_Message, Message_NewWorld};
-                    AddMessage(&Context->MessageQueue, Message);
-                } break;
-                case Channel_Message:
-                {
-                    Log("Client: received message\n");
-                    Assert(IncomingMessage->m_cbSize == sizeof(server_packet_message));
-                    server_packet_message* Message = (server_packet_message*)IncomingMessage->m_pData;
-                    AddMessage(&Context->MessageQueue, *Message);
-                } break;
-                default: Assert(0);
-            }
-            
-            IncomingMessage->Release();
-        }
-        else
-        { 
-            break;
+                Log("Client: received game state\n");
+                Assert(RawPacket.Length == sizeof(server_packet_game_state));
+                server_packet_game_state* Packet = (server_packet_game_state*)RawPacket.Data;
+                
+                *Game = Packet->ServerGameState;
+                
+                server_packet_message Message = {Channel_Message, Message_NewWorld};
+                AddMessage(&Context->MessageQueue, Message);
+            } break;
+            case Channel_Message:
+            {
+                Log("Client: received message\n");
+                Assert(RawPacket.Length == sizeof(server_packet_message));
+                server_packet_message* Message = (server_packet_message*)RawPacket.Data;
+                AddMessage(&Context->MessageQueue, *Message);
+            } break;
+            default: Assert(0);
         }
     }
-    
-    Interface->RunCallbacks();
 }
 
 static bool
 PlatformSend(multiplayer_context* Context, u8* Data, u64 Length)
 {
     ISteamNetworkingSockets* Interface = SteamNetworkingSockets();
-    Interface->SendMessageToConnection(Context->Platform.Connection, Data, Length, k_nSteamNetworkingSend_Reliable, 0);
+    Interface->SendMessageToConnection(GlobalClientContext.Connection, Data, Length, k_nSteamNetworkingSend_Reliable, 0);
     
     return true;
 }
@@ -154,90 +57,11 @@ PlatformSend(multiplayer_context* Context, u8* Data, u64 Length)
 void ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, server_message_queue* MessageQueue);
 void InitialisePlayer(global_game_state* Game, u32 PlayerIndex);
 
-struct server_state
-{
-    ISteamNetworkingSockets* Interface;
-    HSteamListenSocket ListenSocket;
-    HSteamNetPollGroup PollGroup;
-    
-    bool SendFlag;
-    HSteamNetConnection Clients[8];
-    u32 ClientCount = 0;
-};
-
 server_state ServerState = {};
-
-static u64 
-GetClientIndex(HSteamNetConnection Connection)
-{
-    for (u32 CheckClientIndex = 0; CheckClientIndex < ArrayCount(ServerState.Clients); CheckClientIndex++)
-    {
-        if (ServerState.Clients[CheckClientIndex] == Connection)
-        {
-            return CheckClientIndex;
-        }
-    }
-    Assert(0);
-    return 0;
-}
 
 global_game_state* GlobalServerGameState_;
 
-static void
-Server_SteamConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* Info)
-{
-    switch (Info->m_info.m_eState)
-    {
-        case k_ESteamNetworkingConnectionState_ClosedByPeer:
-        case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
-        {
-            if (Info->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
-            {
-                //Disconnected
-                Log("(SERVER) Disconnected: Connection %s, reason %d: %s\n",
-                    Info->m_info.m_szConnectionDescription,
-                    Info->m_info.m_eEndReason,
-                    Info->m_info.m_szEndDebug);
-                
-                u64 ClientIndex = GetClientIndex(Info->m_hConn);
-                ServerState.Clients[ClientIndex] = {};
-                
-                ServerState.Interface->CloseConnection(Info->m_hConn, 0, 0, false);
-            }
-        } break;
-        
-        case k_ESteamNetworkingConnectionState_Connected:
-        {
-            Log("(SERVER) Connected: Connection %s\n", Info->m_info.m_szConnectionDescription);
-        } break;
-        
-        case k_ESteamNetworkingConnectionState_Connecting:
-        {
-            Assert(ServerState.ClientCount < ArrayCount(ServerState.Clients));
-            
-            //TODO: Check return values
-            ServerState.Interface->AcceptConnection(Info->m_hConn);
-            ServerState.Interface->SetConnectionPollGroup(Info->m_hConn, ServerState.PollGroup);
-            
-            u64 PlayerIndex = (ServerState.ClientCount++);
-            ServerState.Clients[PlayerIndex] = Info->m_hConn;
-            
-            GlobalServerGameState_->PlayerCount = ServerState.ClientCount;
-            InitialisePlayer(GlobalServerGameState_, PlayerIndex);
-            
-            Log("(SERVER) Connecting: Connection %s\n", Info->m_info.m_szConnectionDescription);
-            
-            server_packet_message Message = {Channel_Message};
-            Message.Type = Message_Initialise;
-            Message.InitialiseClientID = PlayerIndex;
-            ServerState.Interface->SendMessageToConnection(Info->m_hConn, (void*)&Message, sizeof(Message), k_nSteamNetworkingSend_Reliable, 0);
-            
-            ServerState.SendFlag = true;
-        } break;
-        default: Assert(0);
-    }
-}
-
+#if 0
 DWORD WINAPI
 ServerMain(LPVOID)
 {
@@ -329,3 +153,6 @@ Host()
     LPVOID Param = 0;
     CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ServerMain, Param, 0, 0);
 }
+#endif
+
+#endif
