@@ -208,7 +208,7 @@ static type* end(static_array<type> Array)
 }
 
 template <typename type>
-static inline u32 Add(static_array<type>* Array, type NewElement)
+static inline u32 Append(static_array<type>* Array, type NewElement)
 {
     Assert(Array->Count < Array->Capacity);
     Array->Memory[Array->Count] = NewElement;
@@ -268,7 +268,7 @@ type* operator+(dynamic_array<type> Array, u32 Index)
 }
 
 template <typename type>
-void Add(dynamic_array<type>* Array, type NewElement)
+void Append(dynamic_array<type>* Array, type NewElement)
 {
     if (Array->Count >= Array->Capacity)
     {

@@ -28,4 +28,3 @@ bool PlatformSend(multiplayer_context* Context, u8* Data, u64 Length);
 void CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context, memory_arena* Arena);
 void Host();
 void ConnectToServer(char* Hostname);
-

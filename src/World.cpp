@@ -207,7 +207,7 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
             Tri.Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), Z);
             
             SetColor(&Tri, Color);
-            Add(&Triangles, Tri);
+            Append(&Triangles, Tri);
         }
         
         //Sides
@@ -226,8 +226,8 @@ CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
             
             SetColor(&Tri0, Color);
             SetColor(&Tri1, Color);
-            Add(&Triangles, Tri0);
-            Add(&Triangles, Tri1);
+            Append(&Triangles, Tri0);
+            Append(&Triangles, Tri1);
         }
     }
     

@@ -1,3 +1,6 @@
+#include <steam/steamnetworkingsockets.h>
+#include <steam/isteamnetworkingutils.h>
+
 struct client_state
 {
     HSteamNetConnection Connection;
@@ -118,7 +121,7 @@ PollClientConnection(memory_arena* Arena)
             
             packet Packet = {.Data = Dest, .Length = Bytes};
             
-            Add(&Result, Packet);
+            Append(&Result, Packet);
             
             IncomingMessage->Release();
         }
@@ -255,7 +258,7 @@ PollServerConnection(memory_arena* Arena)
             
             packet Packet = {.Data = Dest, .Length = Bytes, .SenderIndex = ClientIndex};
             
-            Add(&Result, Packet);
+            Append(&Result, Packet);
             
             IncomingMessage->Release();
         }

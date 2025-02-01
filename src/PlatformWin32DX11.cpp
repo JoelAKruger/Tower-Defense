@@ -25,7 +25,7 @@
 
 #include "D3D11.cpp"
 
-#include "Win32Network.cpp"
+#include "Network/GameNetworkingSockets.cpp"
 
 #include "Timer.cpp"
 #include "Profiler.cpp"

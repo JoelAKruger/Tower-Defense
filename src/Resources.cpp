@@ -298,19 +298,19 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
         else if (Consume(&Reader, "v ")) //Vertex position
         {
             v3 P = ParseVector3(&Reader);
-            Add(&Positions, P);
+            Append(&Positions, P);
         }
         
         else if (Consume(&Reader, "vn ")) //Vertex normal
         {
             v3 N = ParseVector3(&Reader);
-            Add(&Normals, N);
+            Append(&Normals, N);
         }
         
         else if (Consume(&Reader, "vt ")) //Vertex texcoord
         {
             v2 T = ParseVector2(&Reader);
-            Add(&TexCoords, T);
+            Append(&TexCoords, T);
         }
         
         else if (Consume(&Reader, "s ")) //Smooth shading (ignored)
@@ -347,7 +347,7 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
             Face.Vertices[1] = ParseVertex(&Reader);
             Consume(&Reader, " ");
             Face.Vertices[2] = ParseVertex(&Reader);
-            Add(&Faces, Face);
+            Append(&Faces, Face);
         }
         
         else

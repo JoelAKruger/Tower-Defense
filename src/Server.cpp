@@ -75,7 +75,7 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
             server_packet_message Message = {Channel_Message, Message_PlayAnimation};
             Message.AnimationP = P;
             Message.AnimationRadius = Radius;
-            Add(MessageQueue, Message);
+            Append(MessageQueue, Message);
         }
         
         if (Tower->Type == Tower_Mine)
