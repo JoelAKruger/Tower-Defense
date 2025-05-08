@@ -207,6 +207,9 @@ memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);
 void Assert(bool Value);
 void Log(char* Format, ...);
 
+//Input
+void SetCursorState(bool State);
+
 typedef u32 button_state;
 enum
 {
@@ -239,6 +242,7 @@ struct game_input
     char* TextInput;
     v2 Movement;
 	v2 Cursor;
+    v2 CursorDelta;
     f32 ScrollDelta;
 };
 

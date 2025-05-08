@@ -175,7 +175,7 @@ float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 
 	float3 result = float3(0, 0, 0);
 	result += ambient * input.color * light_color;
-	result += 0.9f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - shadow));
+	result += 0.9f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - 0.8f * shadow));
 
 	return float4(result, 1.0f);
 }

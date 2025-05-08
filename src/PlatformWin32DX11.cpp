@@ -8,6 +8,7 @@
 #include <Windows.h>
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
+#include <hidusage.h>
 
 #include <string>
 
@@ -34,6 +35,8 @@ memory_arena GlobalDebugArena;
 
 static std::string GlobalTextInput;
 static f32 GlobalScrollDelta;
+static v2 GlobalCursorDelta;
+
 f32 GlobalAspectRatio;
 int GlobalOutputWidth;
 int GlobalOutputHeight;
@@ -192,6 +195,9 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         Input.ScrollDelta = GlobalScrollDelta;
         GlobalScrollDelta = 0;
         
+        Input.CursorDelta = GlobalCursorDelta;
+        GlobalCursorDelta = {};
+        
         PreviousInput = Input;
         ResetArena(&TransientArena);
         ResetArena(&GraphicsArena);
@@ -251,10 +257,19 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
     LRESULT Result = 0;
     switch (Message)
     {
+        case WM_CREATE:
+        {
+            RAWINPUTDEVICE RawInputDevice = {};
+            RawInputDevice.usUsagePage = HID_USAGE_PAGE_GENERIC;
+            RawInputDevice.usUsage = HID_USAGE_GENERIC_MOUSE;
+            RegisterRawInputDevices(&RawInputDevice, 1, sizeof(RawInputDevice));
+        } break;
+        
         case WM_DESTROY:
         {
             PostQuitMessage(0);
         } break;
+        
         case WM_CHAR:
         {
             Assert(WParam < 128);
@@ -277,6 +292,26 @@ LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LPa
         {
             int ZDelta = GET_WHEEL_DELTA_WPARAM(WParam);
             GlobalScrollDelta += ((f32)ZDelta / 120.0f);
+        } break;
+        
+        case WM_INPUT:
+        {
+            UINT DataSize = 0;
+            GetRawInputData((HRAWINPUT)LParam, RID_INPUT, 0, &DataSize, sizeof(RAWINPUTHEADER));
+            
+            if (DataSize > 0)
+            {
+                RAWINPUT* RawInput = new RAWINPUT {};
+                
+                GetRawInputData((HRAWINPUT)LParam, RID_INPUT, RawInput, &DataSize, sizeof(RAWINPUTHEADER));
+                if (RawInput->header.dwType == RIM_TYPEMOUSE && RawInput->data.mouse.usFlags == MOUSE_MOVE_RELATIVE)
+                {
+                    GlobalCursorDelta.X += RawInput->data.mouse.lLastX;
+                    GlobalCursorDelta.Y += RawInput->data.mouse.lLastY;
+                }
+                
+                delete RawInput;
+            }
         } break;
         
         default:
@@ -424,6 +459,31 @@ KeyboardAndMouseInputState(input_state* InputState, HWND Window)
     }
 }
 
+static void
+SetCursorState(bool State)
+{
+    static bool OldState = true;
+    
+    if (State != OldState)
+    {
+        ShowCursor(State);
+        
+        if (State)
+        {
+            POINT CursorPos = {};
+            GetCursorPos(&CursorPos);
+            RECT ClipRect = {CursorPos.x, CursorPos.x + 1, CursorPos.y, CursorPos.y + 1};
+            ClipCursor(&ClipRect);
+        }
+        else
+        {
+            ClipCursor(0);
+        }
+        
+        OldState = State;
+    }
+}
+
 /*
 static void
 SetPixelShaderConstant(u32 Index, void* Data, u32 Bytes)
@@ -464,5 +524,6 @@ void Assert(bool Value)
     }
 #endif
 }
+
 
 static_assert(__COUNTER__ <= ArrayCount(GlobalProfileEntries), "Too many profiles");

@@ -114,7 +114,7 @@ GameInitialise(allocator Allocator)
     
     GameState->CameraP = {0.0f, -0.25, 0.0f};
     GameState->CameraTargetP = {0.0f, -1.25f, 0.0f};
-    GameState->CameraDirection = {0.0f, 2.0f, 5.5f};
+    GameState->CameraDirection = UnitV(V3(0.0f, 2.0f, 5.5f));
     GameState->FOV = 50.0f;
     
     GameState->CastleTransform = ModelRotateTransform() * ScaleTransform(0.03f, 0.03f, 0.03f);
@@ -164,6 +164,14 @@ SetMode(game_state* GameState, game_mode NewMode)
     GameState->TowerPerspective = {};
 }
 
+static v3
+GetTowerP(game_state* Game, tower* Tower)
+{
+    f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
+    v3 Result = V3(Tower->P, TowerZ);
+    return Result;
+}
+
 static void 
 RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena* Arena)
 {
@@ -204,6 +212,8 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
     {
         SetMode(Game, Mode_TowerPOV);
         Game->TowerPerspective = Tower;
+        Game->CameraTargetP = GetTowerP(Game, Tower) + V3(0.0f, 0.0f, -0.07f); //0.3
+        Game->CameraTargetDirection = UnitV(V3(cosf(Tower->Rotation), sinf(Tower->Rotation), 0.0f));
     }
 }
 
@@ -300,33 +310,6 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
     }
 }
 
-static u64
-GetHoveredRegionIndex(game_state* Game, v2 CursorP)
-{
-    //TODO: This is rather inefficient
-    u64 Result = 0;
-    f32 ResultDistanceSq = FLT_MAX;
-    
-    world* World = &Game->GlobalState.World;
-    
-    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
-    {
-        world_region* Region = World->Regions + RegionIndex;
-        
-        v3 WorldP = ScreenToWorld(Game, CursorP, Region->Z);
-        
-        f32 DistanceToRegionSq = LengthSq(V3(Region->Center, Region->Z) - Game->CameraP);
-        
-        if ((DistanceToRegionSq < ResultDistanceSq) && InRegion(Region, WorldP.XY))
-        {
-            Result = RegionIndex;
-            ResultDistanceSq = DistanceToRegionSq;
-        }
-    }
-    
-    return Result;
-}
-
 static player*
 GetPlayer(game_state* Game)
 {
@@ -354,7 +337,7 @@ DoTowerMenu(game_state* Game, game_assets* Assets, memory_arena* Arena)
         Game->PlacementType = Tower_Castle;
     }
     Panel.NextRow();
-    if (Panel.Button("Turret"))
+    if (Panel.Button("Sniper"))
     {
         SetMode(Game, Mode_Place);
         Game->PlacementType = Tower_Turret;
@@ -396,14 +379,6 @@ RunLobby(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_i
         player_request Request = {.Type = Request_StartGame};
         SendPacket(&Request);
     }
-}
-
-static v3
-GetTowerP(game_state* Game, tower* Tower)
-{
-    f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
-    v3 Result = V3(Tower->P, TowerZ);
-    return Result;
 }
 
 static Clay_Dimensions 
@@ -513,6 +488,61 @@ RunClayLayoutTest(game_assets* Assets)
     }
 }
 
+struct cursor_target
+{
+    v2 WorldP;
+    u64 HoveringRegionIndex;
+    world_region* HoveringRegion;
+};
+
+static cursor_target
+GetCursorTarget(game_state* Game, game_input* Input)
+{
+    cursor_target Result = {};
+    
+    v2 MouseP = Input->Cursor;
+    
+    if (Game->Mode == Mode_TowerPOV)
+    {
+        MouseP = {0.0f, 0.0f};
+    }
+    
+    //TODO: This is rather inefficient
+    u64 HoveringRegionIndex = 0;
+    f32 HoveringRegionDistanceSq = FLT_MAX;
+    
+    world* World = &Game->GlobalState.World;
+    
+    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        
+        v3 WorldP = ScreenToWorld(Game, MouseP, Region->Z);
+        
+        f32 DistanceToRegionSq = LengthSq(V3(Region->Center, Region->Z) - Game->CameraP);
+        
+        if ((DistanceToRegionSq < HoveringRegionDistanceSq) && InRegion(Region, WorldP.XY))
+        {
+            HoveringRegionIndex= RegionIndex;
+            HoveringRegionDistanceSq = DistanceToRegionSq;
+        }
+    }
+    
+    Game->HoveringRegionIndex = HoveringRegionIndex;
+    Result.HoveringRegionIndex = HoveringRegionIndex;
+    if (Game->HoveringRegionIndex)
+    {
+        Result.HoveringRegion = Game->GlobalState.World.Regions + Game->HoveringRegionIndex;
+        Result.WorldP = ScreenToWorld(Game, MouseP, Result.HoveringRegion->Z).XY;
+    }
+    else
+    {
+        Result.WorldP = ScreenToWorld(Game, MouseP, 0.25f).XY;
+    }
+    
+    return Result;
+}
+
 static void
 RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
@@ -563,6 +593,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     {
         case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: //Top down perspective
         {
+            SetCursorState(true);
+            
             if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
                 GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor).XY;
@@ -586,19 +618,26 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
                 GameState->CameraTargetP.XY = GameState->CameraP.XY;
             }
             
-            GameState->CameraDirection = {0.0f, 2.0f, 5.5f};
+            GameState->CameraDirection = UnitV(V3(0.0f, 2.0f, 5.5f));
             GameState->FOV = 50.0f;
         } break;
         case Mode_TowerPOV:
         {
+            SetCursorState(false);
+            
             ShouldDrawHealthBars = false;
             
-            if (GameState->TowerPerspective)
-            {
-                tower* Tower = GameState->TowerPerspective;
-                GameState->CameraTargetP = GetTowerP(GameState, Tower) + V3(0.0f, 0.0f, -0.07f); //0.3
-                GameState->CameraTargetDirection = UnitV(V3(cosf(Tower->Rotation), sinf(Tower->Rotation), 0.0f));
-            }
+            Input->Cursor = V2(0.5f, 0.5f);
+            
+            f32 ThetaOld = acosf(GameState->CameraDirection.Z);
+            f32 PhiOld   = atan2(GameState->CameraDirection.Y, GameState->CameraDirection.X);
+            
+            f32 Sensitivity = 0.001f;
+            f32 ThetaNew = Clamp(ThetaOld - Input->CursorDelta.Y * Sensitivity, 0.0001f, Pi - 0.0001f);
+            f32 PhiNew = PhiOld - Input->CursorDelta.X * Sensitivity;
+            
+            GameState->CameraTargetDirection = V3(sinf(ThetaNew) * cosf(PhiNew), sinf(ThetaNew) * sinf(PhiNew), cosf(ThetaNew));
+            //GameState->CameraDirection = GameState->CameraTargetDirection;
             
             GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
             GameState->CameraDirection = UnitV(LinearInterpolate(GameState->CameraDirection, GameState->CameraTargetDirection, CameraSpeed * SecondsPerFrame));
@@ -610,16 +649,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
     
-    //These are only valid if HoveringRegionIndex != 0
-    world_region* HoveringRegion = 0;
-    v2 CursorWorldPos = {};
-    
-    GameState->HoveringRegionIndex = GetHoveredRegionIndex(GameState, Input->Cursor);
-    if (GameState->HoveringRegionIndex)
-    {
-        HoveringRegion = GameState->GlobalState.World.Regions + GameState->HoveringRegionIndex;
-        CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, HoveringRegion->Z).XY;
-    }
+    cursor_target Cursor = GetCursorTarget(GameState, Input);
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Allocator.Transient;
@@ -647,7 +677,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     {
         if (Input->ButtonDown & Button_LMouse)
         {
-            nearest_tower NearestTower = NearestTowerTo(CursorWorldPos, &GameState->GlobalState, GameState->HoveringRegionIndex);
+            nearest_tower NearestTower = NearestTowerTo(Cursor.WorldP, &GameState->GlobalState, GameState->HoveringRegionIndex);
             if (NearestTower.Distance < TowerRadius)
             {
                 SetMode(GameState, Mode_EditTower);
@@ -661,28 +691,27 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     SetShader(Assets->Shaders[Shader_Model]);
     
     //Draw new tower
-    
-    //Must have a HoveringRegion, or else I have no idea where the player is trying to place the tower
-    if (GameState->Mode == Mode_Place && HoveringRegion)
+    if (GameState->Mode == Mode_Place)
     {
-        v2 P = CursorWorldPos;
+        v2 P = Cursor.WorldP;
         
-        bool Placeable = (!HoveringRegion->IsWater &&
-                          HoveringRegion->OwnerIndex == GameState->MyClientID && 
-                          DistanceInsideRegion(HoveringRegion, P) > TowerRadius &&
-                          NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+        bool Placeable = (Cursor.HoveringRegion &&
+                          !Cursor.HoveringRegion->IsWater &&
+                          Cursor.HoveringRegion->OwnerIndex == GameState->MyClientID && 
+                          DistanceInsideRegion(Cursor.HoveringRegion, P) > TowerRadius &&
+                          NearestTowerTo(P, &GameState->GlobalState, Cursor.HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
-        f32 Z = 0.0f;
-        if (HoveringRegion)
+        f32 Z = 0.25f;
+        if (Cursor.HoveringRegion)
         {
-            Z = HoveringRegion->Z;
+            Z = Cursor.HoveringRegion->Z;
         }
         
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
         if (Placeable)
         {
-            v4 RegionColor = HoveringRegion->Color;
+            v4 RegionColor = Cursor.HoveringRegion->Color;
             
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -693,7 +722,6 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         tower_type Type = GameState->PlacementType;
         
         //Draw slightly above a normal tower to prevent z-fighting
-        //TODO: This is a waste
         DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, Z - 0.001f), Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
@@ -744,16 +772,16 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         }
     }
     
-    if (HoveringRegion)
+    if (Cursor.HoveringRegion)
     {
         string RegionText = {};
-        if (HoveringRegion->IsWater)
+        if (Cursor.HoveringRegion->IsWater)
         {
             RegionText = String("Ocean");
         }
         else
         {
-            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d", HoveringRegion->OwnerIndex);
+            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d", Cursor.HoveringRegion->OwnerIndex);
         }
         
         f32 Width = GUIStringWidth(RegionText, 0.1f);
