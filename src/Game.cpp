@@ -788,6 +788,13 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         GUI_DrawText(&Assets->Font, RegionText, V2(-0.5f * Width, 0.9f));
     }
     
+    //Draw crosshair
+    if (GameState->Mode == Mode_TowerPOV)
+    {
+        v2 CrosshairSize = 0.005f * V2(1.0f, GlobalAspectRatio);
+        GUI_DrawRectangle(-0.5f * CrosshairSize, CrosshairSize, V4(0.5f, 0.5f, 0.5f, 1));
+    }
+    
     BeginGUI(Input, Assets);
     //Draw GUI
     
