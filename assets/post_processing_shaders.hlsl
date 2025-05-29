@@ -84,3 +84,4 @@ float4 Bloom_PixelShader_Upsample(Bloom_VS_Output input) : SV_TARGET
 
 	return float4(result, 1.0f);
 }
+

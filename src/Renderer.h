@@ -40,6 +40,7 @@ enum shader_index
     Shader_GUI_Color,
     Shader_GUI_Texture,
     Shader_GUI_Font,
+    Shader_GUI_HDR_To_SDR,
     
     Shader_Bloom_Filter,
     Shader_Bloom_Downsample,

@@ -507,14 +507,19 @@ SetPixelShaderConstant(u32 Index, void* Data, u32 Bytes)
 
 void Log(char* Format, ...)
 {
+    DWORD threadId = GetCurrentThreadId();
+    
     va_list Args;
     va_start(Args, Format);
     
     string String = ArenaPrintInternal(&GlobalDebugArena, Format, Args);
     
-    OutputDebugStringA(String.Text);
+    string Final = ArenaPrint(&GlobalDebugArena, "[Thread %lu] %s", threadId, String.Text);
+    
+    OutputDebugStringA(Final.Text);
     va_end(Args);
 }
+
 
 void Assert(bool Value)
 {

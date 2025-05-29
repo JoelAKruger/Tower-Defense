@@ -45,3 +45,32 @@ float4 GUI_PixelShader_Font(VS_Output input) : SV_Target
 	float sample = (float)gui_texture.Sample(default_sampler, input.uv);
 	return float4(input.color.rgb, sample);
 }
+
+float4 GUI_PixelShader_HDR_To_SDR(VS_Output input) : SV_Target
+{
+    float exposure   = 1.05f;
+    float contrast   = 1.15f;
+    float saturation = 1.05f;
+    float3 tint      = float3(1.0f, 0.95f, 0.9f);
+
+    float3 color = gui_texture.Sample(default_sampler, input.uv).rgb;
+
+
+    // Exposure
+    color *= exposure;
+
+    // Contrast
+    color = (color - 0.5) * contrast + 0.5;
+
+    // Saturation
+    float gray = dot(color, float3(0.299, 0.587, 0.114));
+    color = lerp(float3(gray, gray, gray), color, saturation);
+
+    // Tint
+    color *= tint;
+
+    // Gamma correction and clamping to [0,1]
+    color = pow(saturate(color), 1.0 / 2.2);
+
+    return float4(color, 1.0f);
+}

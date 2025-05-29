@@ -47,6 +47,8 @@ StringsAreEqual(string A, string B)
 static u8*
 Alloc(memory_arena* Arena, u64 Size)
 {
+    Size = (Size + 7) & ~0b111;
+    
 	u8* Result = Arena->Buffer + Arena->Used;
 	Arena->Used += Size;
     
@@ -54,8 +56,6 @@ Alloc(memory_arena* Arena, u64 Size)
     
 	for (int i = 0; i < Size; i++)
 		Result[i] = 0;
-    
-    //Assert(((size_t)Result & 0b11) == 0);
     
     return Result;
 }

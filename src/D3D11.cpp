@@ -68,7 +68,7 @@ IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
     DXGIAdapter->Release();
     
     DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = {};
-    SwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    SwapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     SwapChainDesc.SampleDesc.Count = 4;
     SwapChainDesc.SampleDesc.Quality = 0;
     SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -814,6 +814,10 @@ LoadShaders(game_assets* Assets)
     
     Assets->Shaders[Shader_GUI_Font] = CreateShader(L"assets/guishaders.hlsl", 
                                                     GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Font", "GUI_VertexShader");
+    
+    Assets->Shaders[Shader_GUI_HDR_To_SDR] = CreateShader(L"assets/guishaders.hlsl", 
+                                                          GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_HDR_To_SDR", "GUI_VertexShader");
+    
     Assets->Shaders[Shader_Bloom_Filter] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Filter", "Bloom_VertexShader");
     
     Assets->Shaders[Shader_Bloom_Downsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Downsample", "Bloom_VertexShader");

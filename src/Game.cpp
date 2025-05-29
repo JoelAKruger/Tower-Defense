@@ -543,7 +543,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     int CurrentHour = (int)Time % 24;
     int CurrentMinute = (int)(60.0f * (Time - (int)Time));
     
-    GameState->SkyColor = 1.0f *V3(1,1,1); //GetSkyColor(CurrentHour, CurrentMinute);
+    GameState->SkyColor = 3.0f *V3(1,1,1); //GetSkyColor(CurrentHour, CurrentMinute);
     f32 t = (CurrentHour * 60 + CurrentMinute) / (24.0f * 60.0f);
     
     //GameState->LightP = V3(4.0f * sinf(t * 2 * Pi), -1.0f, 4.0f * cosf(t * 2 * Pi));

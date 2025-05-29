@@ -347,11 +347,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     //Composing
     SetFrameBufferAsOutput();
     
-    SetShader(Assets->Shaders[Shader_GUI_Texture]);
+    SetShader(Assets->Shaders[Shader_GUI_HDR_To_SDR]);
     
     SetBlendMode(BlendMode_Blend);
     SetTexture(Assets->Output1.Texture, 0);
     DrawVertexBuffer(WholeScreen);
+    
+    SetShader(Assets->Shaders[Shader_GUI_Texture]);
     
     SetBlendMode(BlendMode_Add);
     SetTexture(Assets->BloomAccum.Texture, 0);
