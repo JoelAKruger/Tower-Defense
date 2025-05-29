@@ -1,6 +1,3 @@
-#include <steam/steamnetworkingsockets.h>
-#include <steam/isteamnetworkingutils.h>
-
 enum foliage_type
 {
     Foliage_Null,

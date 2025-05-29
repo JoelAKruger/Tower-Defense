@@ -23,6 +23,8 @@ struct string
 	u64 Length;
 };
 
+void Assert(bool);
+
 template <typename type>
 struct span
 {

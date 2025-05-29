@@ -50,14 +50,26 @@ Alloc(memory_arena* Arena, u64 Size)
 	u8* Result = Arena->Buffer + Arena->Used;
 	Arena->Used += Size;
     
+    Assert(Arena->Used < Arena->Size);
+    
 	for (int i = 0; i < Size; i++)
 		Result[i] = 0;
-    
-	Assert(Arena->Used < Arena->Size);
     
     //Assert(((size_t)Result & 0b11) == 0);
     
     return Result;
+}
+
+static u8*
+ArenaAt(memory_arena* Arena)
+{
+    return Arena->Buffer + Arena->Used;
+}
+
+static u64
+ArenaFreeSpace(memory_arena* Arena)
+{
+    return Arena->Size - Arena->Used;
 }
 
 static bool
@@ -141,6 +153,19 @@ CopyString(memory_arena* Arena, string String)
     return Result;
 }
 
+static u8*
+Copy(memory_arena* Arena, u8* Source, u64 Bytes)
+{
+    u8* Dest = Alloc(Arena, Bytes);
+    
+    for (u64 I = 0; I < Bytes; I++)
+    {
+        Dest[I] = Source[I];
+    }
+    
+    return Dest;
+}
+
 template <typename type>
 type* begin(span<type> Span)
 {
@@ -160,10 +185,10 @@ template <typename type>
 span<type>
 BeginSpan(memory_arena* Arena)
 {
-	span<type> Span = {};
-	Span.Memory = (type*)(Arena->Buffer + Arena->Used);
+    span<type> Span = {};
+    Span.Memory = (type*)(Arena->Buffer + Arena->Used);
     
-	return Span;
+    return Span;
 }
 */
 template <typename type>
@@ -171,14 +196,14 @@ void
 EndSpan(span<type>& Span, memory_arena* Arena)
 {
     Assert(WasAllocatedFrom(Arena, Span.Memory));
-	Span.Count = (u32)((type*)(Arena->Buffer + Arena->Used) - Span.Memory);
+    Span.Count = (u32)((type*)(Arena->Buffer + Arena->Used) - Span.Memory);
 }
 
 template <typename type>
 type*
 operator+(span<type> Span, u32 Index)
 {
-	return &Span[Index];
+    return &Span[Index];
 }
 
 template <typename type>
@@ -220,7 +245,7 @@ static inline u32 Append(static_array<type>* Array, type NewElement)
 template <typename type>
 type* operator+(static_array<type> Array, u32 Index)
 {
-	return &Array[Index];
+    return &Array[Index];
 }
 
 #define AllocStaticArray(Arena, Type, Capacity) \
@@ -239,10 +264,10 @@ template <typename type>
 struct dynamic_array
 {
     memory_arena* Arena;
-	type* Memory;
-	u32 Count;
+    type* Memory;
+    u32 Count;
     u32 Capacity;
-	
+    
     type* begin()
     {
         return Memory;
@@ -264,7 +289,7 @@ struct dynamic_array
 template <typename type>
 type* operator+(dynamic_array<type> Array, u32 Index)
 {
-	return &Array[Index];
+    return &Array[Index];
 }
 
 template <typename type>
@@ -281,6 +306,14 @@ void Append(dynamic_array<type>* Array, type NewElement)
         Array->Capacity = NewCapacity;
     }
     Array->Memory[Array->Count++] = NewElement;
+}
+
+template <typename type>
+void Clear(dynamic_array<type>* Array)
+{
+    Array->Memory = 0;
+    Array->Count = 0;
+    Array->Capacity = 0;
 }
 
 template <typename type>
@@ -389,4 +422,24 @@ AllocArray2D(memory_arena* Arena, u32 Rows, u32 Cols)
     Result.Cols = Cols;
     
     return Result;
+}
+
+struct mutex
+{
+    volatile long Value;
+};
+
+static void
+Lock(mutex* Mutex)
+{
+    while (_InterlockedCompareExchange(&Mutex->Value, 1, 0) == 1)
+    {
+        _mm_pause();
+    }
+}
+
+static void
+Unlock(mutex* Mutex)
+{
+    Mutex->Value = 0;
 }

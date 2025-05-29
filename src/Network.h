@@ -1,4 +1,5 @@
-u16 const DefaultPort = 22333;
+u16   const DefaultPort = 22333;
+char* const DefaultPortString = "22333";
 
 //TODO: Delete this
 struct multiplayer_context;
@@ -12,19 +13,15 @@ struct packet
 };
 
 //Client API
-void         ConnectToServer(char* Hostname);
+void         ClientNetworkThread(char* Hostname);
+
 span<packet> PollClientConnection(memory_arena* Arena);
 void         SendToServer(packet Packet);
 bool         IsConnectedToServer();
 
 //Server API
-void         HostServer();
+void         ServerNetworkThread();
+
 span<packet> PollServerConnection(memory_arena* Arena);
 void         ServerSendPacket(packet Packet, u64  ClientIndex);
 void         ServerBroadcastPacket(packet Packet);
-
-struct global_game_state;
-bool PlatformSend(multiplayer_context* Context, u8* Data, u64 Length);
-void CheckForServerUpdate(global_game_state* Game, multiplayer_context* Context, memory_arena* Arena);
-void Host();
-void ConnectToServer(char* Hostname);

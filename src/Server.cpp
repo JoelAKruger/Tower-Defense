@@ -168,7 +168,7 @@ RunServer()
 {
     memory_arena Arena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
     
-    HostServer();
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ServerNetworkThread, 0, 0, 0);
     
     global_game_state Game = {};
     

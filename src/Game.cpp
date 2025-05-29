@@ -1,13 +1,10 @@
-#define CLAY_IMPLEMENTATION
-#include "clay.h"
-
 #include "Engine.h"
 
 #include "Renderer.h"
 #include "Defense.h"
 
-#include "Utilities.cpp"
 #include "Maths.cpp"
+#include "Utilities.cpp"
 #include "GUI.cpp"
 #include "Console.cpp"
 #include "Parser.cpp"
@@ -98,15 +95,6 @@ WorldToScreen(game_state* GameState, v2 WorldPos)
 static game_state* 
 GameInitialise(allocator Allocator)
 {
-    u64 ClayMemorySize = Clay_MinMemorySize();
-    Clay_Arena ClayArena = {};
-    ClayArena.capacity = ClayMemorySize;
-    ClayArena.memory = (char*) Alloc(Allocator.Permanent, ClayMemorySize);
-    
-    Clay_Initialize(ClayArena, Clay_Dimensions {(f32)GlobalOutputWidth, (f32)GlobalOutputHeight});
-    Clay_Dimensions GUI_ClayTextSize(Clay_String* String, Clay_TextElementConfig* Config);
-    Clay_SetMeasureTextFunction(GUI_ClayTextSize);
-    
     game_state* GameState = AllocStruct(Allocator.Permanent, game_state);
     GameState->Console = AllocStruct(Allocator.Permanent, console);
     
@@ -378,113 +366,6 @@ RunLobby(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_i
     {
         player_request Request = {.Type = Request_StartGame};
         SendPacket(&Request);
-    }
-}
-
-static Clay_Dimensions 
-GUI_ClayTextSize(Clay_String* String, Clay_TextElementConfig* Config)
-{
-    f32 Width = 0.0f;
-    for (u32 I = 0; I < String->length; I++)
-    {
-        stbtt_bakedchar* BakedChar = DefaultFont->BakedChars + String->chars[I];
-        Width += BakedChar->xadvance;
-    }
-    
-    Clay_Dimensions Result = {};
-    Result.height = DefaultFont->RasterisedSize;
-    Result.width = Width;
-    
-    return Result;
-}
-
-static void
-DoClayHeaderButton(Clay_String Text)
-{
-    CLAY(CLAY_LAYOUT({ .padding = {16, 16} }),
-         CLAY_RECTANGLE({ .color = {0.6f, 0.6f, 0.6f, 1.0f} }))
-    {
-        CLAY_TEXT(Text, CLAY_TEXT_CONFIG({ .fontSize = 64, .textColor = {1,1,1,1} }));
-    }
-}
-
-static void
-RunClayLayoutTest(game_assets* Assets)
-{
-    Clay_BeginLayout();
-    
-    Clay_SetLayoutDimensions( Clay_Dimensions{.width = (f32)GlobalOutputWidth, .height = (f32)GlobalOutputHeight} );
-    
-    Clay_LayoutConfig LayoutElement = Clay_LayoutConfig { .padding = {5} };
-    CLAY(
-         CLAY_RECTANGLE({ .color = {1,0,1,1} }), 
-         CLAY_LAYOUT(
-                     {
-                         .layoutDirection = CLAY_TOP_TO_BOTTOM,
-                         .sizing = {
-                             .width = CLAY_SIZING_GROW(), 
-                             .height = CLAY_SIZING_GROW()
-                         },
-                         .padding = {16, 16},
-                         .childGap = 16,
-                     })
-         )
-    {
-        CLAY(CLAY_ID("HeaderBar"),
-             CLAY_RECTANGLE({ .color = {0.5f, 0.5f, 0.5f, 1.0f} }),
-             CLAY_LAYOUT({ .sizing = { .height = CLAY_SIZING_FIXED(120), .width = CLAY_SIZING_GROW()}, 
-                             .padding = {16}, .childGap = 16, .childAlignment = { .y = CLAY_ALIGN_Y_CENTER }}))
-        {
-            DoClayHeaderButton(CLAY_STRING("FILE"));
-            DoClayHeaderButton(CLAY_STRING("EDIT"));
-        }
-        
-        CLAY(CLAY_ID("LowerContent"),
-             CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}, .childGap = 16}))
-        {
-            CLAY(CLAY_ID("Sidebar"),
-                 CLAY_RECTANGLE({.color = {0.5f, 0.5f, 0.5f, 1.0f}}),
-                 CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_FIXED(250), .height = CLAY_SIZING_GROW()}})) {}
-            CLAY(CLAY_ID("MainContext"),
-                 CLAY_RECTANGLE({.color = {0.5f, 0.5f, 0.5f, 1.0f}}),
-                 CLAY_LAYOUT({.sizing = {.width = CLAY_SIZING_GROW(), .height = CLAY_SIZING_GROW()}})) {}
-        }
-    }
-    
-    
-    Clay_RenderCommandArray RenderCommands = Clay_EndLayout();
-    
-    for (u64 CommandIndex = 0; CommandIndex < RenderCommands.length; CommandIndex++)
-    {
-        Clay_RenderCommand* Command = RenderCommands.internalArray + CommandIndex;
-        Clay_BoundingBox BoundingBox = Command->boundingBox;
-        
-        switch (Command->commandType)
-        {
-            case CLAY_RENDER_COMMAND_TYPE_RECTANGLE:
-            {
-                Clay_RectangleElementConfig* Config = Command->config.rectangleElementConfig;
-                
-                v2 P = {-1.0f + 2.0f*BoundingBox.x/GlobalOutputWidth, 1.0f - 2.0f*(BoundingBox.y + BoundingBox.height) / GlobalOutputHeight};
-                v2 Size = {2.0f * BoundingBox.width / GlobalOutputWidth, 2.0f*BoundingBox.height / GlobalOutputHeight};
-                v4 Color = V4(Config->color.r, Config->color.g, Config->color.b, Config->color.a);
-                
-                GUI_DrawRectangle(P, Size, Color);
-            } break;
-            case CLAY_RENDER_COMMAND_TYPE_TEXT:
-            {
-                Clay_TextElementConfig* Config = Command->config.textElementConfig;
-                
-                string Text = {(char*)Command->text.chars, (u64)Command->text.length};
-                v4 Color = V4(Config->textColor.r, Config->textColor.g, Config->textColor.b, Config->textColor.a);
-                v2 P = {-1.0f + 2.0f*BoundingBox.x/GlobalOutputWidth, 1.0f - 2.0f*(BoundingBox.y + BoundingBox.height) / GlobalOutputHeight};
-                
-                GUI_DrawText(&Assets->Font, Text, P, Color, 1.0f);
-            } break;
-            default:
-            {
-            } break;
-        }
     }
 }
 
@@ -818,7 +699,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);
     DrawGUIString(TimeString, V2(-0.95f, -0.75f));
     
-    //RunClayLayoutTest(Assets);
+    //RunClayLayoutTest(Assets, Input, SecondsPerFrame);
 }
 
 static void
@@ -903,7 +784,8 @@ void Command_create_server(int ArgCount, string* Args, console* Console, game_st
 
 void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
-    ConnectToServer("127.0.0.1");
+    void ClientNetworkThread(char*);
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)"127.0.0.1", 0, 0);
 }
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)

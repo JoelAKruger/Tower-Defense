@@ -26,7 +26,8 @@
 
 #include "D3D11.cpp"
 
-#include "Network/GameNetworkingSockets.cpp"
+//#include "Network/GameNetworkingSockets.cpp"
+#include "Network/Winsock.cpp"
 
 #include "Timer.cpp"
 #include "Profiler.cpp"
@@ -56,7 +57,7 @@ void Win32SaveFile(char* Path, span<u8> Data);
 
 static bool GlobalWindowDidResize;
 
-void InitialiseSteamNetworking();
+//void InitialiseSteamNetworking();
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowCode)
 {

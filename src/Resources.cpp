@@ -1,3 +1,6 @@
+void LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library);
+void LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path);
+
 static renderer_vertex_buffer
 CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
 {
@@ -129,9 +132,6 @@ LoadAssets(allocator Allocator)
     Assets->BloomMipmaps[7] = CreateRenderOutput(8, 8);
     
     Assets->BloomAccum = CreateRenderOutput(1024, 1024);
-    
-    void LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library);
-    void LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path);
     
     material DefaultMaterial = {};
     DefaultMaterial.DiffuseColor = V3(0, 0, 0);
