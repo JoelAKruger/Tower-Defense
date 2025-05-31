@@ -786,7 +786,15 @@ void Command_create_server(int ArgCount, string* Args, console* Console, game_st
 void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
     void ClientNetworkThread(char*);
-    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)"127.0.0.1", 0, 0);
+    
+    char* Address = "127.0.0.1";
+    if (ArgCount > 1)
+    {
+        Address = (char*) malloc(Args[1].Length + 1);
+        memcpy(Address, Args[1].Text, Args[1].Length);
+        Address[Args[1].Length] = 0;
+    }
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)Address, 0, 0);
 }
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)

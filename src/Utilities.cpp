@@ -463,3 +463,4 @@ IndexOfCounted(type Target, type* Array, u64 Count)
 
 //Index of target in array
 #define IndexOf(target, array) IndexOfCounted(target, array, ArrayCount(array))
+
