@@ -18,6 +18,12 @@ struct tri
     vertex Vertices[3];
 };
 
+//TODO: Is this confusing?
+struct triangle
+{
+    v3 Positions[3];
+};
+
 struct cube_map
 {
     texture Textures[6];
@@ -125,6 +131,7 @@ struct mesh
     string MaterialLibrary;
     string MaterialName;
     renderer_vertex_buffer VertexBuffer;
+    span<triangle> Triangles;
 };
 typedef u64 mesh_index;
 

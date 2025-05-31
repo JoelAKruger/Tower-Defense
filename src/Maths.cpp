@@ -178,6 +178,12 @@ inline v3 operator*(f32 Scalar, v3 V)
     return Res;
 }
 
+inline v3 operator*(v3 V, f32 Scalar)
+{
+    v3 Res = { Scalar * V.X, Scalar * V.Y, Scalar * V.Z };
+    return Res;
+}
+
 inline v2 operator*(v2 V, float Scalar)
 {
 	v2 Res = Scalar * V;

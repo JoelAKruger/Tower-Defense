@@ -73,6 +73,27 @@ FindVertexBuffer(game_assets* Assets, char* Description_)
     return Result;
 }
 
+static model* 
+FindModel(game_assets* Assets, char* Description_)
+{
+    string Description = String(Description_);
+    model* Result = 0;
+    
+    for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
+    {
+        model* Model = Assets->Models + ModelIndex;
+        
+        if (StringsAreEqual(Model->Name, Description))
+        {
+            Result = Model;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+//TODO: Should this be called SetVertexBuffer
 static void
 LoadVertexBuffer(game_assets* Assets, char* Description, renderer_vertex_buffer Buffer)
 {
@@ -175,6 +196,14 @@ LoadAssets(allocator Allocator)
                                                             D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
     LoadVertexBuffer(Assets, "GUIWholeScreen", WholeScreen);
     
+#define LOG 1
+#if LOG == 1
+    for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
+    {
+        Log("Loaded model %s\n", Assets->Models[ModelIndex].Name.Text);
+    }
+#endif
+    
     return Assets;
 }
 
@@ -231,6 +260,35 @@ CreateMeshVertexBuffer(dynamic_array<v3> Positions, dynamic_array<v3> Normals, d
     return Result;
 }
 
+static span<triangle>
+CreateMeshTriangles(dynamic_array<v3> Positions, dynamic_array<obj_file_face> Faces, allocator Allocator)
+{
+    u64 TriCount = Faces.Count * 2;
+    triangle* Triangles = AllocArray(Allocator.Permanent, triangle, TriCount);
+    
+    int TriIndex = 0;
+    for (u32 FaceIndex = 0; FaceIndex < Faces.Count; FaceIndex++)
+    {
+        obj_file_face* Face = Faces + FaceIndex;
+        
+        Triangles[TriIndex++] = {
+            Positions[Face->Vertices[0].PositionIndex - 1],
+            Positions[Face->Vertices[1].PositionIndex - 1],
+            Positions[Face->Vertices[2].PositionIndex - 1]
+        };
+        
+        Triangles[TriIndex++] = {
+            Positions[Face->Vertices[0].PositionIndex - 1],
+            Positions[Face->Vertices[1].PositionIndex - 1],
+            Positions[Face->Vertices[2].PositionIndex - 1]
+        };
+    }
+    
+    Assert(TriIndex == TriCount);
+    
+    return {.Memory = Triangles, .Count = TriCount};
+}
+
 static void
 LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
 {
@@ -281,6 +339,7 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
                 Mesh->MaterialLibrary = CurrentMaterialLibrary;
                 Mesh->MaterialName = CurrentMaterialName;
                 Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+                Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator);
                 
                 CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
                 Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
@@ -328,6 +387,7 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
                 Mesh->MaterialLibrary = CurrentMaterialLibrary;
                 Mesh->MaterialName = CurrentMaterialName;
                 Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+                Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator);
                 
                 CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
                 Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
@@ -368,6 +428,7 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
         Mesh->MaterialLibrary = CurrentMaterialLibrary;
         Mesh->MaterialName = CurrentMaterialName;
         Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+        Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator);
         
         CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
         Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));

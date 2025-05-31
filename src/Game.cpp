@@ -16,6 +16,113 @@
 #include "Resources.cpp"
 #include "Water.cpp"
 
+struct ray_collision
+{
+    bool DidHit;
+    f32 T;
+    v3 P;
+    v3 Normal;
+};
+
+static ray_collision
+RayTriangleIntersect(triangle Tri, v3 Ray0, v3 RayDir)
+{
+    ray_collision Result = {};
+    
+    f32 Epsilon = 0.000001f;
+    v3 Edge1 = Tri.Positions[1] - Tri.Positions[0];
+    v3 Edge2 = Tri.Positions[2] - Tri.Positions[0];
+    v3 H = CrossProduct(RayDir, Edge2);
+    f32 A = DotProduct(Edge1, H);
+    if (A > -Epsilon && A < Epsilon)
+    {
+        return Result;
+    }
+    
+    f32 F = 1.0f / A;
+    v3 S = Ray0 - Tri.Positions[0];
+    f32 U = F * DotProduct(S, H);
+    if (U < 0.0f || U > 1.0f)
+    {
+        return Result;
+    }
+    
+    v3 Q = CrossProduct(S, Edge1);
+    f32 V = F * DotProduct(RayDir, Q);
+    if (V < 0.0f || U + V > 1.0f)
+    {
+        return Result;
+    }
+    
+    Result.T = F * DotProduct(Edge2, Q);
+    if (Result.T > Epsilon)
+    {
+        Result.DidHit = true;
+        Result.P = Ray0 + RayDir * Result.T;
+        Result.Normal = CrossProduct(Edge1, Edge2);
+    }
+    
+    return Result;
+}
+
+static v3
+TransformPoint(v3 P, m4x4 Transform)
+{
+    v4 Transformed_ = V4(P, 1.0f) * Transform;
+    v3 Transformed = Transformed_.XYZ * (1.0f / Transformed_.W);
+    return Transformed;
+}
+
+static ray_collision
+RayModelIntersection(game_assets* Assets, model* Model, m4x4 WorldTransform, v3 Ray0, v3 RayDir)
+{
+    ray_collision Result = {};
+    
+    m4x4 Transform = Model->LocalTransform * WorldTransform;
+    
+    for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
+    {
+        mesh* Mesh = Assets->Meshes + Model->Meshes[MeshIndex];
+        for (triangle Tri : Mesh->Triangles)
+        {
+            Tri = {
+                TransformPoint(Tri.Positions[0], Transform),
+                TransformPoint(Tri.Positions[1], Transform),
+                TransformPoint(Tri.Positions[2], Transform)
+            };
+            
+            ray_collision Collision = RayTriangleIntersect(Tri, Ray0, RayDir);
+            if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
+            {
+                Result = Collision;
+            }
+        }
+    }
+    return Result;
+}
+
+static ray_collision
+WorldCollision(game_state* Game, game_assets* Assets)
+{
+    ray_collision Result = {};
+    world* World = &Game->GlobalState.World;
+    model* Model = FindModel(Assets, "Hexagon");
+    
+    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    {
+        world_region* Region = World->Regions + RegionIndex;
+        m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
+        ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, Game->CameraDirection);
+        
+        if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
+        {
+            Result = Collision;
+        }
+    }
+    
+    return Result;
+}
+
 static v3 
 GetSkyColor(int Hour, int Minute) 
 {
@@ -622,6 +729,12 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     {
         DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup);
     }
+    
+    ray_collision Collision = WorldCollision(GameState, Assets);
+    Log("T = %f\n", Collision.T);
+    
+    PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(Collision.P.X, Collision.P.Y, Collision.P.Z));
+    //PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(0.0f, 0.0f, -0.5f));
     
     RenderWorld(&RenderGroup, GameState, Assets);
     

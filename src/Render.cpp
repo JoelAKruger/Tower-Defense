@@ -2,8 +2,7 @@ static void
 DrawOceanFloor(render_group* RenderGroup)
 {
     PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, 0.5f), V3(100.0f, 100.0f, 0.5f), V3(0, 0, -1));
-    //PushColor(RenderGroup, V4(0.05f, 0.075f, 0.1f, 1.0f))
-    PushColor(RenderGroup, V4(0.5f, 0.5f, 0.5f, 1.0f));;
+    PushColor(RenderGroup, V4(0.1f, 0.15f, 0.3f, 1.0f));
 }
 
 static void
