@@ -149,7 +149,7 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         } break;
         default:
         {
-            Assert(0);
+            //Assert(0); This has been uncommented so the announcement message doesn't crash the server
         }
     }
     

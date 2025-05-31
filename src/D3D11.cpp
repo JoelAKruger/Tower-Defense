@@ -407,7 +407,7 @@ static inline DXGI_FORMAT ChannelCountToDXGIFormat(int Channels)
 static void
 CreateSamplers()
 {
-    ID3D11SamplerState* Samplers[2] = {};
+    ID3D11SamplerState* Samplers[3] = {};
     
     //Create default texture sampler
     D3D11_SAMPLER_DESC SamplerDesc = {};
@@ -426,9 +426,9 @@ CreateSamplers()
     //Create default shadow map comparison
     SamplerDesc = {};
     SamplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR; //TODO: Add low graphics option (point filtering)
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
     SamplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS; // Shadow map comparison
     SamplerDesc.MinLOD = 0;
     SamplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
@@ -437,9 +437,25 @@ CreateSamplers()
     
     D3D11Device->CreateSamplerState(&SamplerDesc, Samplers + 1);
     
-    D3D11DeviceContext->PSSetSamplers(0, 2, Samplers);
+    //Create shadow texture sampler
+    SamplerDesc = {};
+    SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.BorderColor[0] = 1.0f; //This is different
+    SamplerDesc.BorderColor[1] = 0.0f;
+    SamplerDesc.BorderColor[2] = 0.0f;
+    SamplerDesc.BorderColor[3] = 0.0f;
+    SamplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    
+    D3D11Device->CreateSamplerState(&SamplerDesc, Samplers + 2);
+    
+    
+    D3D11DeviceContext->PSSetSamplers(0, ArrayCount(Samplers), Samplers);
     SafeRelease(Samplers[0]);
     SafeRelease(Samplers[1]);
+    SafeRelease(Samplers[2]);
 }
 
 static texture

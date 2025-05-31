@@ -44,7 +44,8 @@ Texture2D default_texture : register(t0);
 SamplerState default_sampler : register(s0);
 
 Texture2D shadow_map : register(t1);
-SamplerComparisonState shadow_sampler : register(s1);
+SamplerComparisonState shadow_comparer : register(s1);
+SamplerState shadow_sampler : register(s2);
 
 Texture2D reflection_texture   : register(t2);
 Texture2D refraction_texture   : register(t3);
@@ -332,7 +333,7 @@ float GetShadowValue(float2 shadow_uv, float pixel_depth)
 {
 	float light = 0.0f;
 	
-	float lit = shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - 0.000f);
+	float lit = shadow_map.SampleCmpLevelZero(shadow_comparer, shadow_uv, pixel_depth - 0.000f);
 
 	return 1.0f - lit;
 }
@@ -347,7 +348,13 @@ float GetShadowValueBetter(float2 shadow_uv, float pixel_depth, float3 normal)
 		return 1.0f;
 	}
 
-	float lit = shadow_map.SampleCmpLevelZero(shadow_sampler, shadow_uv, pixel_depth - 0.001f);
+	float lit = (float)shadow_map.SampleCmpLevelZero(shadow_comparer, shadow_uv, pixel_depth - 0.001f);
+
+	float sample = shadow_map.Sample(shadow_sampler, shadow_uv);
+	if (sample == 1.0f)
+	{
+		lit = 1.0f;
+	}
 
 	if (lit > 0.0f)
 	{

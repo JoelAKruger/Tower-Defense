@@ -47,7 +47,7 @@ StringsAreEqual(string A, string B)
 static u8*
 Alloc(memory_arena* Arena, u64 Size)
 {
-    Size = (Size + 7) & ~0b111;
+    Arena->Used = (Arena->Used + 7) & ~0b111;
     
 	u8* Result = Arena->Buffer + Arena->Used;
 	Arena->Used += Size;
@@ -443,3 +443,23 @@ Unlock(mutex* Mutex)
 {
     Mutex->Value = 0;
 }
+
+template <typename type>
+u64
+IndexOfCounted(type Target, type* Array, u64 Count)
+{
+    for (u64 I = 0; I < Count; I++)
+    {
+        if (Array[I] == Target)
+        {
+            return I;
+        }
+    }
+    
+    Assert(0);
+    
+    return 0;
+}
+
+//Index of target in array
+#define IndexOf(target, array) IndexOfCounted(target, array, ArrayCount(array))

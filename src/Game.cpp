@@ -378,6 +378,7 @@ struct cursor_target
 
 static cursor_target
 GetCursorTarget(game_state* Game, game_input* Input)
+
 {
     cursor_target Result = {};
     

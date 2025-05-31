@@ -2,7 +2,8 @@ static void
 DrawOceanFloor(render_group* RenderGroup)
 {
     PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, 0.5f), V3(100.0f, 100.0f, 0.5f), V3(0, 0, -1));
-    PushColor(RenderGroup, V4(0.01f, 0.01f, 0.05f, 1.0f));
+    //PushColor(RenderGroup, V4(0.05f, 0.075f, 0.1f, 1.0f))
+    PushColor(RenderGroup, V4(0.5f, 0.5f, 0.5f, 1.0f));;
 }
 
 static void
@@ -153,7 +154,7 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     
     m4x4 LightViewTransform = ViewTransform(LightP, LightP + LightDirection);
     
-    f32 MinWorldZ = -0.2f;
+    f32 MinWorldZ = -0.4f;
     f32 MaxWorldZ = 0.2f;
     
     v3 WorldPositions[8] = {

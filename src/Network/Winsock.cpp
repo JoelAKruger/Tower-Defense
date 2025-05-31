@@ -13,17 +13,18 @@ struct client
     dynamic_array<packet> ReceivedPackets;
 };
 
-static client* Client;
+static client* Client_;
 
 //Client API
 static void 
 ClientNetworkThread(char* Hostname)
 {
     memory_arena PermArena = Win32CreateMemoryArena(Megabytes(1), PERMANENT);
-    Assert(!Client);
-    Client = AllocStruct(&PermArena, client);
+    Assert(!Client_);
+    client* Client = AllocStruct(&PermArena, client);
     Client->ReceivedPacketArena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
     Client->ReceivedPackets = {.Arena = &Client->ReceivedPacketArena};
+    Client_ = Client;
     
     WSADATA WsaData = {};
     
@@ -56,48 +57,83 @@ ClientNetworkThread(char* Hostname)
         Client->Connected = true;
     }
     
+    /*
     u_long Mode = 1; // 1 = non-blocking, 0 = blocking
     ioctlsocket(Client->Socket, FIONBIO, &Mode);
+    */
+    
+    //INSANE HACK BELOW
+    u8 Message[32] = {};
+    packet Packet = {.Data = Message, .Length = sizeof(Message)};
+    SendToServer( Packet );
+    
+    while (true)
+    {
+        //Receive channel
+        channel Channel = {};
+        recv(Client->Socket, (char*) &Channel, sizeof(Channel), MSG_PEEK);
+        
+        int Bytes = 0;
+        switch (Channel)
+        {
+            case Channel_Message:   Bytes = sizeof(server_packet_message); break;
+            case Channel_GameState: Bytes = sizeof(server_packet_game_state); break;
+            default: Assert(0);
+        }
+        
+        //Get buffer
+        Lock(&Client->Mutex);
+        
+        u8* Buffer = Alloc(&Client->ReceivedPacketArena, Bytes);
+        
+        Unlock(&Client->Mutex);
+        
+        //Receive data
+        recv(Client->Socket, (char*) Buffer, Bytes, MSG_WAITALL);
+        
+        //Add packet to the array
+        Lock(&Client->Mutex);
+        
+        packet Packet = {.Data = Buffer, .Length = (u64) Bytes};
+        Append(&Client->ReceivedPackets, Packet);
+        
+        Unlock(&Client->Mutex);
+    }
 }
 
 static span<packet> 
 PollClientConnection(memory_arena* Arena)
 {
+    client* Client = Client_;
+    
     dynamic_array<packet> Result = {.Arena = Arena};
     
     if (Client && Client->Connected)
     {
-        while (true)
+        Lock(&Client->Mutex);
+        
+        for (u64 PacketIndex = 0; PacketIndex < Client->ReceivedPackets.Count; PacketIndex++)
         {
-            int RecvResult = recv(Client->Socket, (char*)ArenaAt(Arena), ArenaFreeSpace(Arena), 0);
+            //Copy data from network thread to logic thread
+            packet Packet = Client->ReceivedPackets[PacketIndex];
+            Packet.Data = Copy(Arena, Packet.Data, Packet.Length);
+            Append(&Result, Packet);
             
-            if (RecvResult > 0)
-            {
-                u64 Bytes = (u64)RecvResult;
-                packet Packet = {.Data = ArenaAt(Arena), .Length = Bytes, .SenderIndex = 0};
-                Arena->Used += Bytes;
-                Append(&Result, Packet);
-                
-                Log("Client received data\n");
-            }
-            else if (RecvResult == 0)
-            {
-                //Connection closed
-                Log("Closed\n");
-                break;
-            }
-            else
-            {
-                //Would block (or another error)
-                break;
-            }
+            Log("Client received packet\n");
         }
+        
+        Clear(&Client->ReceivedPackets);
+        
+        ResetArena(&Client->ReceivedPacketArena);
+        
+        Unlock(&Client->Mutex);
     }
     
     return ToSpan(Result);
 }
 void SendToServer(packet Packet)
 {
+    client* Client = Client_;
     if (Client && Client->Connected)
     {
         send(Client->Socket, (char*)Packet.Data, Packet.Length, 0);
@@ -105,6 +141,7 @@ void SendToServer(packet Packet)
 }
 bool IsConnectedToServer()
 {
+    client* Client = Client_;
     return (Client && Client->Connected);
 }
 
@@ -119,7 +156,7 @@ struct server
     u64 ClientCount;
 };
 
-server* Server;
+server* Server_;
 
 //-------Server API--------
 
@@ -128,10 +165,11 @@ void ServerNetworkThread()
 {
     memory_arena PermArena = Win32CreateMemoryArena(Megabytes(1), PERMANENT);
     
-    Assert(!Server);
-    Server = AllocStruct(&PermArena, server);
+    Assert(!Server_);
+    server* Server = AllocStruct(&PermArena, server);
     Server->ReceivedPacketArena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
     Server->ReceivedPackets = {.Arena = &Server->ReceivedPacketArena};
+    Server_ = Server;
     
     WSADATA WsaData = {};
     WSAStartup(MAKEWORD(2,2), &WsaData);
@@ -186,7 +224,7 @@ void ServerNetworkThread()
                 packet Packet = {
                     .Data = Server->ReceivedPacketArena.Buffer + Server->ReceivedPacketArena.Used, 
                     .Length = (u64)Bytes, 
-                    .SenderIndex = 0
+                    .SenderIndex = IndexOf(Socket, Server->Clients)
                 };
                 
                 Server->ReceivedPacketArena.Used += Bytes;
@@ -204,6 +242,7 @@ void ServerNetworkThread()
 //Called from server logic thread
 span<packet> PollServerConnection(memory_arena* Arena)
 {
+    server* Server = Server_;
     dynamic_array<packet> Result = {.Arena = Arena};
     //Log("Polled\n");
     
@@ -233,6 +272,7 @@ span<packet> PollServerConnection(memory_arena* Arena)
 
 void ServerSendPacket(packet Packet, u64 ClientIndex)
 {
+    server* Server = Server_;
     Assert(ClientIndex < Server->ClientCount);
     send(Server->Clients[ClientIndex], (char*)Packet.Data, Packet.Length, 0);
     
@@ -241,6 +281,7 @@ void ServerSendPacket(packet Packet, u64 ClientIndex)
 
 void ServerBroadcastPacket(packet Packet)
 {
+    server* Server = Server_;
     for (u64 ClientIndex = 0; ClientIndex < Server->ClientCount; ClientIndex++)
     {
         send(Server->Clients[ClientIndex], (char*)Packet.Data, Packet.Length, 0);
