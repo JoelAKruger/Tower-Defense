@@ -92,19 +92,18 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
     
     Log("Server: Request!\n");
     
-    //TODO: This is not strictly necessary (e.g. a player typing in chat)
-    Assert(SenderIndex == Game->PlayerTurnIndex);
-    
     switch (Request->Type)
     {
         case Request_StartGame:
         {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
             CreateWorld(&Game->World, Game->PlayerCount);
             Game->GameStarted = true;
             *FlushWorld = true;
         } break;
         case Request_PlaceTower:
         {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
             int Cost = 5;
             player* Player = Game->Players + Game->PlayerTurnIndex;
             bool CanPlace = (Player->Credits >= Cost);
@@ -135,12 +134,14 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         } break;
         case Request_EndTurn:
         {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
             PlayRound(Game, &ServerPackets);
             Game->PlayerTurnIndex = (Game->PlayerTurnIndex + 1) % Game->PlayerCount;
             *FlushWorld = true;
         } break;
         case Request_TargetTower:
         {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
             //TODO: Use getters that check for permission
             tower* Tower = Game->Towers + Request->TowerIndex;
             Tower->Target = Request->TargetP;
