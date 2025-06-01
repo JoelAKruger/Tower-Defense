@@ -12,26 +12,38 @@ DrawWater(render_group* RenderGroup, game_state* Game)
     PushShader(RenderGroup, Shader_Water);
 }
 
+
 static void
 DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 {
+    int D = 80;
+    
     //East
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[2], V3(100, 100, -100), V3(100, -100, -100), V3(100, -100, 100), V3(100, 100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[2], V3(D, D, -D), V3(D, -D, -D), V3(D, -D, D), V3(D, D, D), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushColor(RenderGroup, V4(1.05f, 1.05f, 1.05f, 1.0f));
+    
     //North
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[1], V3(-100, 100, -100), V3(100, 100, -100), V3(100, 100, 100), V3(-100, 100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[1], V3(-D, D, -D), V3(D, D, -D), V3(D, D, D), V3(-D, D, D), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushColor(RenderGroup, V4(1.05f, 1.05f, 1.05f, 1.0f));
+    
     //South
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[3], V3(100, -100, -100), V3(-100, -100, -100), V3(-100, -100, 100), V3(100, -100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[3], V3(D, -D, -D), V3(-D, -D, -D), V3(-D, -D, D), V3(D, -D, D), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushColor(RenderGroup, V4(1.05f, 1.05f, 1.05f, 1.0f));
+    
     //West
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[4], V3(-100, -100, -100), V3(-100, 100, -100), V3(-100, 100, 100), V3(-100, -100, 100), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[4], V3(-D, -D, -D), V3(-D, D, -D), V3(-D, D, D), V3(-D, -D, D), V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0));
+    PushColor(RenderGroup, V4(1.05f, 1.05f, 1.05f, 1.0f));
+    
     //Up
-    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], V3(-100, 100, -100), V3(-100, -100, -100), V3(100, -100, -100),  V3(100, 100, -100),  V2(0, 0), V2(0, 1), V2(1, 1), V2(1, 0));
+    PushTexturedRect(RenderGroup, Assets->Skybox.Textures[0], V3(-D, D, -D), V3(-D, -D, -D), V3(D, -D, -D),  V3(D, D, -D),  V2(0, 0), V2(0, 1), V2(1, 1), V2(1, 0));
+    PushColor(RenderGroup, V4(1.05f, 1.05f, 1.05f, 1.0f));
 }
 
 static void
 DrawRegionOutline(render_group* RenderGroup, entity* Region)
 {
     Assert(Region->Type == Entity_WorldRegion);
-
+    
     v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = Region->P.Z - 0.001f;
@@ -228,9 +240,9 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         }
     }
     
-    if (Game->HoveringRegionIndex)
+    if (Game->HoveringRegion)
     {
-        DrawRegionOutline(RenderGroup, World->Entities + Game->HoveringRegionIndex);
+        DrawRegionOutline(RenderGroup, Game->HoveringRegion);
     }
     
     DrawTowers(RenderGroup, Game, Assets);

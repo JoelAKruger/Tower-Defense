@@ -412,9 +412,9 @@ CreateSamplers()
     //Create default texture sampler
     D3D11_SAMPLER_DESC SamplerDesc = {};
     SamplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+    SamplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SamplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+    SamplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
     SamplerDesc.BorderColor[0] = 0.0f;
     SamplerDesc.BorderColor[1] = 0.0f;
     SamplerDesc.BorderColor[2] = 0.0f;

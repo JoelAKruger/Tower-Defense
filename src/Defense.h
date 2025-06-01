@@ -215,8 +215,9 @@ struct game_state
     //Valid when mode is Mode_TowerPOV
     tower* TowerPerspective;
     
+    entity* HoveringRegion;
     u32 HoveringRegionIndex;
-
+    
     //Placing tower
     f32 TowerPlaceIndicatorZ;
     

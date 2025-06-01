@@ -2,7 +2,7 @@ static v2
 GetRegionVertex(entity* Region, i32 Index)
 {
     Assert(Region->Type == Entity_WorldRegion);
-
+    
     v2 Offsets[6] = {
         {0.0f, 1.0f},
         {0.86603f, 0.5f},
@@ -11,10 +11,10 @@ GetRegionVertex(entity* Region, i32 Index)
         {-0.86603f, -0.5f},
         {-0.86603f, 0.5f}
     };
-
+    
     Assert(Region->Type == Entity_WorldRegion);
     u32 VertexIndex = (ArrayCount(Offsets) + Index) % (ArrayCount(Offsets));
-
+    
     v2 Result = Region->P.XY + Region->Size * Offsets[VertexIndex];
     return Result;
 }
@@ -43,7 +43,7 @@ static bool
 InRegion(entity* Region, v2 WorldPos)
 {
     Assert(Region->Type == Entity_WorldRegion);
-
+    
     v2 A0 = WorldPos;
     
     v2 A1 = Region->P.XY;
@@ -68,7 +68,7 @@ static f32
 DistanceInsideRegion(entity* Region, v2 P)
 {
     Assert(Region->Type == Entity_WorldRegion);
-
+    
     f32 MinDistance = 1000.0f;
     for (u32 VertexIndex = 0; VertexIndex < 6; VertexIndex++)
     {
@@ -210,7 +210,7 @@ static void
 AddEntity(world* World, entity Entity)
 {
     Assert(World->EntityCount < ArrayCount(World->Entities));
-
+    
     World->Entities[World->EntityCount++] = Entity;
 }
 
@@ -266,7 +266,7 @@ CreateWorld(world* World, u64 PlayerCount)
             AddEntity(World, Region);
         }
     }
-        
+    
     GenerateFoliage(World, &Arena);
 }
 
@@ -347,7 +347,7 @@ GenerateFoliage(world* World, memory_arena* Arena)
     f32 MinDistance = 0.05f;
     f32 MinDistanceInsideRegion = 0.02f;
     
-    for (int Index = 0; Index < 512; Index++)
+    for (int Index = 0; Index < 512;)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
@@ -364,6 +364,7 @@ GenerateFoliage(world* World, memory_arena* Arena)
                 Foliage.P = P;
                 
                 AddEntity(World, Foliage);
+                Index++;
             }
         }
     }

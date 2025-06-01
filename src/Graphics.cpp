@@ -186,6 +186,7 @@ PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2
     Command->Shader = Shader_Texture;
     Command->Texture = Texture;
     Command->ModelTransform = IdentityTransform();
+    Command->Color = V4(1,1,1,1);
 }
 
 static void

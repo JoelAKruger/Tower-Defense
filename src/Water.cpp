@@ -12,7 +12,7 @@ PointOnLand(world* World, v2 P)
     for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
         entity* Region = World->Entities + RegionIndex;
-        if (Region->Type == Entity_WorldRegion && IsWater(Region) && InRegion(Region, P))
+        if (Region->Type == Entity_WorldRegion && !IsWater(Region) && InRegion(Region, P))
         {
             Result = true;
             break;

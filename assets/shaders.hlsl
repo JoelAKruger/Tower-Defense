@@ -260,8 +260,10 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	float2 distortion = distortion0 * (1.0f - t) + distortion1 * t;
 	float specular = specular0 * (1.0f - t) + specular1 * t;
 
-	reflect_coords += distortion * distortion_strength;
-	refract_coords += distortion * distortion_strength;
+	float distortion_amount = refractive_factor;
+
+	reflect_coords += distortion_amount * distortion * distortion_strength;
+	refract_coords += distortion_amount * distortion * distortion_strength;
 	reflect_coords = clamp(reflect_coords, 0.001f, 0.999f);
 	refract_coords = clamp(refract_coords, 0.001f, 0.999f);
 
@@ -311,6 +313,12 @@ float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
 	return float4((ambient + (1.0f - shadow) * (diffuse + specular)) * color, 1.0f);
 }
 
+float sdr_to_hdr(float value)
+{
+	if (value < 0.95f) return value;
+	return pow(value, 4) + 0.14f;
+}
+
 float4 PixelShader_Texture(VS_Output_Default input) : SV_Target
 {
 	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
@@ -319,7 +327,7 @@ float4 PixelShader_Texture(VS_Output_Default input) : SV_Target
 		discard;
 	}
 
-	float4 sample = default_texture.Sample(default_sampler, input.uv);
+	float4 sample = color * default_texture.Sample(default_sampler, input.uv);
 	if (sample.a == 0.0f)
 	{
 		discard;

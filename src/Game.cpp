@@ -118,7 +118,7 @@ static ray_collision
 WorldCollision(game_state* Game, game_assets* Assets)
 {
     TimeFunction;
-
+    
     ray_collision Result = {};
     world* World = &Game->GlobalState.World;
     
@@ -502,15 +502,18 @@ static cursor_target
 GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
 {
     cursor_target Result = {};
-
+    
     ray_collision NearestCollision = {};
     world* World = &Game->GlobalState.World;
-
+    
     f32 WorldZ = 2.0f;
-    v3 CursorP = ScreenToWorld(Game, Input->Cursor, WorldZ);
+    
+    v2 Cursor = (Game->Mode == Mode_TowerPOV) ? V2(0, 0) : Input->Cursor;
+    
+    v3 CursorP = ScreenToWorld(Game, Cursor, WorldZ);
     
     v3 RayDirection = CursorP - Game->CameraP;
-
+    
     for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
         entity* Entity = World->Entities + RegionIndex;
@@ -641,6 +644,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     cursor_target Cursor = GetCursorTarget(GameState, Assets, Input);
     GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
+    GameState->HoveringRegion = Cursor.HoveringRegion;
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Allocator.Transient;
@@ -699,7 +703,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         }
         
         GameState->TowerPlaceIndicatorZ = LinearInterpolate(GameState->TowerPlaceIndicatorZ, TargetZ, 40.0f * SecondsPerFrame);
-
+        
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
         if (Placeable)
