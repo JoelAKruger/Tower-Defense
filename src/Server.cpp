@@ -4,6 +4,7 @@ static void
 InitialiseServerState(global_game_state* Game)
 {
     Game->MaxPlayers = ServerMaxPlayers;
+    Game->World.EntityCount = 1; //Entity index 0 is invalid
 }
 
 static void

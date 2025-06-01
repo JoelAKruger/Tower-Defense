@@ -1,9 +1,29 @@
 static v2
-GetVertex(world_region* Region, i32 Index)
+GetRegionVertex(entity* Region, i32 Index)
 {
-    u32 VertexIndex = (ArrayCount(Region->Vertices) + Index) % (ArrayCount(Region->Vertices));
-    v2 Result = Region->Vertices[VertexIndex];
+    Assert(Region->Type == Entity_WorldRegion);
+
+    v2 Offsets[6] = {
+        {0.0f, 1.0f},
+        {0.86603f, 0.5f},
+        {0.86603f, -0.5f},
+        {0.0f, -1.0f},
+        {-0.86603f, -0.5f},
+        {-0.86603f, 0.5f}
+    };
+
+    Assert(Region->Type == Entity_WorldRegion);
+    u32 VertexIndex = (ArrayCount(Offsets) + Index) % (ArrayCount(Offsets));
+
+    v2 Result = Region->P.XY + Region->Size * Offsets[VertexIndex];
     return Result;
+}
+
+static bool
+IsWater(entity* Entity)
+{
+    Assert(Entity->Type == Entity_WorldRegion);
+    return (Entity->Owner == -1);
 }
 
 static bool
@@ -20,18 +40,20 @@ LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
 }
 
 static bool
-InRegion(world_region* Region, v2 WorldPos)
+InRegion(entity* Region, v2 WorldPos)
 {
+    Assert(Region->Type == Entity_WorldRegion);
+
     v2 A0 = WorldPos;
     
-    v2 A1 = Region->Center;
+    v2 A1 = Region->P.XY;
     
     u32 IntersectCount = 0;
     
-    for (u32 TestIndex = 0; TestIndex < ArrayCount(Region->Vertices); TestIndex++)
+    for (u32 TestIndex = 0; TestIndex < 6; TestIndex++)
     {
-        v2 B0 = GetVertex(Region, TestIndex);
-        v2 B1 = GetVertex(Region, TestIndex + 1);
+        v2 B0 = GetRegionVertex(Region, TestIndex);
+        v2 B1 = GetRegionVertex(Region, TestIndex + 1);
         
         if (LinesIntersect(A0, A1, B0, B1))
         {
@@ -43,13 +65,15 @@ InRegion(world_region* Region, v2 WorldPos)
 }
 
 static f32
-DistanceInsideRegion(world_region* Region, v2 P)
+DistanceInsideRegion(entity* Region, v2 P)
 {
+    Assert(Region->Type == Entity_WorldRegion);
+
     f32 MinDistance = 1000.0f;
-    for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
+    for (u32 VertexIndex = 0; VertexIndex < 6; VertexIndex++)
     {
-        v2 A = GetVertex(Region, VertexIndex);
-        v2 B = GetVertex(Region, VertexIndex + 1);
+        v2 A = GetRegionVertex(Region, VertexIndex);
+        v2 B = GetRegionVertex(Region, VertexIndex + 1);
         
         v2 AP = P - A;
         v2 AB = B - A;
@@ -180,68 +204,15 @@ SetColor(tri* Tri, v4 Color)
     Tri->Vertices[2].Color = Color;
 }
 
-static void
-CreateWorldVertexBuffer(game_assets* Assets, world* World, memory_arena* Arena)
-{
-    if (World->RegionCount == 0)
-    {
-        return;
-    }
-    
-    u64 TriangleCount = (World->RegionCount - 1) * 3 * ArrayCount(world_region::Vertices);
-    static_array<tri> Triangles = AllocStaticArray(Arena, tri, TriangleCount);
-    
-    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
-    {
-        world_region* Region = World->Regions + RegionIndex;
-        f32 Z = Region->Z;
-        v4 Color = Region->Color;
-        
-        //Top
-        for (u64 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
-        {
-            tri Tri = {};
-            
-            Tri.Vertices[0].P = V3(Region->Center, Z);
-            Tri.Vertices[1].P = V3(GetVertex(Region, VertexIndex), Z);
-            Tri.Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), Z);
-            
-            SetColor(&Tri, Color);
-            Append(&Triangles, Tri);
-        }
-        
-        //Sides
-        for (u64 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
-        {
-            tri Tri0 = {};
-            tri Tri1 = {};
-            
-            Tri0.Vertices[0].P = V3(GetVertex(Region, VertexIndex), Z);
-            Tri0.Vertices[1].P = V3(GetVertex(Region, VertexIndex), 2.0f);
-            Tri0.Vertices[2].P = V3(GetVertex(Region, VertexIndex + 1), 2.0f);
-            
-            Tri1.Vertices[0].P = V3(GetVertex(Region, VertexIndex + 1), 2.0f);
-            Tri1.Vertices[1].P = V3(GetVertex(Region, VertexIndex + 1), Z);
-            Tri1.Vertices[2].P = V3(GetVertex(Region, VertexIndex), Z);
-            
-            SetColor(&Tri0, Color);
-            SetColor(&Tri1, Color);
-            Append(&Triangles, Tri0);
-            Append(&Triangles, Tri1);
-        }
-    }
-    
-    Assert(Triangles.Count == Triangles.Capacity);
-    
-    CalculateModelVertexNormals(Triangles.Memory, Triangles.Count);
-    
-    renderer_vertex_buffer WorldVertexBuffer = CreateVertexBuffer(Triangles.Memory, Triangles.Count * sizeof(tri), 
-                                                                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
-    
-    LoadVertexBuffer(Assets, "World", WorldVertexBuffer);
-}
-
 void GenerateFoliage(world* World, memory_arena* Arena);
+
+static void 
+AddEntity(world* World, entity Entity)
+{
+    Assert(World->EntityCount < ArrayCount(World->Entities));
+
+    World->Entities[World->EntityCount++] = Entity;
+}
 
 static void
 CreateWorld(world* World, u64 PlayerCount)
@@ -266,8 +237,6 @@ CreateWorld(world* World, u64 PlayerCount)
     World->Rows = 13;
     World->Cols = 13;
     
-    f32 HexagonRadius = 0.5f * World->Height / World->Rows;
-    
     //Region 0 is invalid
     int RegionIndex = 1;
     
@@ -275,38 +244,29 @@ CreateWorld(world* World, u64 PlayerCount)
     {
         for (int X = 0; X < World->Cols; X++)
         {
-            Assert(RegionIndex < ArrayCount(World->Regions));
-            world_region* Region = World->Regions + RegionIndex;
+            entity Region = {.Type = Entity_WorldRegion};
             
-            Assert(ArrayCount(Region->Vertices) == 6);
-            Region->Center = WorldPosFromGridPos(World, X, Y);
-            Region->Vertices[0] = Region->Center + HexagonRadius * V2(0.0f, 1.0f);
-            Region->Vertices[1] = Region->Center + HexagonRadius * V2(0.86603f, 0.5f);
-            Region->Vertices[2] = Region->Center + HexagonRadius * V2(0.86603f, -0.5f);
-            Region->Vertices[3] = Region->Center + HexagonRadius * V2(0.0f, -1.0f);
-            Region->Vertices[4] = Region->Center + HexagonRadius * V2(-0.86603f, -0.5f);
-            Region->Vertices[5] = Region->Center + HexagonRadius * V2(-0.86603f, 0.5f);
+            Region.Size = 0.5f * World->Height / World->Rows;
+            Region.P.XY = WorldPosFromGridPos(World, X, Y);
             
-            f32 RegionHeight = GetWorldHeight(Region->Center, Seed);
-            Region->Z = 0.25f * (1.0f - RegionHeight);
+            f32 RegionHeight = GetWorldHeight(Region.P.XY, Seed);
+            Region.P.Z = 0.25f * (1.0f - RegionHeight);
             
             if (RegionHeight < 0.5f)
             {
-                Region->IsWater = true;
-                Region->Color = GetWaterColor(RegionHeight);
+                Region.Owner = -1;
+                Region.Color = GetWaterColor(RegionHeight);
             }
             else
             {
-                Region->OwnerIndex = RandomBetween(0, PlayerCount - 1);
-                Region->Color = Colors[Region->OwnerIndex];
+                Region.Owner = RandomBetween(0, PlayerCount - 1);
+                Region.Color = Colors[Region.Owner];
             }
             
-            RegionIndex++;
+            AddEntity(World, Region);
         }
     }
-    
-    World->RegionCount = RegionIndex;
-    
+        
     GenerateFoliage(World, &Arena);
 }
 
@@ -323,18 +283,18 @@ DistanceToNearestFoliage(foliage* Foliage, int FoliageCount, v3 P)
     return MinDistance;
 }
 
-static world_region*
+static entity*
 GetWorldRegion(world* World, v2 P)
 {
-    world_region* Result = 0;
+    entity* Result = 0;
     
-    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
-        world_region* Region = World->Regions + RegionIndex;
+        entity* Entity = World->Entities + EntityIndex;
         
-        if (InRegion(Region, P))
+        if (Entity->Type == Entity_WorldRegion && InRegion(Entity, P))
         {
-            Result = Region;
+            Result = Entity;
             break;
         }
     }
@@ -388,16 +348,16 @@ GenerateFoliage(world* World, memory_arena* Arena)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
-        world_region* Region = GetWorldRegion(World, TestP);
+        entity* Region = GetWorldRegion(World, TestP);
         
         if (Region)
         {
-            v3 P = V3(TestP, Region->Z);
+            v3 P = V3(TestP, Region->P.Z);
             if (DistanceToNearestFoliage(World->Foliage, FoliageCount, P) >= MinDistance &&
                 DistanceInsideRegion(Region, P.XY) >= MinDistanceInsideRegion)
             {
                 foliage Foliage = {};
-                Foliage.Type = RandomFoliage(Region->IsWater);
+                Foliage.Type = RandomFoliage(IsWater(Region));
                 Foliage.P = P;
                 
                 World->Foliage[FoliageCount++] = Foliage;

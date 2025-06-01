@@ -110,15 +110,18 @@ WorldCollision(game_state* Game, game_assets* Assets)
     world* World = &Game->GlobalState.World;
     model* Model = FindModel(Assets, "Hexagon");
     
-    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
-        world_region* Region = World->Regions + RegionIndex;
-        m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
-        ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, Game->CameraDirection);
-        
-        if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
+        entity* Region = World->Entities + RegionIndex;
+        if (Region->Type == Entity_WorldRegion)
         {
-            Result = Collision;
+            m4x4 Transform = TranslateTransform(Region->P.X, Region->P.Y, Region->P.Z);
+            ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, Game->CameraDirection);
+            
+            if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
+            {
+                Result = Collision;
+            }
         }
     }
     
@@ -264,7 +267,7 @@ SetMode(game_state* GameState, game_mode NewMode)
 static v3
 GetTowerP(game_state* Game, tower* Tower)
 {
-    f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
+    f32 TowerZ = Game->GlobalState.World.Entities[Tower->RegionIndex].P.Z;
     v3 Result = V3(Tower->P, TowerZ);
     return Result;
 }
@@ -273,7 +276,7 @@ static void
 RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena* Arena)
 {
     tower* Tower = Game->GlobalState.Towers + TowerIndex;
-    f32 TowerZ = Game->GlobalState.World.Regions[Tower->RegionIndex].Z;
+    f32 TowerZ = Game->GlobalState.World.Entities[Tower->RegionIndex].P.Z;
     
     //Draw new target
     if (Game->TowerEditMode == TowerEdit_SetTarget)
@@ -397,7 +400,6 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
         } break;
         case Message_NewWorld:
         {
-            CreateWorldVertexBuffer(Assets, &GameState->GlobalState.World, TArena);
             CreateWaterFlowMap(&GameState->GlobalState.World, Assets, TArena);
         } break;
         default:
@@ -482,7 +484,7 @@ struct cursor_target
 {
     v2 WorldP;
     u64 HoveringRegionIndex;
-    world_region* HoveringRegion;
+    entity* HoveringRegion;
 };
 
 static cursor_target
@@ -504,18 +506,21 @@ GetCursorTarget(game_state* Game, game_input* Input)
     
     world* World = &Game->GlobalState.World;
     
-    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
-        world_region* Region = World->Regions + RegionIndex;
+        entity* Region = World->Entities + RegionIndex;
         
-        v3 WorldP = ScreenToWorld(Game, MouseP, Region->Z);
-        
-        f32 DistanceToRegionSq = LengthSq(V3(Region->Center, Region->Z) - Game->CameraP);
-        
-        if ((DistanceToRegionSq < HoveringRegionDistanceSq) && InRegion(Region, WorldP.XY))
+        if (Region->Type == Entity_WorldRegion)
         {
-            HoveringRegionIndex= RegionIndex;
-            HoveringRegionDistanceSq = DistanceToRegionSq;
+            v3 WorldP = ScreenToWorld(Game, MouseP, Region->P.Z);
+            
+            f32 DistanceToRegionSq = LengthSq(Region->P - Game->CameraP);
+            
+            if ((DistanceToRegionSq < HoveringRegionDistanceSq) && InRegion(Region, WorldP.XY))
+            {
+                HoveringRegionIndex= RegionIndex;
+                HoveringRegionDistanceSq = DistanceToRegionSq;
+            }
         }
     }
     
@@ -523,8 +528,8 @@ GetCursorTarget(game_state* Game, game_input* Input)
     Result.HoveringRegionIndex = HoveringRegionIndex;
     if (Game->HoveringRegionIndex)
     {
-        Result.HoveringRegion = Game->GlobalState.World.Regions + Game->HoveringRegionIndex;
-        Result.WorldP = ScreenToWorld(Game, MouseP, Result.HoveringRegion->Z).XY;
+        Result.HoveringRegion = Game->GlobalState.World.Entities + Game->HoveringRegionIndex;
+        Result.WorldP = ScreenToWorld(Game, MouseP, Result.HoveringRegion->P.Z).XY;
     }
     else
     {
@@ -687,15 +692,15 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         v2 P = Cursor.WorldP;
         
         bool Placeable = (Cursor.HoveringRegion &&
-                          !Cursor.HoveringRegion->IsWater &&
-                          Cursor.HoveringRegion->OwnerIndex == GameState->MyClientID && 
+                          !IsWater(Cursor.HoveringRegion) &&
+                          Cursor.HoveringRegion->Owner == GameState->MyClientID && 
                           DistanceInsideRegion(Cursor.HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, Cursor.HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
         f32 Z = 0.25f;
         if (Cursor.HoveringRegion)
         {
-            Z = Cursor.HoveringRegion->Z;
+            Z = Cursor.HoveringRegion->P.Z;
         }
         
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -753,7 +758,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
         {
             tower* Tower = GameState->GlobalState.Towers + TowerIndex;
-            f32 TowerBaseZ = GameState->GlobalState.World.Regions[Tower->RegionIndex].Z;
+            f32 TowerBaseZ = GameState->GlobalState.World.Entities[Tower->RegionIndex].P.Z;
             
             v3 DrawP = V3(Tower->P, TowerBaseZ) + V3(0.0f, 0.0f, -0.07f);
             v2 ScreenP = WorldToScreen(GameState, DrawP);
@@ -772,13 +777,13 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     if (Cursor.HoveringRegion)
     {
         string RegionText = {};
-        if (Cursor.HoveringRegion->IsWater)
+        if (IsWater(Cursor.HoveringRegion))
         {
             RegionText = String("Ocean");
         }
         else
         {
-            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d", Cursor.HoveringRegion->OwnerIndex);
+            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d", Cursor.HoveringRegion->Owner);
         }
         
         f32 Width = GUIStringWidth(RegionText, 0.1f);

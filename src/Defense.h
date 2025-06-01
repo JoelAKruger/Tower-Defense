@@ -15,17 +15,36 @@ struct foliage
     v3 P;
 };
 
+/*
 struct world_region
 {
     //Defined relative to world
     v2 Center;
-    v2 Vertices[6];
+    v2 Vertices_[6];
     
     f32 Z;
     
     u32 OwnerIndex;
     
     bool IsWater;
+    v4 Color;
+};
+*/
+
+enum entity_type : u32
+{
+    Entity_Null,
+    Entity_WorldRegion,
+    Entity_Foliage
+};
+
+struct entity
+{
+    entity_type Type;
+    u32 ModelHandle;
+    f32 Size;
+    v3 P;
+    i32 Owner;
     v4 Color;
 };
 
@@ -36,8 +55,8 @@ struct world
     
     int Rows, Cols;
     
-    world_region Regions[256];
-    u32 RegionCount;
+    entity Entities[256];
+    u32 EntityCount;
     
     foliage Foliage[512];
 };

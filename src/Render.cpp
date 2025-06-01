@@ -28,20 +28,22 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 }
 
 static void
-DrawRegionOutline(render_group* RenderGroup, world_region* Region)
+DrawRegionOutline(render_group* RenderGroup, entity* Region)
 {
+    Assert(Region->Type == Entity_WorldRegion);
+
     v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
-    f32 Z = Region->Z - 0.001f;
+    f32 Z = Region->P.Z - 0.001f;
     
-    u32 VertexDrawCount = 6 * ArrayCount(Region->Vertices) + 2;
+    u32 VertexDrawCount = 6 * 6 + 2;
     vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
     
-    for (u32 VertexIndex = 0; VertexIndex < ArrayCount(Region->Vertices); VertexIndex++)
+    for (u32 VertexIndex = 0; VertexIndex < 6; VertexIndex++)
     {
-        v2 Vertex = GetVertex(Region, VertexIndex);
-        v2 PrevVertex = GetVertex(Region, VertexIndex - 1);
-        v2 NextVertex = GetVertex(Region, VertexIndex + 1);
+        v2 Vertex = GetRegionVertex(Region, VertexIndex);
+        v2 PrevVertex = GetRegionVertex(Region, VertexIndex - 1);
+        v2 NextVertex = GetRegionVertex(Region, VertexIndex + 1);
         
         v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
         v2 PerpB = UnitV(Perp(NextVertex - Vertex));
@@ -131,7 +133,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
     for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
         tower* Tower = Game->GlobalState.Towers + TowerIndex;
-        world_region* Region = Game->GlobalState.World.Regions + Tower->RegionIndex;
+        entity* Region = Game->GlobalState.World.Entities + Tower->RegionIndex;
         
         v4 RegionColor = Region->Color;
         
@@ -142,7 +144,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, Region->Z), Color, Tower->Rotation);
+        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, Region->P.Z), Color, Tower->Rotation);
     }
 }
 
@@ -204,18 +206,21 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawOceanFloor(RenderGroup);
     
     //PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
-    for (u64 RegionIndex = 1; RegionIndex < World->RegionCount; RegionIndex++)
+    for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
-        world_region* Region = World->Regions + RegionIndex;
-        m4x4 Transform = TranslateTransform(Region->Center.X, Region->Center.Y, Region->Z);
-        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
-        render_command* Command = Commands[0];
-        Command->Color = Region->Color;
+        entity* Region = World->Entities + RegionIndex;
+        if (Region->Type == Entity_WorldRegion)
+        {
+            m4x4 Transform = TranslateTransform(Region->P.X, Region->P.Y, Region->P.Z);
+            span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
+            render_command* Command = Commands[0];
+            Command->Color = Region->Color;
+        }
     }
     
     if (Game->HoveringRegionIndex)
     {
-        DrawRegionOutline(RenderGroup, Game->GlobalState.World.Regions + Game->HoveringRegionIndex);
+        DrawRegionOutline(RenderGroup, World->Entities + Game->HoveringRegionIndex);
     }
     
     DrawTowers(RenderGroup, Game, Assets);
