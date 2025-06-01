@@ -1,5 +1,6 @@
 void LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library);
 void LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path);
+void LoadObjectsFromFileForServer(game_assets* Assets, allocator Allocator, char* Path);
 
 static renderer_vertex_buffer
 CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
@@ -172,16 +173,23 @@ LoadAssets(allocator Allocator)
     LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
     
-    SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
     
-    SetModelLocalTransform(Assets, "Rock6_Cube.014", TranslateTransform(-25.553f, 0.0f, -21.882f) * ModelRotateTransform() * ScaleTransform(0.002f, 0.002f, 0.002f));
+    SetModelLocalTransform(Assets, "Rock6_Cube.014", TranslateTransform(-25.553f, 0.0f, -21.882f) * 
+                           ModelRotateTransform() * ScaleTransform(0.002f, 0.002f, 0.002f));
     
-    SetModelLocalTransform(Assets, "Bush2_Cube.046", TranslateTransform(2.067f, 0.0f, 0.0f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    SetModelLocalTransform(Assets, "Bush2_Cube.046", TranslateTransform(2.067f, 0.0f, 0.0f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
     
-    SetModelLocalTransform(Assets, "RibbonPlant2_Plane.079", TranslateTransform(1.82f, 0.0f, -13.517f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    SetModelLocalTransform(Assets, "RibbonPlant2_Plane.079", TranslateTransform(1.82f, 0.0f, -13.517f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
     
-    SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
-    SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
+    SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
+                           ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
@@ -203,6 +211,35 @@ LoadAssets(allocator Allocator)
         Log("Loaded model %s\n", Assets->Models[ModelIndex].Name.Text);
     }
 #endif
+    
+    return Assets;
+}
+
+static game_assets*
+LoadServerAssets(allocator Allocator)
+{
+    game_assets* Assets = AllocStruct(Allocator.Permanent, game_assets);
+    
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
+    
+    SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "Rock6_Cube.014", TranslateTransform(-25.553f, 0.0f, -21.882f) * 
+                           ModelRotateTransform() * ScaleTransform(0.002f, 0.002f, 0.002f));
+    
+    SetModelLocalTransform(Assets, "Bush2_Cube.046", TranslateTransform(2.067f, 0.0f, 0.0f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "RibbonPlant2_Plane.079", TranslateTransform(1.82f, 0.0f, -13.517f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * 
+                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+    
+    SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
+                           ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
     
     return Assets;
 }
@@ -436,6 +473,109 @@ LoadObjectsFromFile(game_assets* Assets, allocator Allocator, char* Path)
         Faces.Count = 0;
     }
 }
+
+static void
+LoadObjectsFromFileForServer(game_assets* Assets, allocator Allocator, char* Path)
+{
+    span<u8> File = LoadFile(Allocator.Transient, Path);
+    file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
+    
+    model* CurrentModel = 0;
+    string CurrentObjectName = {};
+    
+    //For file
+    dynamic_array<v3> Positions = {};
+    Positions.Arena = Allocator.Transient;
+    
+    //For current mesh
+    dynamic_array<obj_file_face> Faces = {};
+    Faces.Arena = Allocator.Transient;
+    
+    while (!AtEnd(&Reader))
+    {
+        if (Consume(&Reader, "#")) {} //Comment
+        else if (Consume(&Reader, "mtllib ")) {} //New material
+        else if (Consume(&Reader, "o ")) //Object name -> new mesh then new model?
+        {
+            //TODO: This code is copied from below (fix)
+            if (Faces.Count > 0)
+            {
+                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh* Mesh = Assets->Meshes + MeshIndex;
+                Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
+                
+                Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator);
+                
+                CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
+                Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
+                
+                Faces.Count = 0;
+            }
+            
+            CurrentModel = Assets->Models + (Assets->ModelCount++);
+            Assert(Assets->ModelCount <= ArrayCount(Assets->Models));
+            
+            string Name = ParseString(&Reader);
+            CurrentModel->Name = CopyString(Allocator.Permanent, Name);
+        }
+        else if (Consume(&Reader, "v ")) //Vertex position
+        {
+            v3 P = ParseVector3(&Reader);
+            Append(&Positions, P);
+        }
+        else if (Consume(&Reader, "vn ")) {} //Vertex normal
+        else if (Consume(&Reader, "vt ")) {} //Vertex texcoord
+        else if (Consume(&Reader, "s "))  {} //Smooth shading (ignored)
+        else if (Consume(&Reader, "usemtl ")) //Material name -> New mesh?
+        {
+            if (Faces.Count > 0)
+            {
+                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh* Mesh = Assets->Meshes + MeshIndex;
+                Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
+                
+                Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator);
+                
+                CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
+                Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
+                
+                Faces.Count = 0;
+            }
+        }
+        else if (Consume(&Reader, "f "))
+        {
+            obj_file_face Face;
+            Face.Vertices[0] = ParseVertex(&Reader);
+            Consume(&Reader, " ");
+            Face.Vertices[1] = ParseVertex(&Reader);
+            Consume(&Reader, " ");
+            Face.Vertices[2] = ParseVertex(&Reader);
+            Append(&Faces, Face);
+        }
+        else
+        {
+            Assert(0);
+        }
+        
+        NextLine(&Reader);
+    }
+    
+    //TODO: This code is copied from above (fix)
+    if (Faces.Count > 0)
+    {
+        mesh_index MeshIndex = (Assets->MeshCount++);
+        mesh* Mesh = Assets->Meshes + MeshIndex;
+        Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
+        
+        Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator);
+        
+        CurrentModel->Meshes[CurrentModel->MeshCount++] = MeshIndex;
+        Assert(CurrentModel->MeshCount < ArrayCount(CurrentModel->Meshes));
+        
+        Faces.Count = 0;
+    }
+}
+
 
 static void
 LoadMaterialsFromFile(game_assets* Assets, allocator Allocator, char* Path, char* Library)

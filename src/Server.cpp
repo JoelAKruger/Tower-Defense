@@ -73,10 +73,13 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
             
             DoExplosion(Game, P, Radius);
             
+            /*
             server_packet_message Message = {Channel_Message, Message_PlayAnimation};
             Message.AnimationP = P;
             Message.AnimationRadius = Radius;
+            
             Append(MessageQueue, Message);
+*/
         }
         
         if (Tower->Type == Tower_Mine)
@@ -87,7 +90,7 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
 }
 
 static span<server_packet_message>
-ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Request, memory_arena* Arena, bool* FlushWorld)
+ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderIndex, player_request* Request, memory_arena* Arena, bool* FlushWorld)
 {
     dynamic_array<server_packet_message> ServerPackets = {.Arena = Arena};
     
@@ -95,6 +98,10 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
     
     switch (Request->Type)
     {
+        case Request_Hello:
+        {
+            //Hello!
+        } break;
         case Request_StartGame:
         {
             Assert(SenderIndex == Game->PlayerTurnIndex);
@@ -143,15 +150,41 @@ ServerHandleRequest(global_game_state* Game, u32 SenderIndex, player_request* Re
         case Request_TargetTower:
         {
             Assert(SenderIndex == Game->PlayerTurnIndex);
-            //TODO: Use getters that check for permission
+            //TODO: Check for permission
             tower* Tower = Game->Towers + Request->TowerIndex;
             Tower->Target = Request->TargetP;
             Tower->Rotation = VectorAngle(Tower->Target - Tower->P);
             *FlushWorld = true;
         } break;
+        case Request_Throw:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            
+            ray_collision WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection);
+            ray_collision Collision = WorldCollision(&Game->World, Assets, Request->P, Request->Direction);
+            
+            if (Collision.T != 0.0f)
+            {
+                animation Animation = {
+                    .P0 = Request->P, //Note: This is vulnerable to a client side cheat (lol as if)
+                    .P1 = Collision.P,
+                    .Duration = Length(Collision.P - Request->P)
+                };
+                
+                server_packet_message Packet = {
+                    .Channel = Channel_Message,
+                    .Type = Message_PlayAnimation,
+                    .Animation = Animation
+                };
+                
+                Append(&ServerPackets, Packet);
+            }
+            
+            Log("T = %f\n", Collision.T);
+        } break;
         default:
         {
-            //Assert(0); This has been uncommented so the announcement message doesn't crash the server
+            Assert(0);
         }
     }
     
@@ -168,9 +201,15 @@ SendPacket(player_request* Request)
 static void
 RunServer()
 {
-    memory_arena Arena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
+    memory_arena TArena = Win32CreateMemoryArena(Megabytes(64), TRANSIENT);
+    memory_arena PArena = Win32CreateMemoryArena(Megabytes(64), PERMANENT);
+    
+    allocator Allocator = {.Permanent = &PArena, .Transient = &TArena};
     
     CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ServerNetworkThread, 0, 0, 0);
+    
+    game_assets* LoadServerAssets(allocator Allocator);
+    game_assets* Assets = LoadServerAssets(Allocator);
     
     global_game_state Game = {};
     
@@ -180,7 +219,7 @@ RunServer()
     
     while (true)
     {
-        span<packet> Packets = PollServerConnection(&Arena);
+        span<packet> Packets = PollServerConnection(&TArena);
         
         for (packet Packet : Packets)
         {
@@ -202,8 +241,8 @@ RunServer()
                 
                 player_request* Request = (player_request*)Packet.Data;
                 
-                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, Packet.SenderIndex, 
-                                                                                Request, &Arena, &FlushWorld);
+                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, Assets, Packet.SenderIndex, 
+                                                                                Request, &TArena, &FlushWorld);
                 
                 for (server_packet_message& ServerPacket : ServerPackets)
                 {
@@ -222,6 +261,6 @@ RunServer()
             }
         }
         
-        ResetArena(&Arena);
+        ResetArena(&TArena);
     }
 }

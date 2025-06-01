@@ -16,14 +16,6 @@
 #include "Resources.cpp"
 #include "Water.cpp"
 
-struct ray_collision
-{
-    bool DidHit;
-    f32 T;
-    v3 P;
-    v3 Normal;
-};
-
 static ray_collision
 RayTriangleIntersect(triangle Tri, v3 Ray0, v3 RayDir)
 {
@@ -115,19 +107,16 @@ GetModel(game_assets* Assets, entity* Entity)
 }
 
 static ray_collision
-WorldCollision(game_state* Game, game_assets* Assets)
+WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
 {
-    TimeFunction;
-    
     ray_collision Result = {};
-    world* World = &Game->GlobalState.World;
     
     for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
         entity* Entity = World->Entities + RegionIndex;
         m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
         model* Model = GetModel(Assets, Entity);
-        ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, Game->CameraDirection);
+        ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
         
         if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
         {
@@ -353,15 +342,13 @@ DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input,
 }
 
 static void
-BeginAnimation(game_state* Game, v2 P, f32 Radius)
+BeginAnimation(game_state* Game, animation Animation)
 {
+    //TODO: Check for finished animations
+    
     if (Game->AnimationCount < ArrayCount(Game->Animations))
     {
-        animation* Animation = Game->Animations + (Game->AnimationCount++);
-        Animation->P = P;
-        Animation->Radius = Radius;
-        Animation->Duration = 0.6f;
-        Animation->t = 0.0f;
+        Game->Animations[Game->AnimationCount++] = Animation;
     }
     else
     {
@@ -370,16 +357,29 @@ BeginAnimation(game_state* Game, v2 P, f32 Radius)
 }
 
 static void
-TickAnimations(game_state* Game, f32 DeltaTime)
+TickAnimations(game_state* Game, render_group* RenderGroup, game_assets* Assets, f32 DeltaTime)
 {
     SetDepthTest(false);
     //TODO: Fix this
-    //SetShader(TextureShader);
     
     for (u32 AnimationIndex = 0; AnimationIndex < Game->AnimationCount; AnimationIndex++)
     {
         animation* Animation = Game->Animations + AnimationIndex;
         
+        v3 P = LinearInterpolate(Animation->P0, Animation->P1, Animation->t);
+        PushModelNew(RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(P));
+        
+        Animation->t += DeltaTime / Animation->Duration;
+        
+        if (Animation->t > 1.0f)
+        {
+            //Remove from the array
+            Game->Animations[AnimationIndex] = Game->Animations[Game->AnimationCount - 1];
+            AnimationIndex--;
+            Game->AnimationCount--;
+        }
+        
+        /*
         u32 FrameCount = 22;
         u32 Frame = (u32)(Animation->t * FrameCount);
         
@@ -392,7 +392,7 @@ TickAnimations(game_state* Game, f32 DeltaTime)
             *Animation = Game->Animations[Game->AnimationCount - 1];
             Game->AnimationCount--;
             AnimationIndex--;
-        }
+        }*/
     }
 }
 
@@ -407,7 +407,7 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
         } break;
         case Message_PlayAnimation:
         {
-            BeginAnimation(GameState, Message->AnimationP, Message->AnimationRadius);
+            BeginAnimation(GameState, Message->Animation);
         } break;
         case Message_NewWorld:
         {
@@ -503,7 +503,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
 {
     cursor_target Result = {};
     
-    ray_collision NearestCollision = {};
+    ray_collision NearestCollision = {.T = 1000000.0f};
     world* World = &Game->GlobalState.World;
     
     f32 WorldZ = 2.0f;
@@ -523,7 +523,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
             model* Model = GetModel(Assets, Entity);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
-            if ((Collision.DidHit == true && Collision.T < NearestCollision.T) || NearestCollision.DidHit == false)
+            if (Collision.DidHit == true && Collision.T < NearestCollision.T)
             {
                 NearestCollision = Collision;
                 Result.WorldP = Collision.P.XY;
@@ -635,6 +635,16 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
             GameState->CameraDirection = UnitV(LinearInterpolate(GameState->CameraDirection, GameState->CameraTargetDirection, CameraSpeed * SecondsPerFrame));
             GameState->FOV = LinearInterpolate(GameState->FOV, 90.0f, CameraSpeed * SecondsPerFrame);
+            
+            //Handle left click to throw
+            if (Input->ButtonDown & Button_LMouse)
+            {
+                player_request Request = {.Type = Request_Throw};
+                Request.TowerIndex = GameState->SelectedTowerIndex;
+                Request.Direction = GameState->CameraDirection;
+                Request.P = GameState->CameraP;
+                SendPacket(&Request);
+            }
         } break;
         default: Assert(0);
     }
@@ -651,7 +661,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     RenderGroup.Assets = Assets;
     
     //Draw animations
-    TickAnimations(GameState, SecondsPerFrame);
+    TickAnimations(GameState, &RenderGroup, Assets, SecondsPerFrame);
     
     f32 Time = GameState->Time / 1.0f;
     int CurrentHour = (int)Time % 24;

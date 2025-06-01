@@ -514,6 +514,12 @@ TranslateTransform(f32 X, f32 Y, f32 Z)
 }
 
 static m4x4
+TranslateTransform(v3 P)
+{
+    return TranslateTransform(P.X, P.Y, P.Z);
+}
+
+static m4x4
 ModelRotateTransform()
 {
     m4x4 Result = {};

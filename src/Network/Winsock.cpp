@@ -63,9 +63,9 @@ ClientNetworkThread(char* Hostname)
     */
     
     //INSANE HACK BELOW
-    u8 Message[32] = {};
-    packet Packet = {.Data = Message, .Length = sizeof(Message)};
-    SendToServer( Packet );
+    player_request Hello = {.Type = Request_Hello};
+    packet Packet = {.Data = (u8*) &Hello, .Length = sizeof(Hello)};
+    SendToServer(Packet);
     
     while (true)
     {

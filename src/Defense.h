@@ -112,11 +112,13 @@ struct global_game_state
 enum player_request_type
 {
     Request_Null,
+    Request_Hello,
     Request_StartGame,
     Request_Reset,
     Request_PlaceTower,
     Request_EndTurn,
-    Request_TargetTower
+    Request_TargetTower,
+    Request_Throw
 };
 
 struct player_request
@@ -131,6 +133,10 @@ struct player_request
     //Type == AimTower
     u32 TowerIndex;
     v2 TargetP;
+    
+    //Type == Throw ( also uses TowerIndex )
+    v3 P;
+    v3 Direction;
 };
 
 enum channel : u32
@@ -140,6 +146,14 @@ enum channel : u32
     Channel_GameState,
     
     Channel_Count
+};
+
+struct animation
+{
+    v3 P0;
+    v3 P1;
+    f32 Duration;
+    f32 t; // [0, 1]
 };
 
 enum server_message_type
@@ -160,8 +174,7 @@ struct server_packet_message
     u32 InitialiseClientID;
     
     //Message type = PlayAnimation
-    v2 AnimationP;
-    f32 AnimationRadius;
+    animation Animation;
 };
 
 struct server_packet_game_state
@@ -174,14 +187,6 @@ struct server_message_queue
 {
     server_packet_message Messages[32];
     u32 MessageCount;
-};
-
-struct animation
-{
-    v2 P;
-    f32 Radius;
-    f32 Duration;
-    f32 t; // [0, 1]
 };
 
 struct game_state
@@ -265,13 +270,20 @@ enum app_screen
     Screen_GameOver
 };
 
-
 struct app_state
 {
     app_screen CurrentScreen;
     
     game_state* GameState;
     game_assets* Assets;
+};
+
+struct ray_collision
+{
+    bool DidHit;
+    f32 T;
+    v3 P;
+    v3 Normal;
 };
 
 void InitialiseServerState(global_game_state* Game);
