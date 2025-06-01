@@ -104,6 +104,8 @@ RayModelIntersection(game_assets* Assets, model* Model, m4x4 WorldTransform, v3 
 static ray_collision
 WorldCollision(game_state* Game, game_assets* Assets)
 {
+    TimeFunction;
+
     ray_collision Result = {};
     world* World = &Game->GlobalState.World;
     model* Model = FindModel(Assets, "Hexagon");

@@ -19,6 +19,8 @@
 #include "stb_image.h"
 
 #include "Platform.h"
+#include "Timer.cpp"
+#include "Profiler.h"
 #include "Network.h"
 
 #include "D3D11.h"
@@ -29,7 +31,6 @@
 //#include "Network/GameNetworkingSockets.cpp"
 #include "Network/Winsock.cpp"
 
-#include "Timer.cpp"
 #include "Profiler.cpp"
 
 memory_arena GlobalDebugArena;
