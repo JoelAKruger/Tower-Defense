@@ -498,52 +498,35 @@ struct cursor_target
 };
 
 static cursor_target
-GetCursorTarget(game_state* Game, game_input* Input)
-
+GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
 {
     cursor_target Result = {};
-    
-    v2 MouseP = Input->Cursor;
-    
-    if (Game->Mode == Mode_TowerPOV)
-    {
-        MouseP = {0.0f, 0.0f};
-    }
-    
-    //TODO: This is rather inefficient
-    u64 HoveringRegionIndex = 0;
-    f32 HoveringRegionDistanceSq = FLT_MAX;
-    
+
+    ray_collision NearestCollision = {};
     world* World = &Game->GlobalState.World;
+
+    f32 WorldZ = 2.0f;
+    v3 CursorP = ScreenToWorld(Game, Input->Cursor, WorldZ);
     
+    v3 RayDirection = CursorP - Game->CameraP;
+
     for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
-        entity* Region = World->Entities + RegionIndex;
-        
-        if (Region->Type == Entity_WorldRegion)
+        entity* Entity = World->Entities + RegionIndex;
+        if (Entity->Type == Entity_WorldRegion)
         {
-            v3 WorldP = ScreenToWorld(Game, MouseP, Region->P.Z);
+            m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+            model* Model = GetModel(Assets, Entity);
+            ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
-            f32 DistanceToRegionSq = LengthSq(Region->P - Game->CameraP);
-            
-            if ((DistanceToRegionSq < HoveringRegionDistanceSq) && InRegion(Region, WorldP.XY))
+            if ((Collision.DidHit == true && Collision.T < NearestCollision.T) || NearestCollision.DidHit == false)
             {
-                HoveringRegionIndex= RegionIndex;
-                HoveringRegionDistanceSq = DistanceToRegionSq;
+                NearestCollision = Collision;
+                Result.WorldP = Collision.P.XY;
+                Result.HoveringRegionIndex = RegionIndex;
+                Result.HoveringRegion = Entity;
             }
         }
-    }
-    
-    Game->HoveringRegionIndex = HoveringRegionIndex;
-    Result.HoveringRegionIndex = HoveringRegionIndex;
-    if (Game->HoveringRegionIndex)
-    {
-        Result.HoveringRegion = Game->GlobalState.World.Entities + Game->HoveringRegionIndex;
-        Result.WorldP = ScreenToWorld(Game, MouseP, Result.HoveringRegion->P.Z).XY;
-    }
-    else
-    {
-        Result.WorldP = ScreenToWorld(Game, MouseP, 0.25f).XY;
     }
     
     return Result;
@@ -655,7 +638,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
     
-    cursor_target Cursor = GetCursorTarget(GameState, Input);
+    cursor_target Cursor = GetCursorTarget(GameState, Assets, Input);
+    GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
     
     render_group RenderGroup = {};
     RenderGroup.Arena = Allocator.Transient;
@@ -747,10 +731,10 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup);
     }
     
-    ray_collision Collision = WorldCollision(GameState, Assets);
-    Log("T = %f\n", Collision.T);
+    //ray_collision Collision = WorldCollision(GameState, Assets);
+    //Log("T = %f\n", Collision.T);
     
-    PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(Collision.P.X, Collision.P.Y, Collision.P.Z));
+    //PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(Collision.P.X, Collision.P.Y, Collision.P.Z));
     //PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(0.0f, 0.0f, -0.5f));
     
     RenderWorld(&RenderGroup, GameState, Assets);
