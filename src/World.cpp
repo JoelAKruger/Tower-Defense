@@ -271,13 +271,17 @@ CreateWorld(world* World, u64 PlayerCount)
 }
 
 static f32
-DistanceToNearestFoliage(foliage* Foliage, int FoliageCount, v3 P)
+DistanceToNearestFoliage(world* World, v3 P)
 {
     f32 MinDistance = FLT_MAX;
     
-    for (int FoliageIndex = 0; FoliageIndex < FoliageCount; FoliageIndex++)
+    for (int EntityIndex = 0; EntityIndex < World->EntityCount; EntityIndex++)
     {
-        MinDistance = Min(MinDistance, Length(P - Foliage[FoliageIndex].P));
+        entity* Entity = World->Entities + EntityIndex;
+        if (Entity->Type == Entity_Foliage)
+        {
+            MinDistance = Min(MinDistance, Length(P - Entity->P));
+        }
     }
     
     return MinDistance;
@@ -340,11 +344,10 @@ GetFoliageAssetName(foliage_type Type)
 static void
 GenerateFoliage(world* World, memory_arena* Arena)
 {
-    int FoliageCount = 0;
     f32 MinDistance = 0.05f;
     f32 MinDistanceInsideRegion = 0.02f;
     
-    while (FoliageCount < ArrayCount(World->Foliage))
+    for (int Index = 0; Index < 512; Index++)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
@@ -353,14 +356,14 @@ GenerateFoliage(world* World, memory_arena* Arena)
         if (Region)
         {
             v3 P = V3(TestP, Region->P.Z);
-            if (DistanceToNearestFoliage(World->Foliage, FoliageCount, P) >= MinDistance &&
+            if (DistanceToNearestFoliage(World, P) >= MinDistance &&
                 DistanceInsideRegion(Region, P.XY) >= MinDistanceInsideRegion)
             {
-                foliage Foliage = {};
-                Foliage.Type = RandomFoliage(IsWater(Region));
+                entity Foliage = {.Type = Entity_Foliage};
+                Foliage.FoliageType = RandomFoliage(IsWater(Region));
                 Foliage.P = P;
                 
-                World->Foliage[FoliageCount++] = Foliage;
+                AddEntity(World, Foliage);
             }
         }
     }

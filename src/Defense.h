@@ -9,28 +9,6 @@ enum foliage_type
     Foliage_Rock,
 };
 
-struct foliage
-{
-    foliage_type Type;
-    v3 P;
-};
-
-/*
-struct world_region
-{
-    //Defined relative to world
-    v2 Center;
-    v2 Vertices_[6];
-    
-    f32 Z;
-    
-    u32 OwnerIndex;
-    
-    bool IsWater;
-    v4 Color;
-};
-*/
-
 enum entity_type : u32
 {
     Entity_Null,
@@ -46,6 +24,7 @@ struct entity
     v3 P;
     i32 Owner;
     v4 Color;
+    foliage_type FoliageType;
 };
 
 struct world
@@ -55,10 +34,8 @@ struct world
     
     int Rows, Cols;
     
-    entity Entities[256];
+    entity Entities[1024];
     u32 EntityCount;
-    
-    foliage Foliage[512];
 };
 
 struct editor

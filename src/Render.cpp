@@ -206,15 +206,25 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawOceanFloor(RenderGroup);
     
     //PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
-    for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
+    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
-        entity* Region = World->Entities + RegionIndex;
-        if (Region->Type == Entity_WorldRegion)
+        entity* Entity = World->Entities + EntityIndex;
+        switch (Entity->Type)
         {
-            m4x4 Transform = TranslateTransform(Region->P.X, Region->P.Y, Region->P.Z);
-            span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
-            render_command* Command = Commands[0];
-            Command->Color = Region->Color;
+            case Entity_WorldRegion:
+            {
+                m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+                span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
+                render_command* Command = Commands[0];
+                Command->Color = Entity->Color;
+            } break;
+            case Entity_Foliage:
+            {
+                m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+                char* Model = GetFoliageAssetName(Entity->FoliageType);
+                PushModelNew(RenderGroup, Assets, Model, Transform);
+            } break;
+            default: Assert(0);
         }
     }
     
@@ -224,16 +234,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     }
     
     DrawTowers(RenderGroup, Game, Assets);
-    
-    
-    for (u64 FoliageIndex = 0; FoliageIndex < ArrayCount(World->Foliage); FoliageIndex++)
-    {
-        foliage Foliage = World->Foliage[FoliageIndex];
-        
-        m4x4 Transform = TranslateTransform(Foliage.P.X, Foliage.P.Y, Foliage.P.Z);
-        char* Model = GetFoliageAssetName(Foliage.Type);
-        PushModelNew(RenderGroup, Assets, Model, Transform);
-    }
     
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;
