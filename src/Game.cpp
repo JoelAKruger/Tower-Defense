@@ -101,6 +101,19 @@ RayModelIntersection(game_assets* Assets, model* Model, m4x4 WorldTransform, v3 
     return Result;
 }
 
+static model*
+GetModel(game_assets* Assets, entity* Entity)
+{
+    char* ModelName = "";
+    switch (Entity->Type)
+    {
+        case Entity_WorldRegion: ModelName = "Hexagon"; break;
+        case Entity_Foliage: ModelName = GetFoliageAssetName(Entity->FoliageType); break;
+        default: Assert(0);
+    }
+    return FindModel(Assets, ModelName);
+}
+
 static ray_collision
 WorldCollision(game_state* Game, game_assets* Assets)
 {
@@ -108,20 +121,17 @@ WorldCollision(game_state* Game, game_assets* Assets)
 
     ray_collision Result = {};
     world* World = &Game->GlobalState.World;
-    model* Model = FindModel(Assets, "Hexagon");
     
     for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
-        entity* Region = World->Entities + RegionIndex;
-        if (Region->Type == Entity_WorldRegion)
+        entity* Entity = World->Entities + RegionIndex;
+        m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+        model* Model = GetModel(Assets, Entity);
+        ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, Game->CameraDirection);
+        
+        if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
         {
-            m4x4 Transform = TranslateTransform(Region->P.X, Region->P.Y, Region->P.Z);
-            ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, Game->CameraDirection);
-            
-            if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
-            {
-                Result = Collision;
-            }
+            Result = Collision;
         }
     }
     
