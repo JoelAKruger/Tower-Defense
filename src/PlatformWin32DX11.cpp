@@ -42,6 +42,7 @@ static v2 GlobalCursorDelta;
 f32 GlobalAspectRatio;
 int GlobalOutputWidth;
 int GlobalOutputHeight;
+HWND GlobalWindow;
 
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
 
@@ -88,6 +89,8 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
                                ClientRect.right - ClientRect.left,
                                ClientRect.bottom - ClientRect.top,
                                0, 0, Instance, 0);
+    
+    GlobalWindow = Window;
     
     if (!Window)
     {
@@ -461,28 +464,37 @@ KeyboardAndMouseInputState(input_state* InputState, HWND Window)
     }
 }
 
-static void
-SetCursorState(bool State)
+void SetCursorState(bool ShouldShow)
 {
     static bool OldState = true;
     
-    if (State != OldState)
+    if (ShouldShow != OldState)
     {
-        ShowCursor(State);
-        
-        if (State)
+        if (!ShouldShow)
         {
-            POINT CursorPos = {};
-            GetCursorPos(&CursorPos);
-            RECT ClipRect = {CursorPos.x, CursorPos.x + 1, CursorPos.y, CursorPos.y + 1};
+            // Hide cursor
+            ShowCursor(FALSE);
+            
+            // Clip to window
+            RECT ClientRect;
+            GetClientRect(GlobalWindow, &ClientRect);
+            POINT TL = { ClientRect.left, ClientRect.top };
+            POINT BR = { ClientRect.right, ClientRect.bottom };
+            
+            ClientToScreen(GlobalWindow, &TL);
+            ClientToScreen(GlobalWindow, &BR);
+            
+            RECT ClipRect = { TL.x, TL.y, BR.x, BR.y };
             ClipCursor(&ClipRect);
         }
         else
         {
-            ClipCursor(0);
+            // Show cursor
+            ShowCursor(TRUE);
+            ClipCursor(nullptr);
         }
         
-        OldState = State;
+        OldState = ShouldShow;
     }
 }
 
