@@ -216,6 +216,9 @@ struct game_state
     tower* TowerPerspective;
     
     u32 HoveringRegionIndex;
+
+    //Placing tower
+    f32 TowerPlaceIndicatorZ;
     
     global_game_state GlobalState;
     u32 MyClientID;

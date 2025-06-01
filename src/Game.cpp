@@ -272,6 +272,7 @@ SetMode(game_state* GameState, game_mode NewMode)
     GameState->SelectedTowerIndex = {};
     GameState->TowerEditMode = {};
     GameState->TowerPerspective = {};
+    GameState->TowerPlaceIndicatorZ = 2.0f;
 }
 
 static v3
@@ -691,12 +692,14 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
                           DistanceInsideRegion(Cursor.HoveringRegion, P) > TowerRadius &&
                           NearestTowerTo(P, &GameState->GlobalState, Cursor.HoveringRegionIndex).Distance > 2.0f * TowerRadius);
         
-        f32 Z = 0.25f;
+        f32 TargetZ = 0.25f;
         if (Cursor.HoveringRegion)
         {
-            Z = Cursor.HoveringRegion->P.Z;
+            TargetZ = Cursor.HoveringRegion->P.Z;
         }
         
+        GameState->TowerPlaceIndicatorZ = LinearInterpolate(GameState->TowerPlaceIndicatorZ, TargetZ, 40.0f * SecondsPerFrame);
+
         v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
         
         if (Placeable)
@@ -711,8 +714,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         tower_type Type = GameState->PlacementType;
         
-        //Draw slightly above a normal tower to prevent z-fighting
-        DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, Z - 0.001f), Color);
+        //In steady-state, draw slightly above a normal tower to prevent z-fighting
+        DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, GameState->TowerPlaceIndicatorZ - 0.001f), Color);
         
         if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
         {
