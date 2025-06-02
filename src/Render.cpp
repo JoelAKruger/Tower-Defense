@@ -12,7 +12,6 @@ DrawWater(render_group* RenderGroup, game_state* Game)
     PushShader(RenderGroup, Shader_Water);
 }
 
-
 static void
 DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 {
@@ -40,22 +39,22 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 }
 
 static void
-DrawRegionOutline(render_group* RenderGroup, entity* Region)
+DrawRegionOutline(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
 {
-    Assert(Region->Type == Entity_WorldRegion);
+    v3 P = GetRegionP(Game, RegionIndex);
     
     v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
-    f32 Z = Region->P.Z - 0.001f;
+    f32 Z = P.Z - 0.001f;
     
     u32 VertexDrawCount = 6 * 6 + 2;
     vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
     
     for (u32 VertexIndex = 0; VertexIndex < 6; VertexIndex++)
     {
-        v2 Vertex = GetRegionVertex(Region, VertexIndex);
-        v2 PrevVertex = GetRegionVertex(Region, VertexIndex - 1);
-        v2 NextVertex = GetRegionVertex(Region, VertexIndex + 1);
+        v2 Vertex = GetLocalRegionVertex(Game, RegionIndex, VertexIndex);
+        v2 PrevVertex = GetLocalRegionVertex(Game, RegionIndex, VertexIndex - 1);
+        v2 NextVertex = GetLocalRegionVertex(Game, RegionIndex,  VertexIndex + 1);
         
         v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
         v2 PerpB = UnitV(Perp(NextVertex - Vertex));
@@ -225,7 +224,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         {
             case Entity_WorldRegion:
             {
-                m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+                v3 P = GetRegionP(Game, EntityIndex);
+                m4x4 Transform = TranslateTransform(P);
                 span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
                 render_command* Command = Commands[0];
                 Command->Color = Entity->Color;
@@ -242,7 +242,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     if (Game->HoveringRegion)
     {
-        DrawRegionOutline(RenderGroup, Game->HoveringRegion);
+        DrawRegionOutline(RenderGroup, Game, Game->HoveringRegionIndex);
     }
     
     DrawTowers(RenderGroup, Game, Assets);
@@ -291,7 +291,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
     
     //Refraction texture
-    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -WaterZ);
+    //The clip plane could probably be removed but having it might mean a few less calculations of the pixel shader
+    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -(WaterZ - 0.05f));
     Constants.WorldToClipTransform = WorldTransform;
     ClearOutput(Assets->WaterRefraction);
     SetOutput(Assets->WaterRefraction);

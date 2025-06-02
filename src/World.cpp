@@ -19,6 +19,27 @@ GetRegionVertex(entity* Region, i32 Index)
     return Result;
 }
 
+static v2
+GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
+{
+    v3 P = GetRegionP(Game, EntityIndex);
+    f32 Size = Game->GlobalState.World.Entities[EntityIndex].Size;
+    
+    v2 Offsets[6] = {
+        {0.0f, 1.0f},
+        {0.86603f, 0.5f},
+        {0.86603f, -0.5f},
+        {0.0f, -1.0f},
+        {-0.86603f, -0.5f},
+        {-0.86603f, 0.5f}
+    };
+    
+    u32 VertexIndex = (ArrayCount(Offsets) + Index) % (ArrayCount(Offsets));
+    
+    v2 Result = P.XY + Size * Offsets[VertexIndex];
+    return Result;
+}
+
 static bool
 IsWater(entity* Entity)
 {
@@ -176,7 +197,7 @@ static v4
 GetWaterColor(f32 Height)
 {
     v3 WaterColor = V3(0.17f, 0.23f, 0.46f);
-    v3 Color = WaterColor + 2.0f * (Height - 0.5f) * WaterColor;
+    v3 Color = WaterColor + 2.0f * (Height - 0.4f) * WaterColor;
     return V4(Color, 1.0f);
     //return V4(0.0f, 0.0f, 0.0f, 0.0f);
 }
@@ -217,6 +238,8 @@ AddEntity(world* World, entity Entity)
 static void
 CreateWorld(world* World, u64 PlayerCount)
 {
+    *World = {};
+    
     memory_arena Arena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
     
     Assert(PlayerCount <= 4);
@@ -250,17 +273,26 @@ CreateWorld(world* World, u64 PlayerCount)
             Region.P.XY = WorldPosFromGridPos(World, X, Y);
             
             f32 RegionHeight = GetWorldHeight(Region.P.XY, Seed);
-            Region.P.Z = 0.25f * (1.0f - RegionHeight);
+            Region.P.Z = 0.1f;
             
-            if (RegionHeight < 0.5f)
+            bool RegionIsWater = (RegionHeight < 0.5f);
+            if (RegionIsWater)
             {
                 Region.Owner = -1;
                 Region.Color = GetWaterColor(RegionHeight);
+                Region.P.Z = 0.25f * (1.0f - RegionHeight);
+                
+                //Prevent z-fighting with water
+                if (Region.P.Z < 0.13f)
+                {
+                    Region.P.Z = 0.13f;
+                }
             }
             else
             {
                 Region.Owner = RandomBetween(0, PlayerCount - 1);
                 Region.Color = Colors[Region.Owner];
+                Region.P.Z = 0.1f;
             }
             
             AddEntity(World, Region);

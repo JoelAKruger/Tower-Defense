@@ -16,6 +16,28 @@
 #include "Resources.cpp"
 #include "Water.cpp"
 
+static v3 
+GetRegionP(game_state* Game, u64 RegionIndex)
+{
+    Assert(RegionIndex < ArrayCount(Game->GlobalState.World.Entities));
+    
+    v3 P = {};
+    
+    local_entity_info LocalInfo = Game->LocalEntityInfo[RegionIndex];
+    if (LocalInfo.IsValid)
+    {
+        P = LocalInfo.P;
+    }
+    else
+    {
+        entity* Region = Game->GlobalState.World.Entities + RegionIndex;
+        Assert(Region->Type == Entity_WorldRegion);
+        P = Region->P;
+    }
+    
+    return P;
+}
+
 static ray_collision
 RayTriangleIntersect(triangle Tri, v3 Ray0, v3 RayDir)
 {
@@ -344,11 +366,18 @@ DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input,
 static void
 BeginAnimation(game_state* Game, animation Animation)
 {
-    //TODO: Check for finished animations
+    //TODO: For region animations, check that none already exist
     
     if (Game->AnimationCount < ArrayCount(Game->Animations))
     {
         Game->Animations[Game->AnimationCount++] = Animation;
+        
+        if (Animation.Type == Animation_Region)
+        {
+            //TODO: Check everything!
+            Game->LocalEntityInfo[Animation.EntityIndex].IsValid = true;
+            Game->LocalEntityInfo[Animation.EntityIndex].P = Animation.P0;
+        }
     }
     else
     {
@@ -366,33 +395,41 @@ TickAnimations(game_state* Game, render_group* RenderGroup, game_assets* Assets,
     {
         animation* Animation = Game->Animations + AnimationIndex;
         
-        v3 P = LinearInterpolate(Animation->P0, Animation->P1, Animation->t);
-        PushModelNew(RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(P));
-        
-        Animation->t += DeltaTime / Animation->Duration;
-        
-        if (Animation->t > 1.0f)
+        switch (Animation->Type)
         {
-            //Remove from the array
-            Game->Animations[AnimationIndex] = Game->Animations[Game->AnimationCount - 1];
-            AnimationIndex--;
-            Game->AnimationCount--;
+            case Animation_Projectile:
+            {
+                v3 P = LinearInterpolate(Animation->P0, Animation->P1, Animation->t);
+                PushModelNew(RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(P));
+                
+                Animation->t += DeltaTime / Animation->Duration;
+                
+                if (Animation->t > 1.0f)
+                {
+                    //Remove from the array
+                    Game->Animations[AnimationIndex] = Game->Animations[Game->AnimationCount - 1];
+                    AnimationIndex--;
+                    Game->AnimationCount--;
+                }
+                
+            } break;
+            case Animation_Region:
+            {
+                local_entity_info* LocalEntity = Game->LocalEntityInfo + Animation->EntityIndex;
+                v3 P = LinearInterpolate(LocalEntity->P, Animation->P1, 0.5f);
+                LocalEntity->P = P;
+                
+                f32 Epsilon = 0.00001f;
+                if (Length(Animation->P1 - P) < Epsilon)
+                {
+                    //Remove (TODO: Get rid of this)
+                    Game->Animations[AnimationIndex] = Game->Animations[Game->AnimationCount - 1];
+                    AnimationIndex--;
+                    Game->AnimationCount--;
+                }
+            } break;
+            default: Assert(0);
         }
-        
-        /*
-        u32 FrameCount = 22;
-        u32 Frame = (u32)(Animation->t * FrameCount);
-        
-        DrawExplosion(Animation->P, Game->ApproxTowerZ, Animation->Radius, Frame);
-        Animation->t += (DeltaTime / Animation->Duration);
-        
-        if (Animation->t >= 1.0f)
-        {
-            //Delete animation (move last to current)
-            *Animation = Game->Animations[Game->AnimationCount - 1];
-            Game->AnimationCount--;
-            AnimationIndex--;
-        }*/
     }
 }
 
@@ -411,7 +448,7 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
         } break;
         case Message_NewWorld:
         {
-            CreateWaterFlowMap(&GameState->GlobalState.World, Assets, TArena);
+            //CreateWaterFlowMap(&GameState->GlobalState.World, Assets, TArena);
         } break;
         default:
         {
@@ -457,6 +494,11 @@ DoTowerMenu(game_state* Game, game_assets* Assets, memory_arena* Arena)
     {
         SetMode(Game, Mode_Place);
         Game->PlacementType = Tower_Mine;
+    }
+    Panel.NextRow();
+    if (Panel.Button("Upgrade Cell"))
+    {
+        SetMode(Game, Mode_CellUpgrade);
     }
     Panel.NextRow();
     Panel.NextRow();
@@ -584,7 +626,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     switch (GameState->Mode)
     {
-        case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: //Top down perspective
+        //Top down perspective
+        case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade: 
         {
             SetCursorState(true);
             
@@ -678,81 +721,94 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     f32 TowerRadius = 0.03f;
     //Select tower
-    if (GameState->Mode == Mode_MyTurn)
+    
+    switch (GameState->Mode)
     {
-        if (Input->ButtonDown & Button_LMouse)
+        case Mode_MyTurn:
         {
-            nearest_tower NearestTower = NearestTowerTo(Cursor.WorldP, &GameState->GlobalState, GameState->HoveringRegionIndex);
-            if (NearestTower.Distance < TowerRadius)
+            if (Input->ButtonDown & Button_LMouse)
             {
-                SetMode(GameState, Mode_EditTower);
-                GameState->SelectedTower = NearestTower.Tower;
-                GameState->SelectedTowerIndex = NearestTower.Index;
+                nearest_tower NearestTower = NearestTowerTo(Cursor.WorldP, &GameState->GlobalState, GameState->HoveringRegionIndex);
+                if (NearestTower.Distance < TowerRadius)
+                {
+                    SetMode(GameState, Mode_EditTower);
+                    GameState->SelectedTower = NearestTower.Tower;
+                    GameState->SelectedTowerIndex = NearestTower.Index;
+                }
             }
-        }
-    }
-    
-    SetDepthTest(true);
-    SetShader(Assets->Shaders[Shader_Model]);
-    
-    //Draw new tower
-    if (GameState->Mode == Mode_Place)
-    {
-        v2 P = Cursor.WorldP;
+        } break;
         
-        bool Placeable = (Cursor.HoveringRegion &&
-                          !IsWater(Cursor.HoveringRegion) &&
-                          Cursor.HoveringRegion->Owner == GameState->MyClientID && 
-                          DistanceInsideRegion(Cursor.HoveringRegion, P) > TowerRadius &&
-                          NearestTowerTo(P, &GameState->GlobalState, Cursor.HoveringRegionIndex).Distance > 2.0f * TowerRadius);
-        
-        f32 TargetZ = 0.25f;
-        if (Cursor.HoveringRegion)
+        case Mode_Place:
         {
-            TargetZ = Cursor.HoveringRegion->P.Z;
-        }
+            v2 P = Cursor.WorldP;
+            
+            bool Placeable = (Cursor.HoveringRegion &&
+                              !IsWater(Cursor.HoveringRegion) &&
+                              Cursor.HoveringRegion->Owner == GameState->MyClientID && 
+                              DistanceInsideRegion(Cursor.HoveringRegion, P) > TowerRadius &&
+                              NearestTowerTo(P, &GameState->GlobalState, Cursor.HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+            
+            f32 TargetZ = 0.25f;
+            if (Cursor.HoveringRegion)
+            {
+                TargetZ = Cursor.HoveringRegion->P.Z;
+            }
+            
+            GameState->TowerPlaceIndicatorZ = LinearInterpolate(GameState->TowerPlaceIndicatorZ, TargetZ, 40.0f * SecondsPerFrame);
+            
+            v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
+            
+            if (Placeable)
+            {
+                v4 RegionColor = Cursor.HoveringRegion->Color;
+                
+                f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
+                Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
+            }
+            
+            Color = V4(0.7f * Color.RGB, 1.0f);
+            
+            tower_type Type = GameState->PlacementType;
+            
+            //In steady-state, draw slightly above a normal tower to prevent z-fighting
+            DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, GameState->TowerPlaceIndicatorZ - 0.001f), Color);
+            
+            if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+            {
+                player_request Request = {.Type = Request_PlaceTower};
+                
+                Request.TowerP = P;
+                Request.TowerRegionIndex = GameState->HoveringRegionIndex;
+                Request.TowerType = Type;
+                
+                SendPacket(&Request);
+            }
+        } break;
         
-        GameState->TowerPlaceIndicatorZ = LinearInterpolate(GameState->TowerPlaceIndicatorZ, TargetZ, 40.0f * SecondsPerFrame);
-        
-        v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
-        
-        if (Placeable)
+        case Mode_EditTower:
         {
-            v4 RegionColor = Cursor.HoveringRegion->Color;
-            
-            f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
-            Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
-        }
+            DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup);
+        } break;
         
-        Color = V4(0.7f * Color.RGB, 1.0f);
-        
-        tower_type Type = GameState->PlacementType;
-        
-        //In steady-state, draw slightly above a normal tower to prevent z-fighting
-        DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, GameState->TowerPlaceIndicatorZ - 0.001f), Color);
-        
-        if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+        case Mode_CellUpgrade:
         {
-            player_request Request = {.Type = Request_PlaceTower};
+            bool Upgradeable = (Cursor.HoveringRegion &&
+                                !IsWater(Cursor.HoveringRegion) &&
+                                Cursor.HoveringRegion->Owner == GameState->MyClientID);
             
-            Request.TowerP = P;
-            Request.TowerRegionIndex = GameState->HoveringRegionIndex;
-            Request.TowerType = Type;
-            
-            SendPacket(&Request);
-        }
+            if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+            {
+                player_request Request = {.Type = Request_UpgradeRegion};
+                
+                Request.RegionIndex = Cursor.HoveringRegionIndex;
+                
+                SendPacket(&Request);
+            }
+        } break;
+        
+        //Other cases may be handled below with GUI
+        default: ;
     }
-    
-    if (GameState->Mode == Mode_EditTower)
-    {
-        DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup);
-    }
-    
-    //ray_collision Collision = WorldCollision(GameState, Assets);
-    //Log("T = %f\n", Collision.T);
-    
-    //PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(Collision.P.X, Collision.P.Y, Collision.P.Z));
-    //PushModelNew(&RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(0.0f, 0.0f, -0.5f));
     
     RenderWorld(&RenderGroup, GameState, Assets);
     

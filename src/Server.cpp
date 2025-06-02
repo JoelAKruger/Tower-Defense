@@ -139,6 +139,8 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
         case Request_Reset:
         {
             Game->TowerCount = 0;
+            CreateWorld(&Game->World, Game->PlayerCount);
+            *FlushWorld = true;
         } break;
         case Request_EndTurn:
         {
@@ -166,6 +168,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             if (Collision.T != 0.0f)
             {
                 animation Animation = {
+                    .Type = Animation_Projectile,
                     .P0 = Request->P, //Note: This is vulnerable to a client side cheat (lol as if)
                     .P1 = Collision.P,
                     .Duration = Length(Collision.P - Request->P)
@@ -181,6 +184,33 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             }
             
             Log("T = %f\n", Collision.T);
+        } break;
+        case Request_UpgradeRegion:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            
+            //TODO: Verify index is valid and entity type is correct
+            entity* Region = Game->World.Entities + Request->RegionIndex;
+            v3 NewP = Region->P + V3(0.0f, 0.0f, -0.05f);
+            
+            //Play animation
+            animation Animation = {
+                .Type = Animation_Region,
+                .P0 = Region->P,
+                .P1 = NewP,
+                .EntityIndex = Request->RegionIndex
+            };
+            
+            server_packet_message Packet = {
+                .Channel = Channel_Message,
+                .Type = Message_PlayAnimation,
+                .Animation = Animation
+            };
+            
+            Append(&ServerPackets, Packet);
+            
+            Region->P = NewP;
+            *FlushWorld = true;
         } break;
         default:
         {

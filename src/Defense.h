@@ -9,6 +9,12 @@ enum foliage_type
     Foliage_Rock,
 };
 
+struct local_entity_info
+{
+    bool IsValid;
+    v3 P;
+};
+
 enum entity_type : u32
 {
     Entity_Null,
@@ -21,7 +27,7 @@ struct entity
     entity_type Type;
     u32 ModelHandle;
     f32 Size;
-    v3 P;
+    v3 P; //Can be overriden locally
     i32 Owner;
     v4 Color;
     foliage_type FoliageType;
@@ -56,6 +62,7 @@ enum game_mode
     Mode_Place,
     Mode_EditTower,
     Mode_TowerPOV,
+    Mode_CellUpgrade
 };
 
 enum tower_type
@@ -118,7 +125,8 @@ enum player_request_type
     Request_PlaceTower,
     Request_EndTurn,
     Request_TargetTower,
-    Request_Throw
+    Request_Throw,
+    Request_UpgradeRegion
 };
 
 struct player_request
@@ -137,6 +145,9 @@ struct player_request
     //Type == Throw ( also uses TowerIndex )
     v3 P;
     v3 Direction;
+    
+    //Type == UpgradeRegion
+    u32 RegionIndex;
 };
 
 enum channel : u32
@@ -148,12 +159,21 @@ enum channel : u32
     Channel_Count
 };
 
+enum animation_type : u32
+{
+    Animation_Null,
+    Animation_Projectile,
+    Animation_Region
+};
+
 struct animation
 {
+    animation_type Type;
     v3 P0;
     v3 P1;
     f32 Duration;
     f32 t; // [0, 1]
+    u32 EntityIndex;
 };
 
 enum server_message_type
@@ -229,6 +249,8 @@ struct game_state
     global_game_state GlobalState;
     u32 MyClientID;
     
+    local_entity_info LocalEntityInfo[ ArrayCount(world::Entities) ];
+    
     animation Animations[16];
     u32 AnimationCount;
     
@@ -290,3 +312,4 @@ void InitialiseServerState(global_game_state* Game);
 
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
+v3 GetRegionP(game_state* Game, u64 RegionIndex);
