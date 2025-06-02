@@ -233,8 +233,9 @@ GameInitialise(allocator Allocator)
     
     GameState->Mode = Mode_Waiting;
     
-    GameState->CameraP = {0.0f, -0.25, 0.0f};
-    GameState->CameraTargetP = {0.0f, -1.25f, 0.0f};
+    GameState->CameraP = {0.0f, -0.45f, 0.0f};
+    GameState->CameraTargetP = {0.0f, -0.45f, -0.8f};
+    GameState->TopDownCameraZoomLevel = 3; //z = -0.8f
     GameState->CameraDirection = UnitV(V3(0.0f, 2.0f, 5.5f));
     GameState->FOV = 50.0f;
     
