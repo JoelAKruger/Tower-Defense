@@ -140,6 +140,14 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
         {
             Game->TowerCount = 0;
             CreateWorld(&Game->World, Game->PlayerCount);
+            
+            // Reset local entity info
+            server_packet_message Packet = {
+                .Channel = Channel_Message, 
+                .Type = Message_ResetLocalEntityInfo
+            };
+            Append(&ServerPackets, Packet);
+            
             *FlushWorld = true;
         } break;
         case Request_EndTurn:

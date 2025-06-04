@@ -224,7 +224,7 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	float distortion_scaling = 800.0f;
 	float wave_speed = 0.03f;
 
-	float2 flow_map = water_flow_texture.Sample(default_sampler, input.uv / 100.0f).rg * 2.0f + float2(-1.0f, -1.0f);
+	float2 flow_map = water_flow_texture.Sample(default_sampler, input.uv / 80.0f).rg * 2.0f + float2(-1.0f, -1.0f);
 	float phase0 = frac((time / 5.0f));
 	float phase1 = frac((time / 5.0f) + 0.5f);
 	float t = abs(2.0 * frac(time / 5.0f) - 1.0);

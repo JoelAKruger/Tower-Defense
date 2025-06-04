@@ -145,6 +145,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
     {
         tower* Tower = Game->GlobalState.Towers + TowerIndex;
         entity* Region = Game->GlobalState.World.Entities + Tower->RegionIndex;
+        v3 RegionP = GetRegionP(Game, Tower->RegionIndex);
         
         v4 RegionColor = Region->Color;
         
@@ -155,7 +156,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
             Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, Region->P.Z), Color, Tower->Rotation);
+        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, RegionP.Z), Color, Tower->Rotation);
     }
 }
 
@@ -232,7 +233,11 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             } break;
             case Entity_Foliage:
             {
-                m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+                Assert(Entity->Owner);
+                
+                v3 RegionP = GetRegionP(Game, Entity->Owner);
+                
+                m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z);
                 char* Model = GetFoliageAssetName(Entity->FoliageType);
                 PushModelNew(RenderGroup, Assets, Model, Transform);
             } break;

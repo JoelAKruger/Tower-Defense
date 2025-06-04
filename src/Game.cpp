@@ -451,6 +451,13 @@ HandleMessageFromServer(server_packet_message* Message, game_state* GameState, g
         {
             //CreateWaterFlowMap(&GameState->GlobalState.World, Assets, TArena);
         } break;
+        case Message_ResetLocalEntityInfo:
+        {
+            for (u64 InfoIndex = 0; InfoIndex < ArrayCount(GameState->LocalEntityInfo); InfoIndex++)
+            {
+                GameState->LocalEntityInfo[InfoIndex] = {};
+            }
+        } break;
         default:
         {
             Assert(0);

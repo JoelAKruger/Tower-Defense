@@ -181,7 +181,8 @@ enum server_message_type
     Message_Null,
     Message_Initialise,
     Message_PlayAnimation,
-    Message_NewWorld
+    Message_NewWorld,
+    Message_ResetLocalEntityInfo, //Reset local entity info
 };
 
 struct server_packet_message

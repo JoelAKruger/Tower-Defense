@@ -182,18 +182,6 @@ GetWorldHeight(v2 P, u32 Seed)
 }
 
 static v4
-GetRandomPlayerColor()
-{
-    v4 PlayerColors[] = {
-        V4(0.4f, 0.8f, 0.35f, 1.0f),
-        V4(0.3f, 0.4f, 0.7f, 1.0f)
-    };
-    
-    v4 Result = PlayerColors[rand() % ArrayCount(PlayerColors)];
-    return Result;
-}
-
-static v4
 GetWaterColor(f32 Height)
 {
     v3 WaterColor = V3(0.17f, 0.23f, 0.46f);
@@ -247,9 +235,18 @@ CreateWorld(world* World, u64 PlayerCount)
     static u32 Seed = 2001;
     Seed++;
     
+    /*
     v4 Colors[4] = {
         V4(0.4f, 0.8f, 0.35f, 1.0f),
         V4(0.3f, 0.4f, 0.7f, 1.0f)
+    };
+*/
+    
+    v4 Colors[4] = {
+        V4(0.30f, 0.69f, 0.29f, 1.0f),
+        V4(0.60f, 0.31f, 0.64f, 1.0f),
+        V4(0.89f, 0.10f, 0.11f, 1.0f),
+        V4(1.00f, 0.50f, 0.00f, 1.0f)
     };
     
     World->X0 = -1.0f;
@@ -319,10 +316,10 @@ DistanceToNearestFoliage(world* World, v3 P)
     return MinDistance;
 }
 
-static entity*
-GetWorldRegion(world* World, v2 P)
+static u64
+GetWorldRegionIndex(world* World, v2 P)
 {
-    entity* Result = 0;
+    u64 Result = 0;
     
     for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
@@ -330,7 +327,7 @@ GetWorldRegion(world* World, v2 P)
         
         if (Entity->Type == Entity_WorldRegion && InRegion(Entity, P))
         {
-            Result = Entity;
+            Result = EntityIndex;
             break;
         }
     }
@@ -383,10 +380,12 @@ GenerateFoliage(world* World, memory_arena* Arena)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
-        entity* Region = GetWorldRegion(World, TestP);
+        u64 RegionIndex = GetWorldRegionIndex(World, TestP);
         
-        if (Region)
+        if (RegionIndex)
         {
+            entity* Region = World->Entities + RegionIndex;
+            
             v3 P = V3(TestP, Region->P.Z);
             if (DistanceToNearestFoliage(World, P) >= MinDistance &&
                 DistanceInsideRegion(Region, P.XY) >= MinDistanceInsideRegion)
@@ -394,6 +393,7 @@ GenerateFoliage(world* World, memory_arena* Arena)
                 entity Foliage = {.Type = Entity_Foliage};
                 Foliage.FoliageType = RandomFoliage(IsWater(Region));
                 Foliage.P = P;
+                Foliage.Owner = RegionIndex;
                 
                 AddEntity(World, Foliage);
                 Index++;
