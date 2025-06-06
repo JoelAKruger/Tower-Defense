@@ -35,6 +35,9 @@ cbuffer Constants : register(b5)
     float Metallic;
     float Occlusion;
     float3 FresnelColor;
+
+	float3 wind_direction;
+	float wind_strength;
 };
 
 float GetShadowValue(float2 shadow_uv, float pixel_depth);
@@ -58,10 +61,25 @@ Texture2D diffuse_texture  : register(t8);
 Texture2D normal_texture   : register(t9);
 Texture2D specular_texture : register(t10);
 
+float nvidia_wind_function(float t)
+{
+	float pi = 3.141592f;
+	//From: https://developer.nvidia.com/gpugems/gpugems3/part-i-geometry/chapter-6-gpu-generated-procedural-wind-animations-trees
+	float result = cos(t * pi) * cos(t * 3 * pi) * cos(t * 5 * pi) * cos(t * 7 * pi) + sin(t * 25 * pi) * 0.1f;
+	return result;
+}
+
 // Normal shaders
 VS_Output_Default MyVertexShader(VS_Input input) 
 {
 	float4 world_pos = mul(float4(input.pos, 1.0f), model_to_world);
+	world_pos = world_pos / world_pos.w;
+
+	float height = 0.1f * (0.1f - world_pos.z);
+	float sway = 2.0f * nvidia_wind_function(dot(world_pos.xy, float2(0.2, 0.3)) + time * 0.1f);
+	float3 offset = wind_direction * sway * height * wind_strength;
+	world_pos = world_pos + float4(offset, 0.0f);
+
 	float4 pos_clip = mul(world_pos, world_to_clip);
 
 	VS_Output_Default output;
@@ -72,7 +90,7 @@ VS_Output_Default MyVertexShader(VS_Input input)
 	output.color = input.color + color + float4(Albedo, 1);
 	output.normal = normalize((float3)mul(float4(input.normal, 0.0f), model_to_world));
 	output.uv = input.uv;
-	
+
 	return output;
 }
 

@@ -160,6 +160,9 @@ struct shader_constants
     
     v3 FresnelColor;
     float Pad5;
+    
+    v3 WindDirection;
+    f32 WindStrength;
 };
 
 // --- Platform Layer ---

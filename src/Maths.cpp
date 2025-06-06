@@ -213,6 +213,13 @@ inline v2 V2FromInt(int X, int Y)
 	return Res;
 }
 
+static inline v2
+PolarToRectangular(f32 Magnitude, f32 Angle)
+{
+    v2 Result = Magnitude * V2(cosf(Angle), sinf(Angle));
+    return Result;
+}
+
 v2 Hadamard(v2 A, v2 B)
 {
 	v2 Res = { A.X * B.X, A.Y * B.Y };
@@ -347,6 +354,32 @@ static inline f32
 RandomBetween(f32 Min, f32 Max)
 {
 	return Min + Random() * (Max - Min);
+}
+
+struct random_series
+{
+    u32 Value;
+};
+
+static void Next(random_series* Series)
+{
+    Series->Value = (16843009 * Series->Value + 826366247);
+}
+
+static random_series
+BeginRandom(u32 Seed)
+{
+    random_series Series = {.Value = Seed};
+    Next(&Series);
+    Next(&Series);
+    return Series;
+}
+
+inline float Random(random_series* Series)
+{
+    f32 Result = (float)Series->Value / (float)UINT32_MAX;
+    Next(Series);
+    return Result;
 }
 
 static inline f32 

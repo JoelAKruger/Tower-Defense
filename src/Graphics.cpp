@@ -273,20 +273,34 @@ PushNoShadow(render_group* RenderGroup)
 }
 
 static void
+PushWind(render_group* RenderGroup)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->EnableWind = true;
+}
+
+static void
 PushShader(render_group* RenderGroup, shader_index Shader)
 {
     render_command* Command = GetLastEntry(RenderGroup);
     Command->Shader = Shader;
 }
 
-/*
-A   B
-C   D
-*/
+static void
+PushMaterial(render_group* RenderGroup, char* Library, char* Name)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->Material = FindMaterial(RenderGroup->Assets, String(Library), String(Name));
+}
 
 static void 
 DrawQuad(v2 A, v2 B, v2 C, v2 D, v4 Color)
 {
+    /*
+A   B
+C   D
+*/
+    
     gui_vertex Vertices[4] = {
         {V2(A.X, A.Y), Color, V2(0, 1)},
         {V2(B.X, B.Y), Color, V2(1, 1)},
@@ -453,7 +467,8 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         material* Material = Command->Material;
         if (!Material)
         {
-            Material = &Assets->Materials[0];
+            material* DefaultMaterial = Assets->Materials + 0;
+            Material = DefaultMaterial;
         }
         
         Constants.Albedo = Material->DiffuseColor;
@@ -461,6 +476,18 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         Constants.Metallic = Material->SpecularFocus / 1000.0f;
         Constants.Occlusion = 1.0f;
         Constants.FresnelColor = Material->SpecularColor;
+        
+        //TODO: Definitely not optimal
+        if (Command->EnableWind)
+        {
+            Constants.WindDirection = UnitV(V3(1, 1, 0));
+            Constants.WindStrength = 1.0f;
+        }
+        else
+        {
+            Constants.WindDirection = {};
+            Constants.WindStrength = {};
+        }
         
         SetGraphicsShaderConstants(Constants);
         

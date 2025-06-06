@@ -19,7 +19,8 @@ enum entity_type : u32
 {
     Entity_Null,
     Entity_WorldRegion,
-    Entity_Foliage
+    Entity_Foliage,
+    Entity_Farm
 };
 
 struct entity
@@ -29,6 +30,7 @@ struct entity
     f32 Size;
     v3 P; //Can be overriden locally
     i32 Owner;
+    i32 Parent;
     v4 Color;
     foliage_type FoliageType;
 };

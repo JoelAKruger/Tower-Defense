@@ -111,7 +111,7 @@ GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
     //Create depth buffer
     D3D11_TEXTURE2D_DESC DepthBufferDesc;
     FrameBuffer->GetDesc(&DepthBufferDesc);
-    DepthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    DepthBufferDesc.Format = DXGI_FORMAT_D32_FLOAT; //DXGI_FORMAT_D24_UNORM_S8_UINT;
     DepthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
     
     ID3D11Texture2D* DepthBuffer;

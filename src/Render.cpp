@@ -45,12 +45,12 @@ DrawRegionOutline(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
     
     v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
-    f32 Z = P.Z - 0.001f;
+    f32 Z = P.Z - 0.002f;
     
     u32 VertexDrawCount = 6 * 6 + 2;
     vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
     
-    for (u32 VertexIndex = 0; VertexIndex < 6; VertexIndex++)
+    for (int VertexIndex = 0; VertexIndex < 6; VertexIndex++)
     {
         v2 Vertex = GetLocalRegionVertex(Game, RegionIndex, VertexIndex);
         v2 PrevVertex = GetLocalRegionVertex(Game, RegionIndex, VertexIndex - 1);
@@ -208,6 +208,35 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     return LightTransform;
 }
 
+static void
+DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
+{
+    v3 P = GetRegionP(Game, RegionIndex);
+    v4 Color = {}; //V4(0.5f * V3(0.44f, 0.31f, 0.22f), 1.0f); 
+    v3 Normal = V3(0.0f, 0.0f, -1.0f);
+    f32 Z = P.Z - 0.001f;
+    
+    u32 VertexDrawCount = 3 * 6;
+    vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
+    
+    for (int TriangleIndex = 0; TriangleIndex < 6; TriangleIndex++)
+    {
+        v2 VertexA = GetLocalRegionVertex(Game, RegionIndex, TriangleIndex);
+        v2 VertexB = GetLocalRegionVertex(Game, RegionIndex, TriangleIndex - 1);
+        
+        
+        Vertices[TriangleIndex * 3 + 0] = {P, Normal, Color};
+        Vertices[TriangleIndex * 3 + 1] = {V3(VertexB, Z), Normal, Color};
+        Vertices[TriangleIndex * 3 + 2] = {V3(VertexA, Z), Normal, Color};
+    }
+    
+    PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
+                 D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Model);
+    PushNoShadow(RenderGroup);
+    PushShader(RenderGroup, Shader_Model);
+    PushMaterial(RenderGroup, "TowerDefense", "Dirt");
+}
+
 static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets)
 {
     world* World = &Game->GlobalState.World;
@@ -233,13 +262,33 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             } break;
             case Entity_Foliage:
             {
-                Assert(Entity->Owner);
+                Assert(Entity->Parent);
                 
-                v3 RegionP = GetRegionP(Game, Entity->Owner);
+                v3 RegionP = GetRegionP(Game, Entity->Parent);
                 
                 m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z);
                 char* Model = GetFoliageAssetName(Entity->FoliageType);
                 PushModelNew(RenderGroup, Assets, Model, Transform);
+            } break;
+            case Entity_Farm:
+            {
+                Assert(Entity->Parent);
+                
+                v3 RegionP = GetRegionP(Game, Entity->Parent);
+                DrawDirt(RenderGroup, Game, Entity->Parent);
+                
+                random_series Series = BeginRandom(EntityIndex);
+                
+                for (int GrassIndex = 0; GrassIndex < 64; GrassIndex++)
+                {
+                    f32 Distance = 0.7f * World->Entities[Entity->Owner].Size * Random(&Series);
+                    f32 Angle = 2 * Pi * Random(&Series);
+                    v3 P = RegionP + V3(PolarToRectangular(Distance, Angle), 0.0f);
+                    m4x4 Transform = TranslateTransform(P);
+                    char* Model = "GrassPatch101_Plane.040";
+                    PushModelNew(RenderGroup, Assets, Model, Transform);
+                    PushWind(RenderGroup);
+                }
             } break;
             default: Assert(0);
         }

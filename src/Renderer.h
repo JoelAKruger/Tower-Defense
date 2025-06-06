@@ -83,6 +83,7 @@ struct render_command
     material* Material;
     bool DisableDepthTest;
     bool DisableShadows;
+    bool EnableWind;
 };
 
 struct font_asset
@@ -97,7 +98,7 @@ struct render_group
 {
     game_assets* Assets;
     memory_arena* Arena;
-    render_command Commands[1024];
+    render_command Commands[2048];
     u32 CommandCount;
 };
 

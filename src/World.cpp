@@ -215,12 +215,16 @@ SetColor(tri* Tri, v4 Color)
 
 void GenerateFoliage(world* World, memory_arena* Arena);
 
-static void 
+static u64 
 AddEntity(world* World, entity Entity)
 {
     Assert(World->EntityCount < ArrayCount(World->Entities));
     
+    u64 Result = World->EntityCount;
+    
     World->Entities[World->EntityCount++] = Entity;
+    
+    return Result;
 }
 
 static void
@@ -292,7 +296,18 @@ CreateWorld(world* World, u64 PlayerCount)
                 Region.P.Z = 0.1f;
             }
             
-            AddEntity(World, Region);
+            u64 RegionIndex = AddEntity(World, Region);
+            
+            if (!RegionIsWater)
+            {
+                if (RandomBetween(0, 2) == 0)
+                {
+                    entity Farm = {.Type = Entity_Farm};
+                    Farm.Owner = Region.Owner;
+                    Farm.Parent = RegionIndex;
+                    AddEntity(World, Farm);
+                }
+            }
         }
     }
     
@@ -393,7 +408,7 @@ GenerateFoliage(world* World, memory_arena* Arena)
                 entity Foliage = {.Type = Entity_Foliage};
                 Foliage.FoliageType = RandomFoliage(IsWater(Region));
                 Foliage.P = P;
-                Foliage.Owner = RegionIndex;
+                Foliage.Parent = RegionIndex;
                 
                 AddEntity(World, Foliage);
                 Index++;

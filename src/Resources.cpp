@@ -212,6 +212,17 @@ LoadAssets(allocator Allocator)
     }
 #endif
     
+    // Internal materials
+    material DirtMaterial = {};
+    DirtMaterial.Library = String("TowerDefense");
+    DirtMaterial.Name = String("Dirt");
+    DirtMaterial.DiffuseColor = 0.5f * V3(0.38f, 0.31f, 0.22f);
+    DirtMaterial.SpecularFocus = 100.0f;
+    DirtMaterial.SpecularColor = V3(1, 1, 1);
+    
+    Assets->Materials[Assets->MaterialCount++] = DirtMaterial;
+    Assert(Assets->MaterialCount < ArrayCount(Assets->Materials));
+    
     return Assets;
 }
 
@@ -680,3 +691,4 @@ SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform)
         }
     }
 }
+
