@@ -534,14 +534,12 @@ void Log(char* Format, ...)
 }
 
 
-void Assert(bool Value)
+void Assert_(bool Value, int Line, char* File)
 {
-#if DEBUG
     if (Value == false)
     {
         __debugbreak();
     }
-#endif
 }
 
 

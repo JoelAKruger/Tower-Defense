@@ -527,6 +527,12 @@ ScaleTransform(f32 X, f32 Y, f32 Z)
 }
 
 static m4x4
+ScaleTransform(f32 Scale)
+{
+    return ScaleTransform(Scale, Scale, Scale);
+}
+
+static m4x4
 TranslateTransform(f32 X, f32 Y, f32 Z)
 {
     m4x4 Result = {};

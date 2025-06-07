@@ -23,7 +23,14 @@ struct string
 	u64 Length;
 };
 
-void Assert(bool);
+//Debug
+#if DEBUG == 1
+#define Assert(value) Assert_(value, __LINE__, __FILE__)
+#else
+#define Assert(value)
+#endif
+void Assert_(bool Value, int Line, char* File);
+void Log(char* Format, ...);
 
 template <typename type>
 struct span
@@ -207,10 +214,6 @@ render_output CreateShadowDepthTexture(int Width, int Height);
 
 //Memory
 memory_arena Win32CreateMemoryArena(u64 Size, memory_arena_type Type);
-
-//Debug
-void Assert(bool Value);
-void Log(char* Format, ...);
 
 //Input
 void SetCursorState(bool State);

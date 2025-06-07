@@ -174,19 +174,19 @@ LoadAssets(allocator Allocator)
     LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
-                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+                           ModelRotateTransform() * ScaleTransform(1.0f));
     
     SetModelLocalTransform(Assets, "Rock6_Cube.014", TranslateTransform(-25.553f, 0.0f, -21.882f) * 
-                           ModelRotateTransform() * ScaleTransform(0.002f, 0.002f, 0.002f));
+                           ModelRotateTransform() * ScaleTransform(0.5f));
     
     SetModelLocalTransform(Assets, "Bush2_Cube.046", TranslateTransform(2.067f, 0.0f, 0.0f) * 
-                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+                           ModelRotateTransform() * ScaleTransform(0.15f));
     
     SetModelLocalTransform(Assets, "RibbonPlant2_Plane.079", TranslateTransform(1.82f, 0.0f, -13.517f) * 
-                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+                           ModelRotateTransform() * ScaleTransform(0.2f));
     
     SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * 
-                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+                           ModelRotateTransform() * ScaleTransform(0.6f));
     
     SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
                            ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
@@ -234,8 +234,9 @@ LoadServerAssets(allocator Allocator)
     LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
     
+    //TODO: Remove duplicated code
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
-                           ModelRotateTransform() * ScaleTransform(0.01f, 0.01f, 0.01f));
+                           ModelRotateTransform() * ScaleTransform(0.5f));
     
     SetModelLocalTransform(Assets, "Rock6_Cube.014", TranslateTransform(-25.553f, 0.0f, -21.882f) * 
                            ModelRotateTransform() * ScaleTransform(0.002f, 0.002f, 0.002f));

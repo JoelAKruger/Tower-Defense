@@ -98,7 +98,7 @@ struct render_group
 {
     game_assets* Assets;
     memory_arena* Arena;
-    render_command Commands[2048];
+    render_command Commands[4096];
     u32 CommandCount;
 };
 

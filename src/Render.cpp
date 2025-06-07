@@ -6,9 +6,9 @@ DrawOceanFloor(render_group* RenderGroup)
 }
 
 static void
-DrawWater(render_group* RenderGroup, game_state* Game)
+DrawWater(render_group* RenderGroup, f32 WaterZ)
 {
-    PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, 0.125f), V3(100.0f, 100.0f, 0.125f), V3(0, 0, -1));
+    PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, WaterZ), V3(100.0f, 100.0f, WaterZ), V3(0, 0, -1));
     PushShader(RenderGroup, Shader_Water);
 }
 
@@ -233,8 +233,33 @@ DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
     PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Shader_Model);
     PushNoShadow(RenderGroup);
-    PushShader(RenderGroup, Shader_Model);
+    PushShader(RenderGroup, Shader_PBR);
     PushMaterial(RenderGroup, "TowerDefense", "Dirt");
+}
+
+static span<v2>
+GetGrassRandomOffsets()
+{
+    int Seed = 213;
+    
+    static bool Initialised = false;
+    static v2 Offsets[128];
+    
+    if (!Initialised)
+    {
+        random_series Series = BeginRandom(Seed);
+        
+        for (u64 I = 0; I < ArrayCount(Offsets); I++)
+        {
+            f32 Distance = 0.7f * sqrtf(Random(&Series));
+            f32 Angle = 2 * Pi * Random(&Series);
+            Offsets[I] = PolarToRectangular(Distance, Angle);
+        }
+        
+        Initialised = true;
+    }
+    
+    return {.Memory = Offsets, .Count = ArrayCount(Offsets)};
 }
 
 static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets)
@@ -266,7 +291,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 
                 v3 RegionP = GetRegionP(Game, Entity->Parent);
                 
-                m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z);
+                m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z);
                 char* Model = GetFoliageAssetName(Entity->FoliageType);
                 PushModelNew(RenderGroup, Assets, Model, Transform);
             } break;
@@ -276,15 +301,12 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 
                 v3 RegionP = GetRegionP(Game, Entity->Parent);
                 DrawDirt(RenderGroup, Game, Entity->Parent);
+                span<v2> Offsets = GetGrassRandomOffsets();
                 
-                random_series Series = BeginRandom(EntityIndex);
-                
-                for (int GrassIndex = 0; GrassIndex < 64; GrassIndex++)
+                for (v2 Offset : Offsets)
                 {
-                    f32 Distance = 0.7f * World->Entities[Entity->Owner].Size * Random(&Series);
-                    f32 Angle = 2 * Pi * Random(&Series);
-                    v3 P = RegionP + V3(PolarToRectangular(Distance, Angle), 0.0f);
-                    m4x4 Transform = TranslateTransform(P);
+                    v3 P = RegionP + V3(1.1f * World->Entities[Entity->Owner].Size * Offset, 0.0f);
+                    m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
                     char* Model = "GrassPatch101_Plane.040";
                     PushModelNew(RenderGroup, Assets, Model, Transform);
                     PushWind(RenderGroup);
@@ -328,7 +350,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.WorldToClipTransform = WorldTransform;
     
     //Draw reflection texture
-    f32 WaterZ = 0.125f;
+    f32 WaterFrequency = 0.2f;
+    f32 WaterZ = 0.125f + 0.003f * sinf(WaterFrequency * 2 * Pi * Game->Time);
     
     v3 ReflectionDirection = Game->CameraDirection;
     ReflectionDirection.Z *= -1.0f;
@@ -355,7 +378,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     //Draw normal world
     Constants.ClipPlane = {};
     
-    DrawWater(RenderGroup, Game);
+    DrawWater(RenderGroup, WaterZ);
     
     //Set reflection and refraction textures
     ClearOutput(Assets->Output1);

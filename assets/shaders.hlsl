@@ -195,6 +195,13 @@ float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 	float3 result = float3(0, 0, 0);
 	result += ambient * input.color * light_color;
 	result += 0.9f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - 0.8f * shadow));
+	
+	float camera_distance = distance(input.pos_world, camera_pos);
+	float fog_density = 0.01f;
+	float inv_fog = exp(-camera_distance * fog_density) * (smoothstep(-2.0f, 0.1f, input.pos_world.z));
+	float3 fog_color = {1.0f, 1.0f, 1.0f};
+
+	result = lerp(fog_color, result, inv_fog);
 
 	return float4(result, 1.0f);
 }
