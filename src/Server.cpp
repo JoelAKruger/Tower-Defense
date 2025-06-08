@@ -199,7 +199,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             
             //TODO: Verify index is valid and entity type is correct
             entity* Region = Game->World.Entities + Request->RegionIndex;
-            v3 NewP = Region->P + V3(0.0f, 0.0f, -0.05f);
+            v3 NewP = Region->P + V3(0.0f, 0.0f, -0.02f);
             
             //Play animation
             animation Animation = {
@@ -218,6 +218,23 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             Append(&ServerPackets, Packet);
             
             Region->P = NewP;
+            *FlushWorld = true;
+        } break;
+        case Request_BuildFarm:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            
+            //TODO: Verify index is valid and entity type is correct
+            entity* Region = Game->World.Entities + Request->RegionIndex;
+            Assert(Region->Owner == SenderIndex);
+            
+            entity Farm = {
+                .Type = Entity_Farm,
+                .Owner = (int)SenderIndex,
+                .Parent = (int)Request->RegionIndex
+            };
+            AddEntity(&Game->World, Farm);
+            
             *FlushWorld = true;
         } break;
         default:

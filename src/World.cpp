@@ -298,16 +298,6 @@ CreateWorld(world* World, u64 PlayerCount)
             
             u64 RegionIndex = AddEntity(World, Region);
             
-            if (!RegionIsWater)
-            {
-                if (RandomBetween(0, 2) == 0)
-                {
-                    entity Farm = {.Type = Entity_Farm};
-                    Farm.Owner = Region.Owner;
-                    Farm.Parent = RegionIndex;
-                    AddEntity(World, Farm);
-                }
-            }
         }
     }
     
@@ -402,12 +392,30 @@ GetFoliageAssetName(foliage_type Type)
     return Result; 
 }
 
+static f32
+GetDefaultSizeOf(foliage_type Type)
+{
+    f32 Result = 1.0f;
+    
+    switch (Type)
+    {
+        case Foliage_PinkFlower:  Result = 0.01f; break;
+        case Foliage_Bush:        Result = 0.06f; break;
+        case Foliage_RibbonPlant: Result = 0.05f; break;
+        case Foliage_Grass:       Result = 0.02f; break;
+        case Foliage_Rock:        Result = 0.005f; break;
+        default: Assert(0);
+    }
+    
+    return Result; 
+}
+
 static void
 GenerateFoliage(world* World, memory_arena* Arena)
 {
     f32 MinDistance = 0.05f;
     
-    for (int Index = 0; Index < 256;)
+    for (int Index = 0; Index < 512;)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
@@ -418,7 +426,8 @@ GenerateFoliage(world* World, memory_arena* Arena)
             entity* Region = World->Entities + RegionIndex;
             
             v3 P = V3(TestP, Region->P.Z);
-            f32 Size = RandomBetween(0.01f, 0.1f);
+            foliage_type FoliageType = RandomFoliage(IsWater(Region));
+            f32 Size = GetDefaultSizeOf(FoliageType) * RandomBetween(0.5f, 1.5f);
             f32 MinDistanceInsideRegion = 0.5f * Size;
             nearest_foliage NearestFoliage = GetNearestFoliage(World, P);
             
@@ -426,7 +435,7 @@ GenerateFoliage(world* World, memory_arena* Arena)
                 DistanceInsideRegion(Region, P.XY) >= MinDistanceInsideRegion)
             {
                 entity Foliage = {.Type = Entity_Foliage};
-                Foliage.FoliageType = RandomFoliage(IsWater(Region));
+                Foliage.FoliageType = FoliageType;
                 Foliage.P = P;
                 Foliage.Parent = RegionIndex;
                 Foliage.Size = Size;

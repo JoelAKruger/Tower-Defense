@@ -306,6 +306,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 for (v2 Offset : Offsets)
                 {
                     v3 P = RegionP + V3(1.1f * World->Entities[Entity->Owner].Size * Offset, 0.0f);
+                    P = P + V3(0.0f, 0.0f, 0.01f + 0.01f * sinf(Game->Time));
+                    
                     m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
                     char* Model = "GrassPatch101_Plane.040";
                     PushModelNew(RenderGroup, Assets, Model, Transform);

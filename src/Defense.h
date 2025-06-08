@@ -64,7 +64,8 @@ enum game_mode
     Mode_Place,
     Mode_EditTower,
     Mode_TowerPOV,
-    Mode_CellUpgrade
+    Mode_CellUpgrade,
+    Mode_BuildFarm
 };
 
 enum tower_type
@@ -128,7 +129,8 @@ enum player_request_type
     Request_EndTurn,
     Request_TargetTower,
     Request_Throw,
-    Request_UpgradeRegion
+    Request_UpgradeRegion,
+    Request_BuildFarm
 };
 
 struct player_request

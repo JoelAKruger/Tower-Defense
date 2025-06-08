@@ -544,6 +544,11 @@ DoTowerMenu(game_state* Game, game_assets* Assets, memory_arena* Arena)
         SetMode(Game, Mode_CellUpgrade);
     }
     Panel.NextRow();
+    if (Panel.Button("Build Farm"))
+    {
+        SetMode(Game, Mode_BuildFarm);
+    }
+    Panel.NextRow();
     Panel.NextRow();
     if (Panel.Button("End Turn"))
     {
@@ -670,7 +675,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     switch (GameState->Mode)
     {
         //Top down perspective
-        case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade: 
+        case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
+        case Mode_BuildFarm: 
         {
             SetCursorState(true);
             
@@ -848,6 +854,24 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
                 SendPacket(&Request);
             }
         } break;
+        
+        case Mode_BuildFarm:
+        {
+            //TODO: Check the farm doesn't already exist
+            bool Buildable = (Cursor.HoveringRegion &&
+                              !IsWater(Cursor.HoveringRegion) &&
+                              Cursor.HoveringRegion->Owner == GameState->MyClientID);
+            
+            if (Buildable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+            {
+                player_request Request = {.Type = Request_BuildFarm};
+                
+                Request.RegionIndex = Cursor.HoveringRegionIndex;
+                
+                SendPacket(&Request);
+            }
+        } break;
+        
         
         //Other cases may be handled below with GUI
         default: ;
