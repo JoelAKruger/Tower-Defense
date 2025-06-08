@@ -16,6 +16,29 @@
 #include "Resources.cpp"
 #include "Water.cpp"
 
+static void
+CreateServer()
+{
+    void RunServer();
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)RunServer, 0, 0, 0);
+}
+
+static void
+Connect(string CustomAddress = {})
+{
+    char* Address = "127.0.0.1";
+    
+    if (CustomAddress.Length != 0)
+    {
+        Address = (char*) malloc(CustomAddress.Length + 1);
+        memcpy(Address, CustomAddress.Text, CustomAddress.Length);
+        Address[CustomAddress.Length] = 0;
+    }
+    
+    void ClientNetworkThread(char*);
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)Address, 0, 0);
+}
+
 static v3 
 GetRegionP(game_state* Game, u64 RegionIndex)
 {
@@ -225,6 +248,13 @@ WorldToScreen(game_state* GameState, v2 WorldPos)
     return Result;
 }
 
+static bool
+SendPacket(player_request* Request)
+{
+    packet Packet = {.Data = (u8*)Request, .Length = sizeof(*Request)};
+    return SendToServer(Packet);
+}
+
 static game_state* 
 GameInitialise(allocator Allocator)
 {
@@ -243,6 +273,11 @@ GameInitialise(allocator Allocator)
     GameState->TurretTransform = ModelRotateTransform() * ScaleTransform(0.06f, 0.06f, 0.06f);
     
     GameState->ApproxTowerZ = -0.06f;
+    
+#if DEVELOPER_MODE == 1
+    CreateServer();
+    Connect();
+#endif
     
     return GameState;
 }
@@ -894,8 +929,6 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);
     DrawGUIString(TimeString, V2(-0.95f, -0.75f));
-    
-    //RunClayLayoutTest(Assets, Input, SecondsPerFrame);
 }
 
 static void
@@ -974,22 +1007,18 @@ void Command_reset(int ArgCount, string* Args, console* Console, game_state* Gam
 
 void Command_create_server(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
-    void RunServer();
-    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)RunServer, 0, 0, 0);
+    CreateServer();
 }
 
 void Command_connect(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
 {
-    void ClientNetworkThread(char*);
-    
-    char* Address = "127.0.0.1";
+    string Address = {};
     if (ArgCount > 1)
     {
-        Address = (char*) malloc(Args[1].Length + 1);
-        memcpy(Address, Args[1].Text, Args[1].Length);
-        Address[Args[1].Length] = 0;
+        Address = Args[1];
     }
-    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)Address, 0, 0);
+    
+    Connect(Address);
 }
 
 void Command_new_world(int ArgCount, string* Args, console* Console, game_state* Game, game_assets*, memory_arena* Arena)
@@ -1004,6 +1033,10 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
         App->Assets = LoadAssets(Allocator);
     }
     
+#if DEVELOPER_MODE == 1
+    App->CurrentScreen = Screen_Game;
+#endif
+    
     switch (App->CurrentScreen)
     {
         case Screen_MainMenu:
@@ -1014,11 +1047,14 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
             if (Button(V2(-0.5f * ButtonWidth, 0.0f), V2(ButtonWidth, 0.3f), String("Play")))
             {
                 App->CurrentScreen = Screen_Game;
-                App->GameState = GameInitialise(Allocator);
             }
         } break;
         case Screen_Game:
         {
+            if (!App->GameState)
+            {
+                App->GameState = GameInitialise(Allocator);
+            }
             GameUpdateAndRender(App->GameState, App->Assets, DeltaTime, Input, Allocator);
         } break;
         

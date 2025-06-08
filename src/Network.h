@@ -16,7 +16,7 @@ struct packet
 void         ClientNetworkThread(char* Hostname);
 
 span<packet> PollClientConnection(memory_arena* Arena);
-void         SendToServer(packet Packet);
+bool         SendToServer(packet Packet);
 bool         IsConnectedToServer();
 
 //Server API

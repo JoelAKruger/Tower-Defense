@@ -230,13 +230,6 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
 }
 
 static void
-SendPacket(player_request* Request)
-{
-    packet Packet = {.Data = (u8*)Request, .Length = sizeof(*Request)};
-    SendToServer(Packet);
-}
-
-static void
 RunServer()
 {
     memory_arena TArena = Win32CreateMemoryArena(Megabytes(64), TRANSIENT);

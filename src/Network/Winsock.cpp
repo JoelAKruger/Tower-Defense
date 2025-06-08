@@ -131,13 +131,16 @@ PollClientConnection(memory_arena* Arena)
     
     return ToSpan(Result);
 }
-void SendToServer(packet Packet)
+bool SendToServer(packet Packet)
 {
     client* Client = Client_;
+    bool Result = false;
     if (Client && Client->Connected)
     {
         send(Client->Socket, (char*)Packet.Data, Packet.Length, 0);
+        Result = true;
     }
+    return Result;
 }
 bool IsConnectedToServer()
 {
