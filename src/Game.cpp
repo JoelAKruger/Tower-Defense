@@ -40,22 +40,21 @@ Connect(string CustomAddress = {})
 }
 
 static v3 
-GetRegionP(game_state* Game, u64 RegionIndex)
+GetEntityP(game_state* Game, u64 EntityIndex)
 {
-    Assert(RegionIndex < ArrayCount(Game->GlobalState.World.Entities));
+    Assert(EntityIndex < ArrayCount(Game->GlobalState.World.Entities));
     
     v3 P = {};
     
-    local_entity_info LocalInfo = Game->LocalEntityInfo[RegionIndex];
+    local_entity_info LocalInfo = Game->LocalEntityInfo[EntityIndex];
     if (LocalInfo.IsValid)
     {
         P = LocalInfo.P;
     }
     else
     {
-        entity* Region = Game->GlobalState.World.Entities + RegionIndex;
-        Assert(Region->Type == Entity_WorldRegion);
-        P = Region->P;
+        entity* Entity = Game->GlobalState.World.Entities + EntityIndex;
+        P = Entity->P;
     }
     
     return P;
@@ -408,7 +407,7 @@ BeginAnimation(game_state* Game, animation Animation)
     {
         Game->Animations[Game->AnimationCount++] = Animation;
         
-        if (Animation.Type == Animation_Region)
+        if (Animation.Type == Animation_Entity)
         {
             //TODO: Check everything!
             Game->LocalEntityInfo[Animation.EntityIndex].IsValid = true;
@@ -449,7 +448,7 @@ TickAnimations(game_state* Game, render_group* RenderGroup, game_assets* Assets,
                 }
                 
             } break;
-            case Animation_Region:
+            case Animation_Entity:
             {
                 local_entity_info* LocalEntity = Game->LocalEntityInfo + Animation->EntityIndex;
                 v3 P = LinearInterpolate(LocalEntity->P, Animation->P1, 0.5f);

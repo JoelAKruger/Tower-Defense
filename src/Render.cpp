@@ -41,7 +41,7 @@ DrawSkybox(render_group* RenderGroup, game_assets* Assets)
 static void
 DrawRegionOutline(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
 {
-    v3 P = GetRegionP(Game, RegionIndex);
+    v3 P = GetEntityP(Game, RegionIndex);
     
     v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
@@ -145,7 +145,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
     {
         tower* Tower = Game->GlobalState.Towers + TowerIndex;
         entity* Region = Game->GlobalState.World.Entities + Tower->RegionIndex;
-        v3 RegionP = GetRegionP(Game, Tower->RegionIndex);
+        v3 RegionP = GetEntityP(Game, Tower->RegionIndex);
         
         v4 RegionColor = Region->Color;
         
@@ -211,7 +211,7 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
 static void
 DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
 {
-    v3 P = GetRegionP(Game, RegionIndex);
+    v3 P = GetEntityP(Game, RegionIndex);
     v4 Color = {}; //V4(0.5f * V3(0.44f, 0.31f, 0.22f), 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = P.Z - 0.001f;
@@ -279,7 +279,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         {
             case Entity_WorldRegion:
             {
-                v3 P = GetRegionP(Game, EntityIndex);
+                v3 P = GetEntityP(Game, EntityIndex);
                 m4x4 Transform = TranslateTransform(P);
                 span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
                 render_command* Command = Commands[0];
@@ -289,7 +289,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             {
                 Assert(Entity->Parent);
                 
-                v3 RegionP = GetRegionP(Game, Entity->Parent);
+                v3 RegionP = GetEntityP(Game, Entity->Parent);
                 
                 m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z);
                 char* Model = GetFoliageAssetName(Entity->FoliageType);
@@ -299,14 +299,15 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             {
                 Assert(Entity->Parent);
                 
-                v3 RegionP = GetRegionP(Game, Entity->Parent);
+                v3 RegionP = GetEntityP(Game, Entity->Parent);
+                v3 FarmP = GetEntityP(Game, EntityIndex);
+                
                 DrawDirt(RenderGroup, Game, Entity->Parent);
                 span<v2> Offsets = GetGrassRandomOffsets();
                 
                 for (v2 Offset : Offsets)
                 {
-                    v3 P = RegionP + V3(1.1f * World->Entities[Entity->Owner].Size * Offset, 0.0f);
-                    P = P + V3(0.0f, 0.0f, 0.01f + 0.01f * sinf(Game->Time));
+                    v3 P = RegionP + FarmP + V3(1.1f * World->Entities[Entity->Owner].Size * Offset, 0.0f);
                     
                     m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
                     char* Model = "GrassPatch101_Plane.040";

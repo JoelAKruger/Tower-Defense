@@ -203,7 +203,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             
             //Play animation
             animation Animation = {
-                .Type = Animation_Region,
+                .Type = Animation_Entity,
                 .P0 = Region->P,
                 .P1 = NewP,
                 .EntityIndex = Request->RegionIndex
@@ -228,12 +228,29 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             entity* Region = Game->World.Entities + Request->RegionIndex;
             Assert(Region->Owner == SenderIndex);
             
+            //Add farm
             entity Farm = {
                 .Type = Entity_Farm,
                 .Owner = (int)SenderIndex,
                 .Parent = (int)Request->RegionIndex
             };
-            AddEntity(&Game->World, Farm);
+            u64 EntityIndex = AddEntity(&Game->World, Farm);
+            
+            //Create animation
+            animation Animation = {
+                .Type = Animation_Entity,
+                .P0 = V3(0.0f, 0.0f, 0.02f),
+                .P1 = V3(0.0f, 0.0f, 0.0f),
+                .EntityIndex = (u32)EntityIndex
+            };
+            
+            server_packet_message Packet = {
+                .Channel = Channel_Message,
+                .Type = Message_PlayAnimation,
+                .Animation = Animation
+            };
+            
+            Append(&ServerPackets, Packet);
             
             *FlushWorld = true;
         } break;

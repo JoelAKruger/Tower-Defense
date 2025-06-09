@@ -167,7 +167,7 @@ enum animation_type : u32
 {
     Animation_Null,
     Animation_Projectile,
-    Animation_Region
+    Animation_Entity,
 };
 
 struct animation
@@ -317,4 +317,4 @@ void InitialiseServerState(global_game_state* Game);
 
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
-v3 GetRegionP(game_state* Game, u64 RegionIndex);
+v3 GetEntityP(game_state* Game, u64 EntityIndex);

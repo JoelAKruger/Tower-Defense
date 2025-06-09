@@ -22,7 +22,7 @@ GetRegionVertex(entity* Region, i32 Index)
 static v2
 GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
 {
-    v3 P = GetRegionP(Game, EntityIndex);
+    v3 P = GetEntityP(Game, EntityIndex);
     f32 Size = Game->GlobalState.World.Entities[EntityIndex].Size;
     
     v2 Offsets[6] = {
