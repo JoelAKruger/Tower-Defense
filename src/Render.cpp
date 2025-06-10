@@ -354,7 +354,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     //Draw reflection texture
     f32 WaterFrequency = 0.2f;
-    f32 WaterZ = 0.125f + 0.003f * sinf(WaterFrequency * 2 * Pi * Game->Time);
+    f32 WaterZ = 0.125f + 0.002f * sinf(WaterFrequency * 2 * Pi * Game->Time);
     
     v3 ReflectionDirection = Game->CameraDirection;
     ReflectionDirection.Z *= -1.0f;

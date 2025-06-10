@@ -227,6 +227,19 @@ AddEntity(world* World, entity Entity)
     return Result;
 }
 
+static v4
+GetPlayerColor(u64 PlayerIndex)
+{
+    v4 Colors[4] = {
+        V4(0.40f, 0.79f, 0.39f, 1.0f),
+        V4(0.70f, 0.41f, 0.74f, 1.0f),
+        V4(0.99f, 0.20f, 0.21f, 1.0f),
+        V4(1.00f, 0.50f, 0.00f, 1.0f)
+    };
+    Assert(PlayerIndex < ArrayCount(Colors));
+    return Colors[PlayerIndex];
+}
+
 static void
 CreateWorld(world* World, u64 PlayerCount)
 {
@@ -245,13 +258,6 @@ CreateWorld(world* World, u64 PlayerCount)
         V4(0.3f, 0.4f, 0.7f, 1.0f)
     };
 */
-    
-    v4 Colors[4] = {
-        V4(0.30f, 0.69f, 0.29f, 1.0f),
-        V4(0.60f, 0.31f, 0.64f, 1.0f),
-        V4(0.89f, 0.10f, 0.11f, 1.0f),
-        V4(1.00f, 0.50f, 0.00f, 1.0f)
-    };
     
     World->X0 = -1.0f;
     World->Y0 = -1.0f;
@@ -292,7 +298,7 @@ CreateWorld(world* World, u64 PlayerCount)
             else
             {
                 Region.Owner = RandomBetween(0, PlayerCount - 1);
-                Region.Color = Colors[Region.Owner];
+                Region.Color = GetPlayerColor(Region.Owner);
                 Region.P.Z = 0.1f;
             }
             

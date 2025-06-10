@@ -199,26 +199,35 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             
             //TODO: Verify index is valid and entity type is correct
             entity* Region = Game->World.Entities + Request->RegionIndex;
-            v3 NewP = Region->P + V3(0.0f, 0.0f, -0.02f);
+            u64 MaxRegionLevel = 3;
             
-            //Play animation
-            animation Animation = {
-                .Type = Animation_Entity,
-                .P0 = Region->P,
-                .P1 = NewP,
-                .EntityIndex = Request->RegionIndex
-            };
-            
-            server_packet_message Packet = {
-                .Channel = Channel_Message,
-                .Type = Message_PlayAnimation,
-                .Animation = Animation
-            };
-            
-            Append(&ServerPackets, Packet);
-            
-            Region->P = NewP;
-            *FlushWorld = true;
+            if (Region->Level < MaxRegionLevel)
+            {
+                Region->Level++;
+                v3 NewP = Region->P + V3(0.0f, 0.0f, -0.02f);
+                
+                //Play animation
+                animation Animation = {
+                    .Type = Animation_Entity,
+                    .P0 = Region->P,
+                    .P1 = NewP,
+                    .EntityIndex = Request->RegionIndex
+                };
+                
+                server_packet_message Packet = {
+                    .Channel = Channel_Message,
+                    .Type = Message_PlayAnimation,
+                    .Animation = Animation
+                };
+                
+                Append(&ServerPackets, Packet);
+                
+                v4 NewColor = GetPlayerColor(Region->Owner) - 0.15f * Region->Level * V4(1, 1, 1, 0);
+                
+                Region->P = NewP;
+                Region->Color = NewColor;
+                *FlushWorld = true;
+            }
         } break;
         case Request_BuildFarm:
         {

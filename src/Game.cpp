@@ -145,6 +145,7 @@ GetModel(game_assets* Assets, entity* Entity)
     {
         case Entity_WorldRegion: ModelName = "Hexagon"; break;
         case Entity_Foliage: ModelName = GetFoliageAssetName(Entity->FoliageType); break;
+        case Entity_Farm: ModelName = ""; break;
         default: Assert(0);
     }
     return FindModel(Assets, ModelName);
@@ -160,11 +161,14 @@ WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
         entity* Entity = World->Entities + RegionIndex;
         m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
         model* Model = GetModel(Assets, Entity);
-        ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
-        
-        if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
+        if (Model)
         {
-            Result = Collision;
+            ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
+            
+            if ((Collision.DidHit == true && Collision.T < Result.T) || Result.DidHit == false)
+            {
+                Result = Collision;
+            }
         }
     }
     
@@ -435,7 +439,8 @@ TickAnimations(game_state* Game, render_group* RenderGroup, game_assets* Assets,
             case Animation_Projectile:
             {
                 v3 P = LinearInterpolate(Animation->P0, Animation->P1, Animation->t);
-                PushModelNew(RenderGroup, Assets, "Rock6_Cube.014", TranslateTransform(P));
+                m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
+                PushModelNew(RenderGroup, Assets, "Rock6_Cube.014", Transform);
                 
                 Animation->t += DeltaTime / Animation->Duration;
                 
@@ -916,7 +921,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         }
         else
         {
-            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d", Cursor.HoveringRegion->Owner);
+            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d (Level %d)", 
+                                    Cursor.HoveringRegion->Owner, Cursor.HoveringRegion->Level + 1);
         }
         
         f32 Width = GUIStringWidth(RegionText, 0.1f);

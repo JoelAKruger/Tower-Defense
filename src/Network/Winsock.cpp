@@ -89,7 +89,9 @@ ClientNetworkThread(char* Hostname)
         Unlock(&Client->Mutex);
         
         //Receive data
-        recv(Client->Socket, (char*) Buffer, Bytes, MSG_WAITALL);
+        int BytesReceived = recv(Client->Socket, (char*) Buffer, Bytes, MSG_WAITALL);
+        
+        Assert(BytesReceived == Bytes);
         
         //Add packet to the array
         Lock(&Client->Mutex);

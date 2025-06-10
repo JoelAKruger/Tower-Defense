@@ -33,6 +33,7 @@ struct entity
     i32 Parent;
     v4 Color;
     foliage_type FoliageType;
+    i32 Level;
 };
 
 struct world
