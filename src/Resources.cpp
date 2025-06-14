@@ -176,6 +176,7 @@ LoadAssets(allocator Allocator)
     LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/wall.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/stairs.obj");
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/modular_wood.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -197,6 +198,7 @@ LoadAssets(allocator Allocator)
     
     SetModelLocalTransform(Assets, "Wall_01", ScaleTransform(0.02f) * ModelRotateTransform());
     SetModelLocalTransform(Assets, "Stairs_01", ScaleTransform(0.01f) * ModelRotateTransform());
+    SetModelLocalTransform(Assets, "ModularWood_01", ScaleTransform(0.01f) * ModelRotateTransform() * RotateTransform(0.5f * Pi));
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},

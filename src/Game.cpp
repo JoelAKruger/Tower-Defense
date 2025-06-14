@@ -882,8 +882,6 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         default: ;
     }
     
-    
-    
     RenderWorld(&RenderGroup, GameState, Assets);
     
     //Draw GUI

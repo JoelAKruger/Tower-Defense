@@ -284,11 +284,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
                 render_command* Command = Commands[0];
                 Command->Color = Entity->Color;
-                
-                if (!IsWater(Entity))
-                {
-                    PushTexturedModel(RenderGroup, Assets, "Stairs_01", TranslateTransform(P + V3(0.05f, 0.0f, 0.0f)));
-                }
             } break;
             case Entity_Foliage:
             {
@@ -319,6 +314,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     PushModelNew(RenderGroup, Assets, Model, Transform);
                     PushWind(RenderGroup);
                 }
+            } break;
+            case Entity_Structure:
+            {
+                v3 P = Entity->P + V3(0.0f, 0.0f, 0.01f);
+                m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
+                char* Model = GetStructureAssetName(Entity->StructureType);
+                PushTexturedModel(RenderGroup, Assets, Model, Transform);
             } break;
             default: Assert(0);
         }

@@ -19,6 +19,37 @@ GetRegionVertex(entity* Region, i32 Index)
     return Result;
 }
 
+// Unused
+static span<entity*>
+GetRegionNeighbours(world* World, entity* Region, memory_arena* Arena)
+{
+    Assert(Region->Type == Entity_WorldRegion);
+    
+    dynamic_array<entity*> Result = {.Arena = Arena};
+    
+    for (u64 EntityIndex = 0; EntityIndex < World->EntityCount; EntityIndex++)
+    {
+        entity* Entity = World->Entities + EntityIndex;
+        if (Entity != Region && 
+            Entity->Type == Entity_WorldRegion && 
+            Length(Entity->P - Region->P) < 2.5f * Region->Size)
+        {
+            Append(&Result, Entity);
+        }
+    }
+    
+    return ToSpan(Result);
+}
+
+static bool
+RegionsAreNeighbours(entity* A, entity* B)
+{
+    Assert(A->Type == Entity_WorldRegion && B->Type == Entity_WorldRegion);
+    Assert(A->Size == B->Size);
+    
+    return (Length(A->P - B->P) < 2.5f * A->Size);
+}
+
 static v2
 GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
 {
@@ -308,6 +339,35 @@ CreateWorld(world* World, u64 PlayerCount)
     }
     
     GenerateFoliage(World, &Arena);
+    
+    //Add paths
+    for (u64 IndexA = 0; IndexA < World->EntityCount; IndexA++)
+    {
+        entity* A = World->Entities + IndexA;
+        if (A->Type == Entity_WorldRegion && !IsWater(A))
+        {
+            for (u64 IndexB = 0; IndexB < IndexA; IndexB++)
+            {
+                entity* B = World->Entities + IndexB;
+                if (B->Type == Entity_WorldRegion && !IsWater(B))
+                {
+                    if (RegionsAreNeighbours(A, B) &&
+                        A->Owner == B->Owner)
+                    {
+                        entity Wood = {
+                            .Type = Entity_Structure,
+                            .P = 0.5f * (A->P + B->P),
+                            .Angle = VectorAngle(B->P.XY - A->P.XY),
+                            .Owner = A->Owner,
+                            .StructureType = Structure_ModularWood
+                        };
+                        
+                        AddEntity(World, Wood);
+                    }
+                }
+            }
+        }
+    }
 }
 
 struct nearest_foliage
@@ -392,6 +452,20 @@ GetFoliageAssetName(foliage_type Type)
         case Foliage_RibbonPlant: Result = "RibbonPlant2_Plane.079"; break;
         case Foliage_Grass:       Result = "GrassPatch101_Plane.040"; break;
         case Foliage_Rock:        Result = "Rock6_Cube.014"; break;
+        default: Assert(0);
+    }
+    
+    return Result; 
+}
+
+static char*
+GetStructureAssetName(structure_type Type)
+{
+    char* Result = {};
+    
+    switch (Type)
+    {
+        case Structure_ModularWood:  Result = "ModularWood_01"; break;
         default: Assert(0);
     }
     

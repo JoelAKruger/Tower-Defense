@@ -1,4 +1,4 @@
-enum foliage_type
+enum foliage_type : u8
 {
     Foliage_Null,
     Foliage_Seaweed,
@@ -15,12 +15,19 @@ struct local_entity_info
     v3 P;
 };
 
+enum structure_type : u8
+{
+    Structure_Null,
+    Structure_ModularWood
+};
+
 enum entity_type : u32
 {
     Entity_Null,
     Entity_WorldRegion,
     Entity_Foliage,
-    Entity_Farm
+    Entity_Farm,
+    Entity_Structure
 };
 
 struct entity
@@ -29,11 +36,13 @@ struct entity
     u32 ModelHandle;
     f32 Size;
     v3 P; //Can be overriden locally
+    f32 Angle;
     i32 Owner;
     i32 Parent;
     v4 Color;
     foliage_type FoliageType;
-    i32 Level;
+    structure_type StructureType;
+    i8 Level;
 };
 
 struct world
@@ -43,7 +52,7 @@ struct world
     
     int Rows, Cols;
     
-    entity Entities[1024];
+    entity Entities[2048];
     u32 EntityCount;
 };
 
