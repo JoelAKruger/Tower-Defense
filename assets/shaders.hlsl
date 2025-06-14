@@ -301,6 +301,36 @@ float4 PixelShader_Water(VS_Output_Default input) : SV_Target
 	return color;
 }
 
+float4 PixelShader_ModelWithTexture(VS_Output_Default input) : SV_TARGET
+{
+	float clip_plane_distance = dot(clip_plane.xyz, input.pos_world) + clip_plane.w;
+	if (clip_plane_distance < 0)
+	{
+		discard;
+	}
+
+	float2 shadow_uv;
+	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
+	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
+	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;
+
+	float ambient = 0.3f;
+
+	float diffuse = 0.5f + 0.5f * dot(input.normal, -1.0f * light_direction);
+
+	float3 view_dir = normalize(camera_pos - input.pos_world);
+	float3 reflect_dir = reflect(light_direction, input.normal);
+
+	float specular = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
+
+	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
+
+	float light = ambient + diffuse * (1.0f - 0.8f * shadow) + specular * (1.0f - shadow);
+
+	float3 color = diffuse_texture.Sample(default_sampler, input.uv);
+
+	return float4(light * color.rgb, 1.0f);
+}
 
 float4 PixelShader_TexturedModel(VS_Output_Default input) : SV_Target
 {

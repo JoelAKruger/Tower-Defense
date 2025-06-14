@@ -210,6 +210,8 @@ PushModel(render_group* RenderGroup, renderer_vertex_buffer* VertexBuffer)
     Command->ModelTransform = IdentityTransform();
 }
 
+
+
 static span<render_command*>
 PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4x4 Transform)
 {
@@ -243,6 +245,27 @@ PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4
     return Result;
 }
 
+static span<render_command*>
+PushTexturedModel(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4x4 Transform)
+{
+    model* Model = FindModel(Assets, String(ModelName));
+    m4x4 ModelTransform = Model->LocalTransform * Transform;
+    
+    span<render_command*> Result = AllocSpan(RenderGroup->Arena, render_command*, Model->MeshCount);
+    
+    for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
+    {
+        mesh_index Mesh = Model->Meshes[MeshIndex];
+        
+        render_command* Command = PushMesh(RenderGroup, Assets, Mesh, ModelTransform);
+        Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
+                                         Assets->Meshes[Mesh].MaterialName);
+        Command->Shader = Shader_ModelWithTexture;
+        Result[MeshIndex] = Command;
+    }
+    
+    return Result;
+}
 
 static void
 PushColor(render_group* RenderGroup, v4 Color)

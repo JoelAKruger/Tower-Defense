@@ -38,6 +38,7 @@ enum shader_index
     Shader_Water,
     Shader_Model,
     Shader_TexturedModel,
+    Shader_ModelWithTexture,
     Shader_Background,
     Shader_OnlyDepth,
     Shader_Bloom,

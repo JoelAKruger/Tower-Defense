@@ -284,6 +284,11 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
                 render_command* Command = Commands[0];
                 Command->Color = Entity->Color;
+                
+                if (!IsWater(Entity))
+                {
+                    PushTexturedModel(RenderGroup, Assets, "Stairs_01", TranslateTransform(P + V3(0.05f, 0.0f, 0.0f)));
+                }
             } break;
             case Entity_Foliage:
             {

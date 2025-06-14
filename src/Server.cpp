@@ -199,12 +199,12 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
             
             //TODO: Verify index is valid and entity type is correct
             entity* Region = Game->World.Entities + Request->RegionIndex;
-            u64 MaxRegionLevel = 3;
+            u64 MaxRegionLevel = 1;
             
             if (Region->Level < MaxRegionLevel)
             {
                 Region->Level++;
-                v3 NewP = Region->P + V3(0.0f, 0.0f, -0.02f);
+                v3 NewP = Region->P + V3(0.0f, 0.0f, -0.01f);
                 
                 //Play animation
                 animation Animation = {
@@ -222,7 +222,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
                 
                 Append(&ServerPackets, Packet);
                 
-                v4 NewColor = GetPlayerColor(Region->Owner) - 0.15f * Region->Level * V4(1, 1, 1, 0);
+                v4 NewColor = GetPlayerColor(Region->Owner) - 0.2f * Region->Level * V4(1, 1, 1, 0);
                 
                 Region->P = NewP;
                 Region->Color = NewColor;

@@ -141,8 +141,10 @@ LoadAssets(allocator Allocator)
     
     Assets->ModelTextures.Ambient = CreateTexture("assets/textures/Carvalho-Munique_ambient.jpg");
     Assets->ModelTextures.Diffuse = CreateTexture("assets/textures/Carvalho-Munique_Diffuse.jpg");
-    Assets->ModelTextures.Normal = CreateTexture("assets/textures/Carvalho-Munique_normal.jpg");
-    Assets->ModelTextures.Specular = CreateTexture("assets/textures/Carvalho-Munique_specular.jpg");
+    Assets->ModelTextures.Diffuse = CreateTexture("assets/textures/Texture_01.png");
+    //Assets->ModelTextures.Diffuse = CreateTexture("assets/textures/Carvalho-Munique_Diffuse.jpg");
+    //Assets->ModelTextures.Normal = CreateTexture("assets/textures/Carvalho-Munique_normal.jpg");
+    //Assets->ModelTextures.Specular = CreateTexture("assets/textures/Carvalho-Munique_specular.jpg");
     
     Assets->BloomMipmaps[0] = CreateRenderOutput(1024, 1024);
     Assets->BloomMipmaps[1] = CreateRenderOutput(512, 512);
@@ -172,6 +174,8 @@ LoadAssets(allocator Allocator)
     LoadMaterialsFromFile(Assets, Allocator, "assets/models/Environment.mtl", "Environment.mtl");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/Environment.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/hexagon.obj");
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/wall.obj");
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/stairs.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -190,6 +194,9 @@ LoadAssets(allocator Allocator)
     
     SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
                            ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
+    
+    SetModelLocalTransform(Assets, "Wall_01", ScaleTransform(0.02f) * ModelRotateTransform());
+    SetModelLocalTransform(Assets, "Stairs_01", ScaleTransform(0.01f) * ModelRotateTransform());
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
@@ -688,8 +695,10 @@ SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform)
         if (StringsAreEqual(Model->Name, ModelName))
         {
             Model->LocalTransform = Transform;
-            break;
+            return;
         }
     }
+    
+    Assert(0);
 }
 

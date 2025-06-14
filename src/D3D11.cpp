@@ -816,6 +816,9 @@ LoadShaders(game_assets* Assets)
     Assets->Shaders[Shader_TexturedModel]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
                                                         "PixelShader_TexturedModel", "MyVertexShader");
     
+    Assets->Shaders[Shader_ModelWithTexture] = CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                            "PixelShader_ModelWithTexture", "MyVertexShader");
+    
     Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
                                                     0, "MyVertexShader");
     

@@ -682,15 +682,16 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
         case Mode_BuildFarm: 
         {
+            f32 WorldZForDragging = 0.1f;
             SetCursorState(true);
             
             if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
-                GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor).XY;
+                GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
                 GameState->Dragging = true;
             }
             
-            f32 ZoomLevels[] = {-0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
+            f32 ZoomLevels[] = {0.05f, 0.0f, -0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
             int DeltaZoom = -(int)Input->ScrollDelta;
             GameState->TopDownCameraZoomLevel = Clamp(GameState->TopDownCameraZoomLevel + DeltaZoom, 0, ArrayCount(ZoomLevels) - 1);
             
@@ -700,7 +701,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             
             if (GameState->Dragging)
             {
-                v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor).XY;
+                v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
                 v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
                 GameState->CameraP.X -= DeltaP.X;
                 GameState->CameraP.Y -= DeltaP.Y;
@@ -880,6 +881,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         //Other cases may be handled below with GUI
         default: ;
     }
+    
+    
     
     RenderWorld(&RenderGroup, GameState, Assets);
     
