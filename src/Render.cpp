@@ -317,7 +317,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             } break;
             case Entity_Structure:
             {
-                v3 P = Entity->P + V3(0.0f, 0.0f, 0.01f);
+                v3 P = Entity->P;
                 m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
                 char* Model = GetStructureAssetName(Entity->StructureType);
                 PushTexturedModel(RenderGroup, Assets, Model, Transform);

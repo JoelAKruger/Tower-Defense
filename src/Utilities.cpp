@@ -147,9 +147,10 @@ static string
 CopyString(memory_arena* Arena, string String)
 {
     string Result = {};
-    Result.Text = (char*)Alloc(Arena, String.Length);
+    Result.Text = (char*)Alloc(Arena, String.Length + 1);
     Result.Length = String.Length;
     memcpy(Result.Text, String.Text, String.Length);
+    Result.Text[String.Length] = 0;
     return Result;
 }
 

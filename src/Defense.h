@@ -18,7 +18,8 @@ struct local_entity_info
 enum structure_type : u8
 {
     Structure_Null,
-    Structure_ModularWood
+    Structure_ModularWood,
+    Structure_House
 };
 
 enum entity_type : u32

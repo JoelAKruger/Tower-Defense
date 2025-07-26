@@ -340,7 +340,7 @@ CreateWorld(world* World, u64 PlayerCount)
     
     GenerateFoliage(World, &Arena);
     
-    //Add paths
+    //Add structures
     for (u64 IndexA = 0; IndexA < World->EntityCount; IndexA++)
     {
         entity* A = World->Entities + IndexA;
@@ -356,7 +356,7 @@ CreateWorld(world* World, u64 PlayerCount)
                     {
                         entity Wood = {
                             .Type = Entity_Structure,
-                            .P = 0.5f * (A->P + B->P),
+                            .P = 0.5f * (A->P + B->P) + V3(0.0f, 0.0f, 0.01f),
                             .Angle = VectorAngle(B->P.XY - A->P.XY),
                             .Owner = A->Owner,
                             .StructureType = Structure_ModularWood
@@ -366,6 +366,16 @@ CreateWorld(world* World, u64 PlayerCount)
                     }
                 }
             }
+            
+            entity House = {
+                .Type = Entity_Structure,
+                .P = A->P,
+                .Angle = Random() * 2 * Pi,
+                .Owner = A->Owner,
+                .StructureType = Structure_House
+            };
+            
+            AddEntity(World, House);
         }
     }
 }
@@ -466,6 +476,7 @@ GetStructureAssetName(structure_type Type)
     switch (Type)
     {
         case Structure_ModularWood:  Result = "ModularWood_01"; break;
+        case Structure_House:        Result = "House_01"; break;
         default: Assert(0);
     }
     

@@ -325,7 +325,7 @@ float4 PixelShader_ModelWithTexture(VS_Output_Default input) : SV_TARGET
 
 	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
 
-	float light = ambient + diffuse * (1.0f - 0.8f * shadow) + specular * (1.0f - shadow);
+	float light = ambient + diffuse * (1.0f - 0.8f * shadow) + 0.5f * specular * (1.0f - shadow);
 
 	float3 color = diffuse_texture.Sample(default_sampler, input.uv);
 
