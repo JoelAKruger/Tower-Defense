@@ -346,36 +346,40 @@ CreateWorld(world* World, u64 PlayerCount)
         entity* A = World->Entities + IndexA;
         if (A->Type == Entity_WorldRegion && !IsWater(A))
         {
-            for (u64 IndexB = 0; IndexB < IndexA; IndexB++)
+            int N = 4;
+            for (int U = -N; U < N; U++)
             {
-                entity* B = World->Entities + IndexB;
-                if (B->Type == Entity_WorldRegion && !IsWater(B))
+                for (int V = -N; V < N; V++)
                 {
-                    if (RegionsAreNeighbours(A, B) &&
-                        A->Owner == B->Owner)
+                    bool DoBottom = (U + V < N) && (U + V > -N-1);
+                    bool DoTop = (U + V < N-1) && (U + V > -N-2);
+                    
+                    entity Pebble = {
+                        .Type = Entity_Foliage,
+                        .Size = 0.01f,
+                        .P = A->P,
+                        .Angle = 0,
+                        .Owner = A->Owner,
+                        .Parent = (i32) IndexA,
+                        .FoliageType = Foliage_Rock
+                    };
+                    
+                    if (DoBottom)
                     {
-                        entity Wood = {
-                            .Type = Entity_Structure,
-                            .P = 0.5f * (A->P + B->P) + V3(0.0f, 0.0f, 0.01f),
-                            .Angle = VectorAngle(B->P.XY - A->P.XY),
-                            .Owner = A->Owner,
-                            .StructureType = Structure_ModularWood
-                        };
-                        
-                        AddEntity(World, Wood);
+                        v2 dP = (A->Size / N) * (M2x2(V2(0.866f, 0.5f), V2(0, 1)) * V2(U + 0.33f, V + 0.33f));
+                        Pebble.P = A->P + V3(dP, 0.0f);
+                        AddEntity(World, Pebble);
+                    }
+                    
+                    if (DoTop)
+                    {
+                        v2 dP = (A->Size / N) * (M2x2(V2(0.866f, 0.5f), V2(0, 1)) * V2(U + 0.66f, V + 0.66f));
+                        Pebble.P = A->P + V3(dP, 0.0f);
+                        AddEntity(World, Pebble);
                     }
                 }
             }
-            
-            entity House = {
-                .Type = Entity_Structure,
-                .P = A->P,
-                .Angle = Random() * 2 * Pi,
-                .Owner = A->Owner,
-                .StructureType = Structure_House
-            };
-            
-            AddEntity(World, House);
+            break;
         }
     }
 }
