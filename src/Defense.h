@@ -1,12 +1,8 @@
 struct tile_position
 {
-    int X, Y;
+    int GridX, GridY;
+    int TileX, TileY;
     bool Top;
-};
-
-struct world_grid_position
-{
-    int X, Y;
 };
 
 enum foliage_type : u8
@@ -58,15 +54,14 @@ struct entity
     
     bool TilePositionIsValid;
     tile_position TilePosition;
-    
-    bool WorldGridPositionIsValid;
-    world_grid_position WorldGridPosition;
 };
 
 struct world
 {
     f32 X0, Y0;
     f32 Width, Height;
+    
+    f32 RegionSize;
     
     int Rows, Cols;
     
