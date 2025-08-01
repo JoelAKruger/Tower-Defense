@@ -175,6 +175,32 @@ WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
     return Result;
 }
 
+static u64
+RayCast(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
+{
+    u64 Result = 0;
+    f32 T = 1000000.0f;
+    
+    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
+    {
+        entity* Entity = World->Entities + EntityIndex;
+        m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+        model* Model = GetModel(Assets, Entity);
+        if (Model)
+        {
+            ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
+            
+            if (Collision.DidHit == true && Collision.T < T)
+            {
+                Result = EntityIndex;
+                T = Collision.T;
+            }
+        }
+    }
+    
+    return Result;
+}
+
 static v3 
 GetSkyColor(int Hour, int Minute) 
 {
@@ -884,6 +910,11 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     RenderWorld(&RenderGroup, GameState, Assets);
     
+    v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
+    u64 HoveringEntityIndex = RayCast(&GameState->GlobalState.World, Assets, 
+                                      GameState->CameraP, CursorWorldP - GameState->CameraP);
+    
+    
     //Draw GUI
     SetDepthTest(false);
     SetGUIShaderConstant(IdentityTransform());
@@ -959,6 +990,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);
     DrawGUIString(TimeString, V2(-0.95f, -0.75f));
+    
+    DrawGUIString(ArenaPrint(Allocator.Transient, "Hovering over: %d", HoveringEntityIndex), V2(-0.95f, -0.55f));
 }
 
 static void

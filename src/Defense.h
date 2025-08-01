@@ -1,3 +1,14 @@
+struct tile_position
+{
+    int X, Y;
+    bool Top;
+};
+
+struct world_grid_position
+{
+    int X, Y;
+};
+
 enum foliage_type : u8
 {
     Foliage_Null,
@@ -44,6 +55,12 @@ struct entity
     foliage_type FoliageType;
     structure_type StructureType;
     i8 Level;
+    
+    bool TilePositionIsValid;
+    tile_position TilePosition;
+    
+    bool WorldGridPositionIsValid;
+    world_grid_position WorldGridPosition;
 };
 
 struct world
