@@ -146,6 +146,7 @@ GetModel(game_assets* Assets, entity* Entity)
         case Entity_WorldRegion: ModelName = "Hexagon"; break;
         case Entity_Foliage: ModelName = GetFoliageAssetName(Entity->FoliageType); break;
         case Entity_Farm: ModelName = ""; break;
+        case Entity_Structure: ModelName = GetStructureAssetName(Entity->StructureType); break;
         default: Assert(0);
     }
     return FindModel(Assets, ModelName);
@@ -176,15 +177,18 @@ WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
 }
 
 static u64
-RayCast(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
+RayCast(game_state* Game, game_assets* Assets, v3 Ray0, v3 RayDirection)
 {
     u64 Result = 0;
     f32 T = 1000000.0f;
     
+    world* World = &Game->GlobalState.World;
+    
     for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
         entity* Entity = World->Entities + EntityIndex;
-        m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+        v3 RegionP = GetEntityP(Game, Entity->Parent);
+        m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
         model* Model = GetModel(Assets, Entity);
         if (Model)
         {
@@ -911,8 +915,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     RenderWorld(&RenderGroup, GameState, Assets);
     
     v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
-    u64 HoveringEntityIndex = RayCast(&GameState->GlobalState.World, Assets, 
-                                      GameState->CameraP, CursorWorldP - GameState->CameraP);
+    u64 HoveringEntityIndex = 0;//RayCast(GameState, Assets,  GameState->CameraP, CursorWorldP - GameState->CameraP);
     
     
     //Draw GUI
@@ -953,8 +956,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         }
         else
         {
-            RegionText = ArenaPrint(Allocator.Transient, "Owned by Player %d (Level %d)", 
-                                    Cursor.HoveringRegion->Owner, Cursor.HoveringRegion->Level + 1);
+            RegionText = ArenaPrint(Allocator.Transient, "Region %d: Owned by Player %d (Level %d)", 
+                                    Cursor.HoveringRegionIndex, Cursor.HoveringRegion->Owner, Cursor.HoveringRegion->Level + 1);
         }
         
         f32 Width = GUIStringWidth(RegionText, 0.1f);

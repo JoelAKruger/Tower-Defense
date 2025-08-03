@@ -178,6 +178,7 @@ LoadAssets(allocator Allocator)
     LoadObjectsFromFile(Assets, Allocator, "assets/models/stairs.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/modular_wood.obj");
     LoadObjectsFromFile(Assets, Allocator, "assets/models/house.obj");
+    LoadObjectsFromFile(Assets, Allocator, "assets/models/pavement.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -193,6 +194,9 @@ LoadAssets(allocator Allocator)
     
     SetModelLocalTransform(Assets, "GrassPatch101_Plane.040", TranslateTransform(-5.277f, 0.0f, -40.195f) * 
                            ModelRotateTransform() * ScaleTransform(0.6f));
+    
+    SetModelLocalTransform(Assets, "Rock2_Cube.009", TranslateTransform(-52.7, 0.0f, -9.509f) *
+                           ModelRotateTransform() * ScaleTransform(0.1f));
     
     SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
                            ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));

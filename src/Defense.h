@@ -1,3 +1,14 @@
+enum region_edge
+{
+    RegionEdge_None,
+    RegionEdge_Right,
+    RegionEdge_BottomRight,
+    RegionEdge_BottomLeft,
+    RegionEdge_Left,
+    RegionEdge_TopLeft,
+    RegionEdge_TopRight
+};
+
 struct tile_position
 {
     int GridX, GridY;
@@ -14,6 +25,7 @@ enum foliage_type : u8
     Foliage_RibbonPlant,
     Foliage_Grass,
     Foliage_Rock,
+    Foliage_Paving
 };
 
 struct local_entity_info

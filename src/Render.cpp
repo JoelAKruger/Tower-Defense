@@ -45,7 +45,7 @@ DrawRegionOutline(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
     
     v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
-    f32 Z = P.Z - 0.002f;
+    f32 Z = P.Z - 0.001f;
     
     u32 VertexDrawCount = 6 * 6 + 2;
     vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
@@ -291,7 +291,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 
                 v3 RegionP = GetEntityP(Game, Entity->Parent);
                 
-                m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z);
+                m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
                 char* Model = GetFoliageAssetName(Entity->FoliageType);
                 PushModelNew(RenderGroup, Assets, Model, Transform);
             } break;
@@ -321,6 +321,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
                 char* Model = GetStructureAssetName(Entity->StructureType);
                 PushTexturedModel(RenderGroup, Assets, Model, Transform);
+                //PushModelNew(RenderGroup, Assets, Model, Transform);
             } break;
             default: Assert(0);
         }

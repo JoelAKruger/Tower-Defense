@@ -462,6 +462,28 @@ IndexOfCounted(type Target, type* Array, u64 Count)
     return 0;
 }
 
+template <typename type>
+bool
+Contains(type Target, type* Array, u64 Count)
+{
+    for (u64 I = 0; I < Count; I++)
+    {
+        if (Array[I] == Target)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+template <typename type>
+bool
+Contains(type Target, span<type> Span)
+{
+    return Contains(Target, Span.Memory, Span.Count);
+}
+
 //Index of target in array
 #define IndexOf(target, array) IndexOfCounted(target, array, ArrayCount(array))
 
