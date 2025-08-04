@@ -575,7 +575,7 @@ GetOppositeTileFromEdge(tile_position P)
     tile_position Result = {};
     
     // Right side
-    if (P.TileX == N-1 && P.TileX + P.TileY != N-1 && P.TileY != -N && !(P.Top == false && P.TileY == -N))
+    if (P.TileX == N-1 && P.TileX + P.TileY != N-1 && !(P.Top == false && P.TileY == -N))
     {
         Result.GridX = P.GridX + 1;
         Result.GridY = P.GridY;
