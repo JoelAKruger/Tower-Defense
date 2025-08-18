@@ -419,14 +419,14 @@ TilePositionToWorldPosition(world* World, tile_position P)
 }
 
 static bool
-IsValidPathPosition(world* World, u64 RegionIndex, tile_position P, memory_arena* Arena)
+IsValidPathPosition(world* World, u64 RegionIndex, tile_position P, memory_arena* Arena, u32 PathOrigin)
 {
     span<tile_neighbour> Neighbours = GetLocalNeighbours(Arena, World, P);
     
     u64 PathNeighbourCount = 0;
     for (tile_neighbour Neighbour : Neighbours)
     {
-        if (Neighbour.Entity)
+        if (Neighbour.Entity && Neighbour.Entity->PathOrigin == PathOrigin)
         {
             PathNeighbourCount++;
         }
@@ -444,12 +444,12 @@ GetTileEdgeType(tile_position P)
     region_edge Result = {};
     
     // Right side
-    if (P.TileX == N-1 && P.TileX + P.TileY != N-1 && P.TileY != -N && !(P.Top == false && P.TileY == -N))
+    if (P.TileX == N-1 && P.TileX + P.TileY != N-1 && !(P.Top == false && P.TileY == -N))
     {
         Result = RegionEdge_Right;
     }
     // Bottom right
-    else if (P.TileY == -N)
+    else if (P.TileY == -N && (P.TileX + P.TileY != -N-1))
     {
         Result = RegionEdge_BottomRight;
     }
@@ -489,7 +489,7 @@ GetTileEdgeType(tile_position P)
 }
 
 static entity*
-CreatePathForRegion(world* World, tile_position Start, memory_arena* Arena, span<region_edge> DisallowedEdges)
+CreatePathForRegion(world* World, tile_position Start, memory_arena* Arena, span<region_edge> DisallowedEdges, u32 PathOrigin)
 {
     entity* End = 0;
     
@@ -508,7 +508,8 @@ CreatePathForRegion(world* World, tile_position Start, memory_arena* Arena, span
         .Parent = (i32) RegionIndex,
         .FoliageType = Foliage_Paving,
         .TilePositionIsValid = true,
-        .TilePosition = Start
+        .TilePosition = Start,
+        .PathOrigin = PathOrigin
     };
     
     AddEntity(World, Pebble);
@@ -519,7 +520,7 @@ CreatePathForRegion(world* World, tile_position Start, memory_arena* Arena, span
         
         int Index = RandomBetween(0, Neighbours.Count - 1);
         if (!Neighbours[Index].Entity &&
-            IsValidPathPosition(World, RegionIndex, Neighbours[Index].P, Arena))
+            IsValidPathPosition(World, RegionIndex, Neighbours[Index].P, Arena, PathOrigin))
         {
             tile_position P = Neighbours[Index].P;
             bool IsOnEdge = TileIsOnEdge(P);
@@ -809,7 +810,7 @@ CreateWorld(world* World, u64 PlayerCount)
         }
     }
     
-    GenerateFoliage(World, &Arena);
+    //GenerateFoliage(World, &Arena);
     
     //Add structures
     /*
@@ -902,7 +903,7 @@ CreateWorld(world* World, u64 PlayerCount)
             int MaxRegionCount = 5;
             for (int RegionCount = 0; RegionCount < MaxRegionCount; RegionCount++)
             {
-                entity* PathEnd = CreatePathForRegion(World, P, &Arena, DisallowedEdges);
+                entity* PathEnd = CreatePathForRegion(World, P, &Arena, DisallowedEdges, RegionIndex);
                 if (!PathEnd)
                 {
                     break;

@@ -66,6 +66,8 @@ struct entity
     
     bool TilePositionIsValid;
     tile_position TilePosition;
+    
+    u32 PathOrigin;
 };
 
 struct world
