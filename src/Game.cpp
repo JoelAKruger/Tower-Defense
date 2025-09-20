@@ -1,20 +1,13 @@
-#include "Engine.h"
+#include "Engine/Engine.h"
+#include "Engine/Engine.cpp"
 
-#include "Renderer.h"
 #include "Defense.h"
 
-#include "Maths.cpp"
-#include "Utilities.cpp"
-#include "GUI.cpp"
-#include "Console.cpp"
-#include "Parser.cpp"
-#include "Graphics.cpp"
-
 #include "World.cpp"
-#include "Render.cpp"
 #include "Server.cpp"
 #include "Resources.cpp"
 #include "Water.cpp"
+#include "Render.cpp"
 
 static void
 CreateServer()
@@ -35,8 +28,13 @@ Connect(string CustomAddress = {})
         Address[CustomAddress.Length] = 0;
     }
     
-    void ClientNetworkThread(char*);
-    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)Address, 0, 0);
+    client_network_thread_data* Data = new client_network_thread_data{
+        .Hostname = Address,
+        .MessagePacketSize = sizeof(server_packet_message),
+        .GameStatePacketSize = sizeof(server_packet_game_state)
+    };
+    
+    CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)Data, 0, 0);
 }
 
 static v3 
@@ -1091,13 +1089,24 @@ void Command_new_world(int ArgCount, string* Args, console* Console, game_state*
 {
 }
 
-
-static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, allocator Allocator)
+void Command_water_flow(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets* Assets, memory_arena* Arena)
 {
-    if (!App->Assets)
+    CreateWaterFlowMap(&GameState->GlobalState.World, Assets, Arena);
+}
+
+static void UpdateAndRender(app_state** App_, game_assets** Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
+{
+    if (*Assets == 0)
     {
-        App->Assets = LoadAssets(Allocator);
+        *Assets = LoadAssets(Allocator);
     }
+    
+    if (*App_ == 0)
+    {
+        *App_ = AllocStruct(Allocator.Permanent, app_state);
+    }
+    
+    app_state* App = *App_;
     
 #if DEVELOPER_MODE == 1
     App->CurrentScreen = Screen_Game;
@@ -1107,7 +1116,7 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
     {
         case Screen_MainMenu:
         {
-            BeginGUI(Input, App->Assets);
+            BeginGUI(Input, *Assets);
             
             f32 ButtonWidth = 0.8f / GlobalAspectRatio;
             if (Button(V2(-0.5f * ButtonWidth, 0.0f), V2(ButtonWidth, 0.3f), String("Play")))
@@ -1121,7 +1130,7 @@ static void UpdateAndRender(app_state* App, f32 DeltaTime, game_input* Input, al
             {
                 App->GameState = GameInitialise(Allocator);
             }
-            GameUpdateAndRender(App->GameState, App->Assets, DeltaTime, Input, Allocator);
+            GameUpdateAndRender(App->GameState, *Assets, DeltaTime, Input, Allocator);
         } break;
         
         default: Assert(0);

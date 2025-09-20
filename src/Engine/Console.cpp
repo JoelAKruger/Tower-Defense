@@ -307,8 +307,3 @@ void Command_clear(int ArgCount, string* Args, console* Console, game_state* Gam
         Console->History[HistoryIndex] = {};
     }
 }
-
-void Command_water_flow(int ArgCount, string* Args, console* Console, game_state* GameState, game_assets* Assets, memory_arena* Arena)
-{
-    CreateWaterFlowMap(&GameState->GlobalState.World, Assets, Arena);
-}

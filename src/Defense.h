@@ -191,15 +191,6 @@ struct player_request
     u32 RegionIndex;
 };
 
-enum channel : u32
-{
-    Channel_Null,
-    Channel_Message,
-    Channel_GameState,
-    
-    Channel_Count
-};
-
 enum animation_type : u32
 {
     Animation_Null,
@@ -339,7 +330,6 @@ struct app_state
     app_screen CurrentScreen;
     
     game_state* GameState;
-    game_assets* Assets;
 };
 
 struct ray_collision

@@ -1,7 +1,3 @@
-#include <stdint.h>
-#include <cstdarg>
-#include <stdio.h>
-
 //TODO: This does not seem to actually calculate the length at compile time :(
 constexpr string
 String(const char* Text)

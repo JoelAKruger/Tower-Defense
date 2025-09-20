@@ -1,7 +1,3 @@
-#include <math.h>
-#include <stdlib.h>
-#include <stdint.h>
-
 inline v2 V2(f32 X, f32 Y)
 {
 	v2 Result = {X, Y};

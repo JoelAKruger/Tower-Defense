@@ -297,18 +297,20 @@ RunServer()
         
         for (packet Packet : Packets)
         {
+            channel Channel = *(channel*)Packet.Data;
             player* Sender = Game.Players + Packet.SenderIndex;
             
             bool FlushWorld = false;
             
-            if (!Sender->Initialised)
+            if (Channel == Channel_Init && !Sender->Initialised)
             {
+                Assert(Packet.Length == sizeof(channel));
+                
                 Game.PlayerCount = Max((i32)Game.PlayerCount, (i32)Packet.SenderIndex + 1); //Hack but realistically fine
                 InitialisePlayer(&Game, Packet.SenderIndex);
                 FlushWorld = true;
             }
-            
-            if (Packet.Length != 0)
+            else if (Packet.Length != 0)
             {
                 Log("Server: Received data from client\n");
                 Assert(Packet.Length == sizeof(player_request));

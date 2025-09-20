@@ -1,30 +1,24 @@
+#pragma once
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
+#pragma comment (lib, "Ws2_32.lib")
 
 #define UNICODE
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <Windows.h>
-#include <d3d11_1.h>
+
 #include <d3dcompiler.h>
 #include <hidusage.h>
 
 #include <string>
 
-#define STBTT_STATIC
-#define STB_TRUETYPE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_truetype.h"
 #include "stb_image.h"
 
-#include "Platform.h"
 #include "Timer.cpp"
 #include "Profiler.h"
-#include "Network.h"
 
 #include "D3D11.h"
-#include "Game.cpp"
 
 #include "D3D11.cpp"
 
@@ -32,6 +26,10 @@
 #include "Network/Winsock.cpp"
 
 #include "Profiler.cpp"
+#include "Parser.cpp"
+#include "Graphics.cpp"
+#include "GUI.cpp"
+#include "Console.cpp"
 
 memory_arena GlobalDebugArena;
 
@@ -131,7 +129,8 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     dynamic_array<string> Profile = {};
     
-    app_state AppState = {};
+    app_state* AppState = 0;
+    game_assets* Assets = 0;
     
     while (true)
     {
@@ -167,7 +166,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
             
             GlobalWindowDidResize = false;
             
-            ResizeAssets(AppState.Assets);
+            ResizeAssets(Assets);
         }
         
         //-------------------------
@@ -215,12 +214,12 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         {
             TimeBlock("Update & Render");
-            UpdateAndRender(&AppState, SecondsPerFrame, &Input, Allocator);
+            UpdateAndRender(&AppState, &Assets, SecondsPerFrame, &Input, Allocator);
         }
         
         // Draw profiling information
         SetGUIShaderConstant(IdentityTransform());
-        SetShader(GUIFontShader);
+        SetShader(Assets->Shaders[Shader_GUI_Font]);
         f32 X = -0.99f;
         f32 Y = 0.95f;
         for (string Text : Profile)

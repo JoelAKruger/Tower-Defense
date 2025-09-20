@@ -1,8 +1,3 @@
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#pragma comment (lib, "Ws2_32.lib")
-
 struct client
 {
     bool Connected;
@@ -17,7 +12,7 @@ static client* Client_;
 
 //Client API
 static void 
-ClientNetworkThread(char* Hostname)
+ClientNetworkThread(client_network_thread_data* Data)
 {
     memory_arena PermArena = Win32CreateMemoryArena(Megabytes(1), PERMANENT);
     Assert(!Client_);
@@ -37,7 +32,7 @@ ClientNetworkThread(char* Hostname)
     };
     
     addrinfo* Result = 0;
-    getaddrinfo(Hostname, DefaultPortString, &Hints, &Result);
+    getaddrinfo(Data->Hostname, DefaultPortString, &Hints, &Result);
     
     for (addrinfo* At = Result; At; At = At->ai_next)
     {
@@ -63,8 +58,8 @@ ClientNetworkThread(char* Hostname)
     */
     
     //INSANE HACK BELOW
-    player_request Hello = {.Type = Request_Hello};
-    packet Packet = {.Data = (u8*) &Hello, .Length = sizeof(Hello)};
+    channel Init = Channel_Init;
+    packet Packet = {.Data = (u8*) &Init, .Length = sizeof(Init)};
     SendToServer(Packet);
     
     while (true)
@@ -76,8 +71,9 @@ ClientNetworkThread(char* Hostname)
         int Bytes = 0;
         switch (Channel)
         {
-            case Channel_Message:   Bytes = sizeof(server_packet_message); break;
-            case Channel_GameState: Bytes = sizeof(server_packet_game_state); break;
+            case Channel_Init:      Bytes = sizeof(channel); break;
+            case Channel_Message:   Bytes = Data->MessagePacketSize; break;
+            case Channel_GameState: Bytes = Data->GameStatePacketSize; break;
             default: Assert(0);
         }
         

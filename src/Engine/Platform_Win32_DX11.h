@@ -1,3 +1,10 @@
+#define WIN32_LEAN_AND_MEAN
+#define UNICODE
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <d3d11_1.h>
+
 struct shader
 {
     ID3D11VertexShader* VertexShader;
@@ -6,6 +13,7 @@ struct shader
 };
 typedef shader d3d11_shader;
 
+//TODO: Get rid of this from the engine
 struct font_texture
 {
     stbtt_bakedchar* BakedChars;

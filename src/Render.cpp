@@ -1,3 +1,5 @@
+#include <float.h>
+
 static void
 DrawOceanFloor(render_group* RenderGroup)
 {
