@@ -1,5 +1,3 @@
-#include <float.h>
-
 static void
 DrawOceanFloor(render_group* RenderGroup)
 {
@@ -15,7 +13,7 @@ DrawWater(render_group* RenderGroup, f32 WaterZ)
 }
 
 static void
-DrawSkybox(render_group* RenderGroup, game_assets* Assets)
+DrawSkybox(render_group* RenderGroup, defense_assets* Assets)
 {
     int D = 80;
     
@@ -101,7 +99,7 @@ DrawRegionOutline(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
 }
 
 static void
-DrawTower(render_group* RenderGroup, game_state* Game, game_assets* Assets, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
+DrawTower(render_group* RenderGroup, game_state* Game, defense_assets* Assets, tower_type Type, v3 P, v4 Color, f32 Angle = 0.0f)
 {
     m4x4 ModelTransform = TranslateTransform(P.X, P.Y, P.Z);
     
@@ -110,38 +108,22 @@ DrawTower(render_group* RenderGroup, game_state* Game, game_assets* Assets, towe
     
     if (Type == Tower_Castle)
     {
-        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Castle", ModelTransform);
+        span<render_command*> Commands = PushModelNew(RenderGroup, Assets->Castle, ModelTransform);
         Commands[0]->Color = Color;
     }
     else if (Type == Tower_Turret)
     {
-        span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Turret", ModelTransform);
+        span<render_command*> Commands = PushModelNew(RenderGroup, Assets->Turret, ModelTransform);
         Commands[0]->Color = Color;
-    }
-    else if (Type == Tower_Mine)
-    {
-        VertexBuffer = FindVertexBuffer(Assets, "Mine");
-        Transform = TranslateTransform(0.0f, 0.0f, -0.2f) * ScaleTransform(0.1f, 0.1f, 0.1f);
     }
     else
     {
         Assert(0);
     }
-    
-    
-    
-    PushModel(RenderGroup, VertexBuffer);
-    PushColor(RenderGroup, Color);
-    PushModelTransform(RenderGroup, ModelTransform);
-    
-    if (Type == Tower_Mine)
-    {
-        PushShader(RenderGroup, Shader_TexturedModel);
-    }
 }
 
 static void
-DrawTowers(render_group* RenderGroup, game_state* Game, game_assets* Assets)
+DrawTowers(render_group* RenderGroup, game_state* Game, defense_assets* Assets)
 {
     for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
@@ -264,13 +246,14 @@ GetGrassRandomOffsets()
     return {.Memory = Offsets, .Count = ArrayCount(Offsets)};
 }
 
-static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets)
+//TODO: This should ideally only take a defense assets
+static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, defense_assets* GameAssets)
 {
     world* World = &Game->GlobalState.World;
     
     shader_constants Constants = {};
     
-    DrawSkybox(RenderGroup, Assets);
+    DrawSkybox(RenderGroup, GameAssets);
     DrawOceanFloor(RenderGroup);
     
     //PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
@@ -283,7 +266,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             {
                 v3 P = GetEntityP(Game, EntityIndex);
                 m4x4 Transform = TranslateTransform(P);
-                span<render_command*> Commands = PushModelNew(RenderGroup, Assets, "Hexagon", Transform);
+                span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldRegion, Transform);
                 render_command* Command = Commands[0];
                 Command->Color = Entity->Color;
             } break;
@@ -294,8 +277,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 v3 RegionP = GetEntityP(Game, Entity->Parent);
                 
                 m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
-                char* Model = GetFoliageAssetName(Entity->FoliageType);
-                PushModelNew(RenderGroup, Assets, Model, Transform);
+                model_index Model = GetModel(GameAssets, Entity);
+                PushModelNew(RenderGroup, Model, Transform);
             } break;
             case Entity_Farm:
             {
@@ -312,8 +295,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     v3 P = RegionP + FarmP + V3(1.1f * World->Entities[Entity->Owner].Size * Offset, 0.0f);
                     
                     m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
-                    char* Model = "GrassPatch101_Plane.040";
-                    PushModelNew(RenderGroup, Assets, Model, Transform);
+                    PushModelNew(RenderGroup, GameAssets->Grass, Transform);
                     PushWind(RenderGroup);
                 }
             } break;
@@ -321,8 +303,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             {
                 v3 P = Entity->P;
                 m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
-                char* Model = GetStructureAssetName(Entity->StructureType);
-                PushTexturedModel(RenderGroup, Assets, Model, Transform);
+                model_index Model = GetModel(GameAssets, Entity);
+                PushTexturedModel(RenderGroup, Model, Transform);
                 //PushModelNew(RenderGroup, Assets, Model, Transform);
             } break;
             default: Assert(0);
@@ -334,7 +316,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         DrawRegionOutline(RenderGroup, Game, Game->HoveringRegionIndex);
     }
     
-    DrawTowers(RenderGroup, Game, Assets);
+    DrawTowers(RenderGroup, Game, GameAssets);
     
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;
@@ -353,12 +335,12 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetDepthTest(true);
     SetFrontCullMode(true); //INCORRECTLY NAMED FUNCTION
     UnsetShadowMap();
-    ClearOutput(Assets->ShadowMaps[0]);
-    SetOutput(Assets->ShadowMaps[0]);
-    DrawRenderGroup(RenderGroup, Assets, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
+    ClearOutput(Assets->RenderOutputs[GameAssets->ShadowMap]);
+    SetOutput(Assets->RenderOutputs[GameAssets->ShadowMap]);
+    DrawRenderGroup(RenderGroup, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     SetFrontCullMode(false);
     SetOutput({});
-    SetShadowMap(Assets->ShadowMaps[0]);
+    SetShadowMap(Assets->RenderOutputs[GameAssets->ShadowMap]);
     
     Constants.WorldToClipTransform = WorldTransform;
     
@@ -376,17 +358,17 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
     Constants.WorldToClipTransform = ReflectionWorldTransform;
-    ClearOutput(Assets->WaterReflection);
-    SetOutput(Assets->WaterReflection);
-    DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
+    ClearOutput(Assets->RenderOutputs[GameAssets->WaterReflection]);
+    SetOutput(Assets->RenderOutputs[GameAssets->WaterReflection]);
+    DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
     
     //Refraction texture
     //The clip plane could probably be removed but having it might mean a few less calculations of the pixel shader
     Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -(WaterZ - 0.05f));
     Constants.WorldToClipTransform = WorldTransform;
-    ClearOutput(Assets->WaterRefraction);
-    SetOutput(Assets->WaterRefraction);
-    DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
+    ClearOutput(Assets->RenderOutputs[GameAssets->WaterRefraction]);
+    SetOutput(Assets->RenderOutputs[GameAssets->WaterRefraction]);
+    DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
     
     //Draw normal world
     Constants.ClipPlane = {};
@@ -394,21 +376,21 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawWater(RenderGroup, WaterZ);
     
     //Set reflection and refraction textures
-    ClearOutput(Assets->Output1);
-    SetOutput(Assets->Output1);
-    SetShadowMap(Assets->ShadowMaps[0]);
-    SetTexture(Assets->WaterReflection.Texture, 2);
-    SetTexture(Assets->WaterRefraction.Texture, 3);
-    SetTexture(Assets->WaterDuDv, 4);
-    SetTexture(Assets->WaterFlow, 5);
-    SetTexture(Assets->WaterNormal, 6);
+    ClearOutput(Assets->RenderOutputs[GameAssets->Output1]);
+    SetOutput(Assets->RenderOutputs[GameAssets->Output1]);
+    SetShadowMap(Assets->RenderOutputs[GameAssets->ShadowMap]);
+    SetTexture(Assets->RenderOutputs[GameAssets->WaterReflection].Texture, 2);
+    SetTexture(Assets->RenderOutputs[GameAssets->WaterRefraction].Texture, 3);
+    SetTexture(Assets->Textures[GameAssets->WaterDuDv], 4);
+    SetTexture(Assets->Textures[GameAssets->WaterFlow], 5);
+    SetTexture(Assets->Textures[GameAssets->WaterNormal], 6);
     
-    SetTexture(Assets->ModelTextures.Ambient, 7);
-    SetTexture(Assets->ModelTextures.Diffuse, 8);
-    SetTexture(Assets->ModelTextures.Normal, 9);
-    SetTexture(Assets->ModelTextures.Specular, 10);
+    SetTexture(Assets->Textures[GameAssets->ModelTextures.Ambient], 7);
+    SetTexture(Assets->Textures[GameAssets->ModelTextures.Diffuse], 8);
+    SetTexture(Assets->Textures[GameAssets->ModelTextures.Normal], 9);
+    SetTexture(Assets->Textures[GameAssets->ModelTextures.Specular], 10);
     
-    DrawRenderGroup(RenderGroup, Assets, Constants, Draw_Regular);
+    DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
     
     UnsetShadowMap();
     UnsetTexture(2);
@@ -420,35 +402,35 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetGUIShaderConstant(IdentityTransform());
     SetDepthTest(false);
     
-    ClearOutput(Assets->BloomMipmaps[0]);
-    SetOutput(Assets->BloomMipmaps[0]);
+    ClearOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[0]]);
+    SetOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[0]]);
     
-    SetTexture(Assets->Output1.Texture, 11);
+    SetTexture(Assets->RenderOutputs[GameAssets->Output1].Texture, 11);
     
     SetShader(Assets->Shaders[Shader_Bloom_Filter]);
     
-    renderer_vertex_buffer WholeScreen = *FindVertexBuffer(Assets, "GUIWholeScreen");
+    renderer_vertex_buffer WholeScreen = Assets->VertexBuffers[GameAssets->GUIWholeScreen];
     DrawVertexBuffer(WholeScreen);
     
     //Downsampling
     SetShader(Assets->Shaders[Shader_Bloom_Downsample]);
-    for (u64 MipmapIndex = 1; MipmapIndex < ArrayCount(Assets->BloomMipmaps); MipmapIndex++)
+    for (u64 MipmapIndex = 1; MipmapIndex < ArrayCount(GameAssets->BloomMipmaps); MipmapIndex++)
     {
-        ClearOutput(Assets->BloomMipmaps[MipmapIndex]);
-        SetOutput(Assets->BloomMipmaps[MipmapIndex]);
+        ClearOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]]);
+        SetOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]]);
         
-        SetTexture(Assets->BloomMipmaps[MipmapIndex - 1].Texture, 11);
+        SetTexture(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex - 1]].Texture, 11);
         DrawVertexBuffer(WholeScreen);
     }
     
     //Upsampling
     SetShader(Assets->Shaders[Shader_Bloom_Upsample]);
     SetBlendMode(BlendMode_Add);
-    ClearOutput(Assets->BloomAccum, V4(0, 0, 0, 0));
-    SetOutput(Assets->BloomAccum);
-    for (u64 MipmapIndex = 0; MipmapIndex < ArrayCount(Assets->BloomMipmaps); MipmapIndex++)
+    ClearOutput(Assets->RenderOutputs[GameAssets->BloomAccum], V4(0, 0, 0, 0));
+    SetOutput(Assets->RenderOutputs[GameAssets->BloomAccum]);
+    for (u64 MipmapIndex = 0; MipmapIndex < ArrayCount(GameAssets->BloomMipmaps); MipmapIndex++)
     {
-        SetTexture(Assets->BloomMipmaps[MipmapIndex].Texture, 11);
+        SetTexture(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]].Texture, 11);
         DrawVertexBuffer(WholeScreen);
     }
     
@@ -458,13 +440,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetShader(Assets->Shaders[Shader_GUI_HDR_To_SDR]);
     
     SetBlendMode(BlendMode_Blend);
-    SetTexture(Assets->Output1.Texture, 0);
+    SetTexture(Assets->RenderOutputs[GameAssets->Output1].Texture, 0);
     DrawVertexBuffer(WholeScreen);
     
     SetShader(Assets->Shaders[Shader_GUI_Texture]);
     
     SetBlendMode(BlendMode_Add);
-    SetTexture(Assets->BloomAccum.Texture, 0);
+    SetTexture(Assets->RenderOutputs[GameAssets->BloomAccum].Texture, 0);
     DrawVertexBuffer(WholeScreen);
     
     SetBlendMode(BlendMode_Blend);

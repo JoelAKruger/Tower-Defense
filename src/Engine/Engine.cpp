@@ -30,6 +30,7 @@
 #include "Graphics.cpp"
 #include "GUI.cpp"
 #include "Console.cpp"
+#include "Assets.cpp"
 
 memory_arena GlobalDebugArena;
 
@@ -56,8 +57,6 @@ span<u8> LoadFile(memory_arena* Arena, char* Path);
 void Win32SaveFile(char* Path, span<u8> Data);
 
 static bool GlobalWindowDidResize;
-
-//void InitialiseSteamNetworking();
 
 int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowCode)
 {
@@ -130,7 +129,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     dynamic_array<string> Profile = {};
     
     app_state* AppState = 0;
-    game_assets* Assets = 0;
+    game_assets Assets = {.Allocator = Allocator};
     
     while (true)
     {
@@ -166,7 +165,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
             
             GlobalWindowDidResize = false;
             
-            ResizeAssets(Assets);
+            ResizeAssets(&Assets);
         }
         
         //-------------------------
@@ -218,14 +217,17 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         }
         
         // Draw profiling information
-        SetGUIShaderConstant(IdentityTransform());
-        SetShader(Assets->Shaders[Shader_GUI_Font]);
-        f32 X = -0.99f;
-        f32 Y = 0.95f;
-        for (string Text : Profile)
+        if (Assets.Initialised)
         {
-            DrawGUIString(Text, V2(X, Y), V4(0.75f, 0.75f, 0.75f, 1.0f));
-            Y -= 0.06f;
+            SetGUIShaderConstant(IdentityTransform());
+            SetShader(Assets.Shaders[Shader_GUI_Font]);
+            f32 X = -0.99f;
+            f32 Y = 0.95f;
+            for (string Text : Profile)
+            {
+                DrawGUIString(Text, V2(X, Y), V4(0.75f, 0.75f, 0.75f, 1.0f));
+                Y -= 0.06f;
+            }
         }
         
         {

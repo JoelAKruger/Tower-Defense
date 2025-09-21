@@ -266,7 +266,7 @@ struct game_state
     tower_type PlacementType; 
     
     //Valid when mode is Mode_EditTower
-    tower* SelectedTower;     
+    tower* SelectedTower;
     u32    SelectedTowerIndex;
     tower_edit_mode TowerEditMode;
     
@@ -302,6 +302,33 @@ struct game_state
     v3 SkyColor;
     v3 LightP;
     v3 LightDirection;
+};
+
+struct defense_assets
+{
+    texture_index WaterReflection;
+    texture_index WaterRefraction;
+    texture_index WaterDuDv;
+    texture_index WaterNormal;
+    texture_index WaterFlow;
+    
+    render_output_index ShadowMap;
+    render_output_index Output1;
+    
+    render_output_index BloomMipmaps[8];
+    render_output_index BloomAccum;
+    
+    texture_index Button, Panel, Crystal, Target;
+    
+    model_textures ModelTextures;
+    cube_map Skybox;
+    
+    model_index WorldRegion;
+    model_index PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
+    model_index ModularWood, House;
+    model_index Castle, Turret, Mine;
+    
+    vertex_buffer_index GUIWholeScreen;
 };
 
 struct map_file_header
@@ -345,3 +372,6 @@ void InitialiseServerState(global_game_state* Game);
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
 v3 GetEntityP(game_state* Game, u64 EntityIndex);
+model_index GetModel(defense_assets* Assets, entity* Entity);
+
+ray_collision WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection);

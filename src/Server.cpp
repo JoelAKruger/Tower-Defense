@@ -90,7 +90,7 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
 }
 
 static span<server_packet_message>
-ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderIndex, player_request* Request, memory_arena* Arena, bool* FlushWorld)
+ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets* GameAssets, u32 SenderIndex, player_request* Request, memory_arena* Arena, bool* FlushWorld)
 {
     dynamic_array<server_packet_message> ServerPackets = {.Arena = Arena};
     
@@ -170,8 +170,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, u32 SenderInde
         {
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
-            ray_collision WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection);
-            ray_collision Collision = WorldCollision(&Game->World, Assets, Request->P, Request->Direction);
+            ray_collision Collision = WorldCollision(&Game->World, Assets, GameAssets, Request->P, Request->Direction);
             
             if (Collision.T != 0.0f)
             {
@@ -284,6 +283,8 @@ RunServer()
     
     game_assets* LoadServerAssets(allocator Allocator);
     game_assets* Assets = LoadServerAssets(Allocator);
+    //TODO: i dont know what happens here...
+    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
     
     global_game_state Game = {};
     
@@ -317,7 +318,7 @@ RunServer()
                 
                 player_request* Request = (player_request*)Packet.Data;
                 
-                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, Assets, Packet.SenderIndex, 
+                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, Assets, GameAssets, Packet.SenderIndex, 
                                                                                 Request, &TArena, &FlushWorld);
                 
                 for (server_packet_message& ServerPacket : ServerPackets)

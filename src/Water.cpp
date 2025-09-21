@@ -1,7 +1,6 @@
 /* 
        File:     Water.cpp
 Date:     4/11/2024
-Revision: 1.0
 Creator:  Joel Kruger
 */
 
@@ -124,8 +123,10 @@ CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena)
         }
     }
     
+#if 0
     DeleteTexture(&Assets->WaterFlow);
     Assets->WaterFlow = CreateTexture(TextureData.Memory, TextureData.Cols, TextureData.Rows);
+#endif
     
     u64 Ticks = ReadCPUTimer() - Start;
     f32 Seconds = CPUTimeToSeconds(Ticks, CPUFrequency);

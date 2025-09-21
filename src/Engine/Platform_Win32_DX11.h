@@ -70,5 +70,9 @@ void CreateD3D11Device();
 void CreateSamplers();
 f32 D3D11TextWidth(string String, f32 Size, f32 AspectRatio = 1.0f);
 
-//TODO: Wtf is this
-#define PlatformTextWidth D3D11TextWidth
+#define PlatformTextWidth                D3D11TextWidth
+#define PlatformCreateShadowDepthTexture D3D11CreateShadowDepthTexture
+#define PlatformCreateVertexBuffer       D3D11CreateVertexBuffer
+#define PlatformCreateTexture            D3D11CreateTexture
+#define PlatformCreateRenderOutput       D3D11CreateRenderOutput
+#define PlatformCreateVertexBuffer       D3D11CreateVertexBuffer

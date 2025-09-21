@@ -213,7 +213,7 @@ void SetFontTexture(font_texture Texture);
 void UnsetTexture(int Index = 0);
 void DeleteTexture(texture* Texture);
 texture CreateTexture(char* Path);
-texture CreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
+texture PlatformCreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
 
 //Shaders
 void LoadShaders(game_assets* Assets);
@@ -222,7 +222,7 @@ void SetGraphicsShaderConstants(shader_constants Constants);
 void SetGUIShaderConstant(m4x4 Transform);
 
 //Rendering
-renderer_vertex_buffer CreateVertexBuffer(void* Data, u64 Bytes, int Topology, u64 Stride);
+renderer_vertex_buffer PlatformCreateVertexBuffer(void* Data, u64 Bytes, int Topology, u64 Stride);
 void FreeVertexBuffer(renderer_vertex_buffer VertexBuffer);
 void DrawVertices(f32* VertexData, u32 VertexDataBytes, int Topology, u32 Stride);
 void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer);
@@ -287,7 +287,7 @@ struct game_input
 struct app_state;
 
 // --- Game Layer ---
-void UpdateAndRender(app_state** App, game_assets** Assets, f32 DeltaTime, game_input* Input, allocator Allocator);
+void UpdateAndRender(app_state** App, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator);
 
 struct font_asset;
 v2 TextPixelSize(font_asset* Font, string String);
@@ -322,9 +322,18 @@ struct triangle
     v3 Positions[3];
 };
 
+//TODO: Rename to handle
+typedef u64 mesh_index;
+typedef u64 render_output_index;
+typedef u64 model_index;
+typedef u64 texture_index;
+typedef u64 font_index;
+typedef u64 vertex_buffer_index;
+typedef u64 material_index;
+
 struct cube_map
 {
-    texture Textures[6];
+    texture_index Textures[6];
 };
 
 enum shader_index
@@ -354,17 +363,6 @@ enum shader_index
     Shader_Count
 };
 
-enum vertex_buffer_index
-{
-    VertexBuffer_Null,
-    VertexBuffer_Castle,
-    VertexBuffer_Turret,
-    VertexBuffer_World,
-    VertexBuffer_Mine,
-    
-    VertexBuffer_Count
-};
-
 struct material;
 
 struct render_command
@@ -376,7 +374,7 @@ struct render_command
     D3D11_PRIMITIVE_TOPOLOGY Topology;
     shader_index Shader;
     renderer_vertex_buffer* VertexBuffer;
-    texture Texture;
+    texture_index Texture;
     m4x4 ModelTransform;
     v4 Color;
     material* Material;
@@ -403,11 +401,10 @@ struct render_group
 
 struct model_textures
 {
-    texture Ambient;
-    texture Diffuse;
-    //texture Displacement;
-    texture Normal;
-    texture Specular;
+    texture_index Ambient;
+    texture_index Diffuse;
+    texture_index Normal;
+    texture_index Specular;
 };
 
 // .mtl material
@@ -424,7 +421,6 @@ struct material
     f32 Dissolve;
     int IlluminationMode;
 };
-typedef u64 material_index;
 
 struct mesh
 {
@@ -433,7 +429,6 @@ struct mesh
     renderer_vertex_buffer VertexBuffer;
     span<triangle> Triangles;
 };
-typedef u64 mesh_index;
 
 struct renderer_pbr
 {
@@ -451,36 +446,13 @@ struct model
 
 struct game_assets
 {
-    //Old asset system
-    renderer_vertex_buffer VertexBuffers_[VertexBuffer_Count];
-    renderer_vertex_buffer VertexBuffersNew[128];
-    int VertexBufferCount;
+    bool Initialised;
+    allocator Allocator;
     
+    //Old asset system
     shader Shaders[Shader_Count];
-    texture Textures[32];
-    cube_map Skybox;
     
     font_asset Font;
-    
-    render_output WaterReflection;
-    render_output WaterRefraction;
-    texture WaterDuDv;
-    texture WaterNormal;
-    
-    texture WaterFlow; //Dynamic
-    
-    render_output ShadowMaps[1];
-    render_output Output1;
-    
-    render_output BloomMipmaps[8];
-    render_output BloomAccum;
-    
-    texture Button;
-    texture Panel;
-    texture Crystal;
-    texture Target;
-    
-    model_textures ModelTextures;
     
     //New asset system
     material Materials[32];
@@ -493,9 +465,25 @@ struct game_assets
     
     model Models[128];
     int ModelCount;
+    
+    texture Textures[32];
+    int TextureCount;
+    
+    render_output RenderOutputs[128];
+    int RenderOutputCount;
+    
+    font_asset Fonts[8];
+    int FontCount;
+    
+    renderer_vertex_buffer VertexBuffers[128];
+    int VertexBufferCount;
+    
+    //Used by game
+    void* GameData;
 };
 
 void ResizeAssets(game_assets* Assets);
+
 
 enum render_draw_type
 {
@@ -516,7 +504,7 @@ render_command* GetLastEntry(render_group* RenderGroup);
 
 void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
-render_command* PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
+render_command* PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3);
 void PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader);
 void PushColor(render_group* RenderGroup, v4 Color);
@@ -530,7 +518,7 @@ void DrawTexture(v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void DrawString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f, f32 AspectRatio = 1.0f);
 void DrawGUIString(string String, v2 Position, v4 Color = {1.0f, 1.0f, 1.0f, 1.0f}, f32 Size = 0.05f);
 f32 GUIStringWidth(string String, f32 FontSize);
-void DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type = Draw_Regular);
+void DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type = Draw_Regular);
 
 //Transforms
 m4x4 IdentityTransform();
@@ -544,11 +532,11 @@ m4x4 OrthographicTransform(f32 Left, f32 Right, f32 Bottom, f32 Top, f32 Near, f
 
 //Utility functions
 void CalculateModelVertexNormals(tri* Triangles, u64 TriangleCount);
-void SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform);
+void SetModelLocalTransform(game_assets* Assets, char* ModelName, m4x4 Transform);
+void SetModelLocalTransform(game_assets* Assets, model_index Model, m4x4 Transform);
 
 //Assets
-void LoadVertexBuffer(game_assets* Assets, char* Description, renderer_vertex_buffer Buffer);
-renderer_vertex_buffer* FindVertexBuffer(game_assets* Assets, char* Description_);
+void SetVertexBuffer(game_assets* Assets, vertex_buffer_index* VertexBuffer, renderer_vertex_buffer Buffer);
 
 extern f32 GlobalAspectRatio;
 extern int GlobalOutputWidth;

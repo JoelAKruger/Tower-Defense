@@ -1030,40 +1030,6 @@ RandomFoliage(bool Water)
     }
 }
 
-static char*
-GetFoliageAssetName(foliage_type Type)
-{
-    char* Result = {};
-    
-    switch (Type)
-    {
-        case Foliage_PinkFlower:  Result = "2FPinkPlant_Plane.084"; break;
-        case Foliage_Bush:        Result = "Bush2_Cube.046"; break;
-        case Foliage_RibbonPlant: Result = "RibbonPlant2_Plane.079"; break;
-        case Foliage_Grass:       Result = "GrassPatch101_Plane.040"; break;
-        case Foliage_Rock:        Result = "Rock6_Cube.014"; break;
-        case Foliage_Paving:      Result = "Rock2_Cube.009"; break;
-        default: Assert(0);
-    }
-    
-    return Result; 
-}
-
-static char*
-GetStructureAssetName(structure_type Type)
-{
-    char* Result = {};
-    
-    switch (Type)
-    {
-        case Structure_ModularWood:  Result = "ModularWood_01"; break;
-        case Structure_House:        Result = "House_01"; break;
-        default: Assert(0);
-    }
-    
-    return Result; 
-}
-
 static f32
 GetDefaultSizeOf(foliage_type Type)
 {

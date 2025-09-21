@@ -129,7 +129,7 @@ GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
 //TODO: This has no way of being resized :(
 //TODO: This duplicates code in CreateShadowTexture() or whatever the hell that other function is called
 static render_output
-CreateRenderOutput(int Width, int Height)
+D3D11CreateRenderOutput(int Width, int Height)
 {
     render_output Result = {};
     
@@ -264,7 +264,7 @@ d3d11_shader CreateShader(wchar_t* Path, D3D11_INPUT_ELEMENT_DESC* InputElementD
 }
 
 static renderer_vertex_buffer
-CreateVertexBuffer(void* Data, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64 Stride)
+D3D11CreateVertexBuffer(void* Data, u64 Bytes, int /*D3D11_PRIMITIVE_TOPOLOGY*/ Topology, u64 Stride)
 {
     Assert(Bytes > 0);
     Assert(Stride > 0);
@@ -283,7 +283,7 @@ CreateVertexBuffer(void* Data, u64 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u64
     
     HRESULT HResult = D3D11Device->CreateBuffer(&VertexBufferDesc, &VertexSubresourceData, &Result.Buffer);
     Assert(SUCCEEDED(HResult));
-    Result.Topology = Topology;
+    Result.Topology = (D3D11_PRIMITIVE_TOPOLOGY)Topology;
     Result.VertexCount = Bytes / Stride;
     Result.Stride = Stride;
     
@@ -459,11 +459,9 @@ CreateSamplers()
 }
 
 static texture
-CreateTexture(u32* TextureData, int Width, int Height, int Channels)
+D3D11CreateTexture(u32* TextureData, int Width, int Height, int Channels)
 {
     texture Result = {};
-    
-    
     
     D3D11_TEXTURE2D_DESC TextureDesc = {};
     TextureDesc.Width = Width;
@@ -518,22 +516,8 @@ void Delete(render_output* Output)
     *Output = {};
 }
 
-static texture
-CreateTexture(char* Path)
-{
-    int Width = 0, Height = 0, Channels = 0;
-    stbi_set_flip_vertically_on_load(true);
-    stbi_uc* TextureData = stbi_load(Path, &Width, &Height, &Channels, 4);
-    
-    texture Result = CreateTexture((u32*)TextureData, Width, Height);
-    
-    free(TextureData);
-    
-    return Result;
-}
-
 static render_output
-CreateShadowDepthTexture(int Width, int Height)
+D3D11CreateShadowDepthTexture(int Width, int Height)
 {
     ID3D11Texture2D* DepthTexture = 0;
     

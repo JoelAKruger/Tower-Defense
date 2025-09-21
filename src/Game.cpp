@@ -108,8 +108,9 @@ TransformPoint(v3 P, m4x4 Transform)
 }
 
 static ray_collision
-RayModelIntersection(game_assets* Assets, model* Model, m4x4 WorldTransform, v3 Ray0, v3 RayDir)
+RayModelIntersection(game_assets* Assets, model_index ModelHandle, m4x4 WorldTransform, v3 Ray0, v3 RayDir)
 {
+    model* Model = Assets->Models + ModelHandle;
     ray_collision Result = {};
     
     m4x4 Transform = Model->LocalTransform * WorldTransform;
@@ -135,23 +136,43 @@ RayModelIntersection(game_assets* Assets, model* Model, m4x4 WorldTransform, v3 
     return Result;
 }
 
-static model*
-GetModel(game_assets* Assets, entity* Entity)
+static model_index
+GetModel(defense_assets* Assets, entity* Entity)
 {
-    char* ModelName = "";
+    model_index Handle = 0;
     switch (Entity->Type)
     {
-        case Entity_WorldRegion: ModelName = "Hexagon"; break;
-        case Entity_Foliage: ModelName = GetFoliageAssetName(Entity->FoliageType); break;
-        case Entity_Farm: ModelName = ""; break;
-        case Entity_Structure: ModelName = GetStructureAssetName(Entity->StructureType); break;
+        case Entity_WorldRegion: Handle = Assets->WorldRegion; break;
+        case Entity_Foliage: 
+        {
+            switch (Entity->FoliageType)
+            {
+                case Foliage_PinkFlower: Handle = Assets->PinkFlower; break;
+                case Foliage_Bush: Handle = Assets->Bush; break;
+                case Foliage_RibbonPlant: Handle = Assets->RibbonPlant; break;
+                case Foliage_Grass: Handle = Assets->Grass; break;
+                case Foliage_Rock: Handle = Assets->Rock; break;
+                case Foliage_Paving: Handle = Assets->Paving; break;
+                default: Assert(0);
+            }
+        } break;
+        case Entity_Farm: Handle = Assets->Grass; break;
+        case Entity_Structure: 
+        {
+            switch (Entity->StructureType)
+            {
+                case Structure_ModularWood: Handle = Assets->ModularWood; break;
+                case Structure_House: Handle = Assets->House; break;
+                default: Assert(0);
+            }
+        } break;
         default: Assert(0);
     }
-    return FindModel(Assets, ModelName);
+    return Handle;
 }
 
 static ray_collision
-WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
+WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection)
 {
     ray_collision Result = {};
     
@@ -159,7 +180,7 @@ WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
     {
         entity* Entity = World->Entities + RegionIndex;
         m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
-        model* Model = GetModel(Assets, Entity);
+        model_index Model = GetModel(GameAssets, Entity);
         if (Model)
         {
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
@@ -175,7 +196,7 @@ WorldCollision(world* World, game_assets* Assets, v3 Ray0, v3 RayDirection)
 }
 
 static u64
-RayCast(game_state* Game, game_assets* Assets, v3 Ray0, v3 RayDirection)
+RayCast(game_state* Game, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection)
 {
     u64 Result = 0;
     f32 T = 1000000.0f;
@@ -187,7 +208,7 @@ RayCast(game_state* Game, game_assets* Assets, v3 Ray0, v3 RayDirection)
         entity* Entity = World->Entities + EntityIndex;
         v3 RegionP = GetEntityP(Game, Entity->Parent);
         m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
-        model* Model = GetModel(Assets, Entity);
+        model_index Model = GetModel(GameAssets, Entity);
         if (Model)
         {
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
@@ -408,7 +429,7 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
 
 //TODO: This should not take game_input
 static void
-DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, render_group* RenderGroup)
+DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, render_group* RenderGroup, defense_assets* Assets)
 {
     tower* Tower = Game->GlobalState.Towers + TowerIndex;
     
@@ -418,7 +439,7 @@ DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input,
     
     if (Tower->Type == Tower_Turret)
     {
-        PushTexturedRect(RenderGroup, RenderGroup->Assets->Target, V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
+        PushTexturedRect(RenderGroup, Assets->Target, V3(Tower->Target - 0.5f * TargetSize, TargetZ), V3(Tower->Target + 0.5f * TargetSize, TargetZ));
     }
     
     //Draw new target
@@ -426,7 +447,7 @@ DrawCrosshairForTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input,
     {
         v3 CursorP = ScreenToWorld(Game, Input->Cursor);
         
-        PushTexturedRect(RenderGroup, RenderGroup->Assets->Target, V3(CursorP.XY - 0.5f * TargetSize, TargetZ), V3(CursorP.XY + 0.5f * TargetSize, TargetZ));
+        PushTexturedRect(RenderGroup, Assets->Target, V3(CursorP.XY - 0.5f * TargetSize, TargetZ), V3(CursorP.XY + 0.5f * TargetSize, TargetZ));
     }
 }
 
@@ -453,7 +474,7 @@ BeginAnimation(game_state* Game, animation Animation)
 }
 
 static void
-TickAnimations(game_state* Game, render_group* RenderGroup, game_assets* Assets, f32 DeltaTime)
+TickAnimations(game_state* Game, render_group* RenderGroup, defense_assets* Assets, f32 DeltaTime)
 {
     SetDepthTest(false);
     //TODO: Fix this
@@ -468,7 +489,7 @@ TickAnimations(game_state* Game, render_group* RenderGroup, game_assets* Assets,
             {
                 v3 P = LinearInterpolate(Animation->P0, Animation->P1, Animation->t);
                 m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
-                PushModelNew(RenderGroup, Assets, "Rock6_Cube.014", Transform);
+                PushModelNew(RenderGroup, Assets->Rock, Transform);
                 
                 Animation->t += DeltaTime / Animation->Duration;
                 
@@ -540,14 +561,14 @@ GetPlayer(game_state* Game)
 }
 
 static void
-DoTowerMenu(game_state* Game, game_assets* Assets, memory_arena* Arena)
+DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
 {
     Assert(Arena->Type == TRANSIENT);
     
     player* Player = GetPlayer(Game);
     
     panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f, 1.0f);
-    Panel.DoBackground();
+    //Panel.DoBackground();
     
     Panel.Image(Assets->Crystal);
     Panel.Text(ArenaPrint(Arena, "%u", Player->Credits));
@@ -597,13 +618,13 @@ NewWorldData(global_game_state* NewGameState)
 }
 
 static void
-RunLobby(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+RunLobby(game_state* GameState, game_assets* Assets, defense_assets* GameAssets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
     global_game_state* Server = &GameState->GlobalState;
     
     BeginGUI(Input, Assets);
     
-    panel_layout Layout = DefaultPanelLayout(-0.9f, 0.9f);
+    panel_layout Layout = DefaultPanelLayout(-0.9f, 0.9f, GameAssets->Panel);
     Layout.Text(ArenaPrint(Allocator.Transient, "In Lobby (%u / %u)", Server->PlayerCount, Server->MaxPlayers));
     Layout.NextRow();
     if (Layout.Button("Start Game"))
@@ -621,7 +642,7 @@ struct cursor_target
 };
 
 static cursor_target
-GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
+GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAssets, game_input* Input)
 {
     cursor_target Result = {};
     
@@ -642,7 +663,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
         if (Entity->Type == Entity_WorldRegion)
         {
             m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
-            model* Model = GetModel(Assets, Entity);
+            model_index Model = GetModel(GameAssets, Entity);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
             if (Collision.DidHit == true && Collision.T < NearestCollision.T)
@@ -661,6 +682,8 @@ GetCursorTarget(game_state* Game, game_assets* Assets, game_input* Input)
 static void
 RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
+    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
+    
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyClientID) &&
         (GameState->Mode == Mode_Waiting))
@@ -777,7 +800,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
     
-    cursor_target Cursor = GetCursorTarget(GameState, Assets, Input);
+    cursor_target Cursor = GetCursorTarget(GameState, Assets, GameAssets, Input);
     GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
     GameState->HoveringRegion = Cursor.HoveringRegion;
     
@@ -786,7 +809,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     RenderGroup.Assets = Assets;
     
     //Draw animations
-    TickAnimations(GameState, &RenderGroup, Assets, SecondsPerFrame);
+    TickAnimations(GameState, &RenderGroup, GameAssets, SecondsPerFrame);
     
     f32 Time = GameState->Time / 1.0f;
     int CurrentHour = (int)Time % 24;
@@ -853,7 +876,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             tower_type Type = GameState->PlacementType;
             
             //In steady-state, draw slightly above a normal tower to prevent z-fighting
-            DrawTower(&RenderGroup, GameState, Assets, Type, V3(P, GameState->TowerPlaceIndicatorZ - 0.001f), Color);
+            DrawTower(&RenderGroup, GameState, GameAssets, Type, V3(P, GameState->TowerPlaceIndicatorZ - 0.001f), Color);
             
             if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
@@ -869,7 +892,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         case Mode_EditTower:
         {
-            DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup);
+            DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup, GameAssets);
         } break;
         
         case Mode_CellUpgrade:
@@ -910,10 +933,10 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         default: ;
     }
     
-    RenderWorld(&RenderGroup, GameState, Assets);
+    RenderWorld(&RenderGroup, GameState, Assets, GameAssets);
     
     v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
-    u64 HoveringEntityIndex = RayCast(GameState, Assets,  GameState->CameraP, CursorWorldP - GameState->CameraP);
+    u64 HoveringEntityIndex = RayCast(GameState, Assets, GameAssets, GameState->CameraP, CursorWorldP - GameState->CameraP);
     
     
     //Draw GUI
@@ -975,7 +998,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     //TODO: Create a proper layout system
     if (GameState->Mode == Mode_MyTurn)
     {
-        DoTowerMenu(GameState, Assets, Allocator.Transient);
+        DoTowerMenu(GameState, GameAssets, Allocator.Transient);
     }
     
     if (GameState->Mode == Mode_EditTower)
@@ -1033,7 +1056,7 @@ ReceiveServerPackets(game_state* Game, game_assets* Assets, memory_arena* Arena)
 }
 
 static void 
-GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+GameUpdateAndRender(game_state* GameState, game_assets* Assets, defense_assets* GameAssets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
     UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, Assets, SecondsPerFrame);
     
@@ -1047,7 +1070,7 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, f32 SecondsPerFr
     }
     else
     {
-        RunLobby(GameState, Assets, SecondsPerFrame, Input, Allocator);
+        RunLobby(GameState, Assets, GameAssets, SecondsPerFrame, Input, Allocator);
     }
     
     DrawGUIString(String(IsConnectedToServer() ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
@@ -1094,11 +1117,11 @@ void Command_water_flow(int ArgCount, string* Args, console* Console, game_state
     CreateWaterFlowMap(&GameState->GlobalState.World, Assets, Arena);
 }
 
-static void UpdateAndRender(app_state** App_, game_assets** Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
+static void UpdateAndRender(app_state** App_, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
 {
-    if (*Assets == 0)
+    if (!Assets->Initialised)
     {
-        *Assets = LoadAssets(Allocator);
+        LoadAssets(Assets, Allocator);
     }
     
     if (*App_ == 0)
@@ -1112,11 +1135,13 @@ static void UpdateAndRender(app_state** App_, game_assets** Assets, f32 DeltaTim
     App->CurrentScreen = Screen_Game;
 #endif
     
+    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
+    
     switch (App->CurrentScreen)
     {
         case Screen_MainMenu:
         {
-            BeginGUI(Input, *Assets);
+            BeginGUI(Input, Assets);
             
             f32 ButtonWidth = 0.8f / GlobalAspectRatio;
             if (Button(V2(-0.5f * ButtonWidth, 0.0f), V2(ButtonWidth, 0.3f), String("Play")))
@@ -1130,7 +1155,7 @@ static void UpdateAndRender(app_state** App_, game_assets** Assets, f32 DeltaTim
             {
                 App->GameState = GameInitialise(Allocator);
             }
-            GameUpdateAndRender(App->GameState, *Assets, DeltaTime, Input, Allocator);
+            GameUpdateAndRender(App->GameState, Assets, GameAssets, DeltaTime, Input, Allocator);
         } break;
         
         default: Assert(0);

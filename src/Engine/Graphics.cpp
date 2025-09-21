@@ -51,15 +51,15 @@ Push(render_group* RenderGroup)
 }
 
 static render_command*
-PushMesh(render_group* RenderGroup, game_assets* Assets, mesh_index MeshIndex, m4x4 Transform)
+PushMesh(render_group* RenderGroup, mesh_index MeshIndex, m4x4 Transform)
 {
-    mesh* Mesh = Assets->Meshes + MeshIndex;
+    mesh* Mesh = RenderGroup->Assets->Meshes + MeshIndex;
     
     render_command* Command = Push(RenderGroup);
     Command->Shader = Shader_PBR;
     Command->ModelTransform = Transform;
     Command->VertexBuffer = &Mesh->VertexBuffer;
-    Command->Material = FindMaterial(Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
+    Command->Material = FindMaterial(RenderGroup->Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
     return Command;
 }
 
@@ -138,7 +138,7 @@ void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0, 
 }
 
 static render_command*
-PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
+PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
@@ -165,7 +165,7 @@ PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v2 UV
 
 // Clockwise ordering
 static void
-PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3)
+PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
@@ -210,45 +210,35 @@ PushModel(render_group* RenderGroup, renderer_vertex_buffer* VertexBuffer)
     Command->ModelTransform = IdentityTransform();
 }
 
-
-
 static span<render_command*>
-PushModelNew(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4x4 Transform)
+PushModelNew(render_group* RenderGroup, model_index ModelHandle, m4x4 Transform)
 {
+    game_assets* Assets = RenderGroup->Assets;
+    model* Model = Assets->Models + ModelHandle;
+    
     span<render_command*> Result = {};
+    m4x4 ModelTransform = Model->LocalTransform * Transform;
     
-    //TODO: Make more functions
-    string Name = String(ModelName);
+    Result = AllocSpan(RenderGroup->Arena, render_command*, Model->MeshCount);
     
-    for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
+    for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
     {
-        model* Model = Assets->Models + ModelIndex;
-        if (StringsAreEqual(Model->Name, Name))
-        {
-            m4x4 ModelTransform = Model->LocalTransform * Transform;
-            
-            Result = AllocSpan(RenderGroup->Arena, render_command*, Model->MeshCount);
-            
-            for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
-            {
-                mesh_index Mesh = Model->Meshes[MeshIndex];
-                
-                render_command* Command = PushMesh(RenderGroup, Assets, Mesh, ModelTransform);
-                Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
-                                                 Assets->Meshes[Mesh].MaterialName);
-                Result[MeshIndex] = Command;
-            }
-            break;
-        }
+        mesh_index Mesh = Model->Meshes[MeshIndex];
+        
+        render_command* Command = PushMesh(RenderGroup, Mesh, ModelTransform);
+        Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
+                                         Assets->Meshes[Mesh].MaterialName);
+        Result[MeshIndex] = Command;
     }
     
     return Result;
 }
 
 static span<render_command*>
-PushTexturedModel(render_group* RenderGroup, game_assets* Assets, char* ModelName, m4x4 Transform)
+PushTexturedModel(render_group* RenderGroup, model_index ModelHandle, m4x4 Transform)
 {
-    model* Model = FindModel(Assets, String(ModelName));
+    game_assets* Assets = RenderGroup->Assets;
+    model* Model = Assets->Models + ModelHandle;
     m4x4 ModelTransform = Model->LocalTransform * Transform;
     
     span<render_command*> Result = AllocSpan(RenderGroup->Arena, render_command*, Model->MeshCount);
@@ -257,7 +247,7 @@ PushTexturedModel(render_group* RenderGroup, game_assets* Assets, char* ModelNam
     {
         mesh_index Mesh = Model->Meshes[MeshIndex];
         
-        render_command* Command = PushMesh(RenderGroup, Assets, Mesh, ModelTransform);
+        render_command* Command = PushMesh(RenderGroup, Mesh, ModelTransform);
         Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
                                          Assets->Meshes[Mesh].MaterialName);
         Command->Shader = Shader_ModelWithTexture;
@@ -437,11 +427,11 @@ GUIStringWidth(string String, f32 FontSize)
 }
 
 static void 
-DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Constants, render_draw_type Type)
+DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type)
 {
     bool DepthTestIsEnabled = true;
     shader_index CurrentShader = Shader_Null;
-    texture CurrentTexture = {};
+    texture_index CurrentTexture = 0;
     
     SetDepthTest(DepthTestIsEnabled);
     SetShader({});
@@ -469,13 +459,13 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         
         if (CurrentShader != Shader)
         {
-            SetShader(Assets->Shaders[Shader]);
+            SetShader(Group->Assets->Shaders[Shader]);
             CurrentShader = Shader;
         }
         
-        if (Command->Texture.TextureView && (Command->Texture.TextureView != CurrentTexture.TextureView))
+        if (Command->Texture && (Command->Texture != CurrentTexture))
         {
-            SetTexture(Command->Texture);
+            SetTexture(Group->Assets->Textures[Command->Texture]);
             CurrentTexture = Command->Texture;
         }
         
@@ -490,7 +480,7 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         material* Material = Command->Material;
         if (!Material)
         {
-            material* DefaultMaterial = Assets->Materials + 0;
+            material* DefaultMaterial = Group->Assets->Materials + 0;
             Material = DefaultMaterial;
         }
         
@@ -501,6 +491,7 @@ DrawRenderGroup(render_group* Group, game_assets* Assets, shader_constants Const
         Constants.FresnelColor = Material->SpecularColor;
         
         //TODO: Definitely not optimal
+        //TODO: Get rid of this
         if (Command->EnableWind)
         {
             Constants.WindDirection = UnitV(V3(1, 1, 0));
