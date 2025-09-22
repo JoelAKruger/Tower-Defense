@@ -41,7 +41,7 @@ DrawSkybox(render_group* RenderGroup, defense_assets* Assets)
 static void
 DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets* GameAssets, game_state* Game)
 {
-    v3 P = GetEntityP(Game, Game->HoveringRegionIndex);
+    v3 P = Game->RegionOutlineP;
     
     f32 Z = P.Z - 0.001f;
     m4x4 Transform = ScaleTransform(0.9f * Game->GlobalState.World.RegionSize) * TranslateTransform(V3(P.XY, Z));
@@ -266,10 +266,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         }
     }
     
-    if (Game->HoveringRegion)
-    {
-        DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
-    }
+    DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
     
     DrawTowers(RenderGroup, Game, GameAssets);
     
@@ -300,18 +297,17 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.WorldToClipTransform = WorldTransform;
     
     //Draw reflection texture
-    f32 WaterFrequency = 0.2f;
-    f32 WaterZ = 0.125f + 0.002f * sinf(WaterFrequency * 2 * Pi * Game->Time);
+    
     
     v3 ReflectionDirection = Game->CameraDirection;
     ReflectionDirection.Z *= -1.0f;
     v3 ReflectionCameraP = Game->CameraP;
-    ReflectionCameraP.Z -= 2.0f * (ReflectionCameraP.Z - WaterZ);
+    ReflectionCameraP.Z -= 2.0f * (ReflectionCameraP.Z - Game->WaterZ);
     v3 ReflectionLookAt = ReflectionCameraP + ReflectionDirection;
     
     m4x4 ReflectionWorldTransform = ViewTransform(ReflectionCameraP, ReflectionLookAt) * PerspectiveTransform(Game->FOV, 0.01f, 150.0f);
     
-    Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, WaterZ);
+    Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, Game->WaterZ);
     Constants.WorldToClipTransform = ReflectionWorldTransform;
     ClearOutput(Assets->RenderOutputs[GameAssets->WaterReflection]);
     SetOutput(Assets->RenderOutputs[GameAssets->WaterReflection]);
@@ -319,7 +315,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     //Refraction texture
     //The clip plane could probably be removed but having it might mean a few less calculations of the pixel shader
-    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -(WaterZ - 0.05f));
+    Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -(Game->WaterZ - 0.05f));
     Constants.WorldToClipTransform = WorldTransform;
     ClearOutput(Assets->RenderOutputs[GameAssets->WaterRefraction]);
     SetOutput(Assets->RenderOutputs[GameAssets->WaterRefraction]);
@@ -328,7 +324,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     //Draw normal world
     Constants.ClipPlane = {};
     
-    DrawWater(RenderGroup, WaterZ);
+    DrawWater(RenderGroup, Game->WaterZ);
     
     //Set reflection and refraction textures
     ClearOutput(Assets->RenderOutputs[GameAssets->Output1]);

@@ -97,7 +97,6 @@ enum game_mode
     Mode_Null,
     Mode_Waiting,
     Mode_MyTurn,
-    Mode_Edit,
     Mode_Place,
     Mode_EditTower,
     Mode_TowerPOV,
@@ -276,7 +275,9 @@ struct game_state
     //
     entity* HoveringRegion;
     u32 HoveringRegionIndex;
-    
+    v3 RegionOutlineP;
+    v3 RegionOutlineTargetP;
+    f32 RegionOutlineAlpha;
     
     
     //Placing tower
@@ -302,9 +303,11 @@ struct game_state
     f32 ApproxTowerZ;
     v4 Colors[4];
     
+    //
     v3 SkyColor;
     v3 LightP;
     v3 LightDirection;
+    f32 WaterZ;
 };
 
 struct defense_assets
