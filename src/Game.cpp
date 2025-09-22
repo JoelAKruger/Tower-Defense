@@ -955,7 +955,6 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
     u64 HoveringEntityIndex = RayCast(GameState, Assets, GameAssets, GameState->CameraP, CursorWorldP - GameState->CameraP);
     
-    
     //Draw GUI
     SetDepthTest(false);
     SetGUIShaderConstant(IdentityTransform());

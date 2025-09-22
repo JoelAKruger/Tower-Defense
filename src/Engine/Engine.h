@@ -373,7 +373,7 @@ struct render_command
     
     D3D11_PRIMITIVE_TOPOLOGY Topology;
     shader_index Shader;
-    renderer_vertex_buffer* VertexBuffer;
+    vertex_buffer_index VertexBuffer;
     texture_index Texture;
     m4x4 ModelTransform;
     v4 Color;
@@ -426,7 +426,7 @@ struct mesh
 {
     string MaterialLibrary;
     string MaterialName;
-    renderer_vertex_buffer VertexBuffer;
+    vertex_buffer_index VertexBuffer;
     span<triangle> Triangles;
 };
 

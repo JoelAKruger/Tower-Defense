@@ -49,6 +49,24 @@ LoadFont(game_assets* Assets, char* Path, f32 Size)
     return Result;
 }
 
+static render_output_index
+CreateRenderOutput(game_assets* Assets, int Width, int Height)
+{
+    render_output_index Result = Assets->RenderOutputCount++;
+    Assert(Result < ArrayCount(Assets->RenderOutputs));
+    Assets->RenderOutputs[Result] = PlatformCreateRenderOutput(Width, Height);
+    return Result;
+}
+
+static vertex_buffer_index
+CreateVertexBuffer(game_assets* Assets, void* Data, u64 Bytes, int Topology, u64 Stride)
+{
+    vertex_buffer_index Result = Assets->VertexBufferCount++;
+    Assert(Assets->VertexBufferCount <= ArrayCount(Assets->VertexBuffers));
+    Assets->VertexBuffers[Result] = PlatformCreateVertexBuffer(Data, Bytes, Topology, Stride);
+    return Result;
+}
+
 static span<triangle>
 CreateMeshTriangles(dynamic_array<v3> Positions, dynamic_array<obj_file_face> Faces, memory_arena* Arena)
 {
@@ -78,8 +96,8 @@ CreateMeshTriangles(dynamic_array<v3> Positions, dynamic_array<obj_file_face> Fa
     return {.Memory = Triangles, .Count = TriCount};
 }
 
-static renderer_vertex_buffer
-CreateMeshVertexBuffer(dynamic_array<v3> Positions, dynamic_array<v3> Normals, dynamic_array<v2> TexCoords, dynamic_array<obj_file_face> Faces, allocator Allocator)
+static vertex_buffer_index
+CreateMeshVertexBuffer(game_assets* Assets, dynamic_array<v3> Positions, dynamic_array<v3> Normals, dynamic_array<v2> TexCoords, dynamic_array<obj_file_face> Faces, allocator Allocator)
 {
     u64 VertexCount = Faces.Count * 3 * 2;
     vertex* Vertices = AllocArray(Allocator.Transient, vertex, VertexCount);
@@ -116,8 +134,8 @@ CreateMeshVertexBuffer(dynamic_array<v3> Positions, dynamic_array<v3> Normals, d
         }
     }
     
-    renderer_vertex_buffer Result = PlatformCreateVertexBuffer(Vertices, VertexCount * sizeof(vertex), 
-                                                               D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
+    vertex_buffer_index Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
+                                                    D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
     return Result;
 }
 
@@ -173,7 +191,7 @@ LoadObjects(game_assets* Assets, char* Path)
                 
                 Mesh->MaterialLibrary = CurrentMaterialLibrary;
                 Mesh->MaterialName = CurrentMaterialName;
-                Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+                Mesh->VertexBuffer = CreateMeshVertexBuffer(Assets, Positions, Normals, TexCoords, Faces, Allocator);
                 Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator.Permanent);
                 
                 Append(&Result, MeshIndex);
@@ -223,7 +241,7 @@ LoadObjects(game_assets* Assets, char* Path)
                 
                 Mesh->MaterialLibrary = CurrentMaterialLibrary;
                 Mesh->MaterialName = CurrentMaterialName;
-                Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+                Mesh->VertexBuffer = CreateMeshVertexBuffer(Assets, Positions, Normals, TexCoords, Faces, Allocator);
                 Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator.Permanent);
                 Append(&Result, MeshIndex);
                 
@@ -265,7 +283,7 @@ LoadObjects(game_assets* Assets, char* Path)
         
         Mesh->MaterialLibrary = CurrentMaterialLibrary;
         Mesh->MaterialName = CurrentMaterialName;
-        Mesh->VertexBuffer = CreateMeshVertexBuffer(Positions, Normals, TexCoords, Faces, Allocator);
+        Mesh->VertexBuffer = CreateMeshVertexBuffer(Assets, Positions, Normals, TexCoords, Faces, Allocator);
         Mesh->Triangles    = CreateMeshTriangles(Positions, Faces, Allocator.Permanent);
         Append(&Result, MeshIndex);
         
@@ -387,24 +405,6 @@ SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform)
         }
     }
     Assert(0);
-}
-
-static render_output_index
-CreateRenderOutput(game_assets* Assets, int Width, int Height)
-{
-    render_output_index Result = Assets->RenderOutputCount++;
-    Assert(Result < ArrayCount(Assets->RenderOutputs));
-    Assets->RenderOutputs[Result] = PlatformCreateRenderOutput(Width, Height);
-    return Result;
-}
-
-static vertex_buffer_index
-CreateVertexBuffer(game_assets* Assets, void* Data, u64 Bytes, int Topology, u64 Stride)
-{
-    vertex_buffer_index Result = Assets->VertexBufferCount++;
-    Assert(Assets->VertexBufferCount <= ArrayCount(Assets->VertexBuffers));
-    Assets->VertexBuffers[Result] = PlatformCreateVertexBuffer(Data, Bytes, Topology, Stride);
-    return Result;
 }
 
 static model_index

@@ -273,8 +273,11 @@ struct game_state
     //Valid when mode is Mode_TowerPOV
     tower* TowerPerspective;
     
+    //
     entity* HoveringRegion;
     u32 HoveringRegionIndex;
+    
+    
     
     //Placing tower
     f32 TowerPlaceIndicatorZ;
@@ -329,6 +332,8 @@ struct defense_assets
     model_index Castle, Turret, Mine;
     
     vertex_buffer_index GUIWholeScreen;
+    
+    model_index RegionOutline;
 };
 
 struct map_file_header
@@ -375,3 +380,4 @@ v3 GetEntityP(game_state* Game, u64 EntityIndex);
 model_index GetModel(defense_assets* Assets, entity* Entity);
 
 ray_collision WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection);
+vertex_buffer_index CreateRegionOutlineMesh(game_assets* Assets);

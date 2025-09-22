@@ -701,3 +701,9 @@ operator*(v4 V, m4x4 M)
     
     return Result;
 }
+
+int Mod(int A, int B) 
+{
+    int R = A % B;
+    return (R < 0) ? R + B : R;
+}

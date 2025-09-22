@@ -50,6 +50,7 @@ RegionsAreNeighbours(entity* A, entity* B)
     return (Length(A->P - B->P) < 2.5f * A->Size);
 }
 
+/*
 static v2
 GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
 {
@@ -70,7 +71,7 @@ GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
     v2 Result = P.XY + Size * Offsets[VertexIndex];
     return Result;
 }
-
+*/
 static bool
 IsWater(entity* Entity)
 {

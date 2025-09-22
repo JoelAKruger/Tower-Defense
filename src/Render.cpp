@@ -39,61 +39,14 @@ DrawSkybox(render_group* RenderGroup, defense_assets* Assets)
 }
 
 static void
-DrawRegionOutline(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
+DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets* GameAssets, game_state* Game)
 {
-    v3 P = GetEntityP(Game, RegionIndex);
+    v3 P = GetEntityP(Game, Game->HoveringRegionIndex);
     
-    v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
-    v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = P.Z - 0.001f;
+    m4x4 Transform = ScaleTransform(0.9f * Game->GlobalState.World.RegionSize) * TranslateTransform(V3(P.XY, Z));
     
-    u32 VertexDrawCount = 6 * 6 + 2;
-    vertex* Vertices = AllocArray(RenderGroup->Arena, vertex, VertexDrawCount);
-    
-    for (int VertexIndex = 0; VertexIndex < 6; VertexIndex++)
-    {
-        v2 Vertex = GetLocalRegionVertex(Game, RegionIndex, VertexIndex);
-        v2 PrevVertex = GetLocalRegionVertex(Game, RegionIndex, VertexIndex - 1);
-        v2 NextVertex = GetLocalRegionVertex(Game, RegionIndex,  VertexIndex + 1);
-        
-        v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
-        v2 PerpB = UnitV(Perp(NextVertex - Vertex));
-        v2 Mid = UnitV(PerpA + PerpB);
-        
-        f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
-        
-        f32 HalfBorderThickness = 0.0035f;
-        
-        //If concave
-        if (SinAngle < 0.0f)
-        {
-            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, Z), Normal, Color};
-        }
-        else
-        {
-            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
-            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, Z), Normal, Color};
-            
-            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   Z), Normal, Color};
-        }
-        
-        if (VertexIndex == 0)
-        {
-            Vertices[VertexDrawCount - 2] = Vertices[0];
-            Vertices[VertexDrawCount - 1] = Vertices[1];
-        }
-    }
-    
-    PushVertices(RenderGroup, Vertices, VertexDrawCount * sizeof(vertex), sizeof(vertex),
-                 D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, Shader_Model);
+    PushVertexBuffer(RenderGroup, GameAssets->RegionOutline, Transform);
     PushNoShadow(RenderGroup);
     PushShader(RenderGroup, Shader_Color);
 }
@@ -195,6 +148,7 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
 static void
 DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
 {
+#if 0
     v3 P = GetEntityP(Game, RegionIndex);
     v4 Color = {}; //V4(0.5f * V3(0.44f, 0.31f, 0.22f), 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
@@ -219,6 +173,7 @@ DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
     PushNoShadow(RenderGroup);
     PushShader(RenderGroup, Shader_PBR);
     PushMaterial(RenderGroup, "TowerDefense", "Dirt");
+#endif
 }
 
 static span<v2>
@@ -313,7 +268,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     if (Game->HoveringRegion)
     {
-        DrawRegionOutline(RenderGroup, Game, Game->HoveringRegionIndex);
+        DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
     }
     
     DrawTowers(RenderGroup, Game, GameAssets);

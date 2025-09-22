@@ -160,6 +160,8 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     GameAssets->GUIWholeScreen = CreateVertexBuffer(Assets, Vertices, ArrayCount(Vertices) * sizeof(gui_vertex),
                                                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
     
+    GameAssets->RegionOutline = CreateRegionOutlineMesh(Assets);
+    
 #define LOG 1
 #if LOG == 1
     for (u64 ModelIndex = 0; ModelIndex < Assets->ModelCount; ModelIndex++)
@@ -324,4 +326,84 @@ LoadObjectsFromFileForServer(game_assets* Assets, allocator Allocator, char* Pat
         
         Faces.Count = 0;
     }
+}
+
+static span<v2>
+GetHexagonVertexPositions(v2 P, f32 Radius, memory_arena* Arena)
+{
+    span<v2> Result = AllocSpan(Arena, v2, 6);
+    
+    v2 Offsets[6] = {
+        {0.0f, 1.0f},
+        {0.86603f, 0.5f},
+        {0.86603f, -0.5f},
+        {0.0f, -1.0f},
+        {-0.86603f, -0.5f},
+        {-0.86603f, 0.5f}
+    };
+    
+    for (u64 I = 0; I < ArrayCount(Offsets); I++)
+    {
+        Result[I] = P + Radius * Offsets[I];
+    }
+    
+    return Result;
+}
+
+static vertex_buffer_index
+CreateRegionOutlineMesh(game_assets* Assets)
+{
+    span<v2> HexagonVertices = GetHexagonVertexPositions(V2(0, 0), 1.0f, Assets->Allocator.Transient);
+    
+    v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
+    v3 Normal = V3(0.0f, 0.0f, -1.0f);
+    
+    u64 VertexCount = 6 * 6 + 2;
+    vertex* Vertices = AllocArray(Assets->Allocator.Transient, vertex, VertexCount);
+    
+    for (int HexagonVertexIndex = 0; HexagonVertexIndex < 6; HexagonVertexIndex++)
+    {
+        v2 Vertex = HexagonVertices[HexagonVertexIndex];
+        v2 PrevVertex = HexagonVertices[Mod(HexagonVertexIndex - 1, 6)];
+        v2 NextVertex = HexagonVertices[Mod(HexagonVertexIndex + 1, 6)];
+        
+        v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
+        v2 PerpB = UnitV(Perp(NextVertex - Vertex));
+        v2 Mid = UnitV(PerpA + PerpB);
+        
+        f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
+        
+        f32 HalfBorderThickness = 0.05f;
+        
+        //If concave
+        if (SinAngle < 0.0f)
+        {
+            Vertices[HexagonVertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, 0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, 0), Normal, Color};
+        }
+        else
+        {
+            Vertices[HexagonVertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, 0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, 0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+        }
+        
+        if (HexagonVertexIndex == 0)
+        {
+            Vertices[VertexCount - 2] = Vertices[0];
+            Vertices[VertexCount - 1] = Vertices[1];
+        }
+    }
+    
+    vertex_buffer_index Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
+                                                    D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
+    
+    return Result;
 }

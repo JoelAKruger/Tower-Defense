@@ -51,6 +51,16 @@ Push(render_group* RenderGroup)
 }
 
 static render_command*
+PushVertexBuffer(render_group* RenderGroup, vertex_buffer_index VertexBuffer, m4x4 Transform)
+{
+    render_command* Command = Push(RenderGroup);
+    Command->VertexBuffer = VertexBuffer;
+    Command->ModelTransform = Transform;
+    Command->Shader = Shader_Color;
+    return Command;
+}
+
+static render_command*
 PushMesh(render_group* RenderGroup, mesh_index MeshIndex, m4x4 Transform)
 {
     mesh* Mesh = RenderGroup->Assets->Meshes + MeshIndex;
@@ -58,7 +68,7 @@ PushMesh(render_group* RenderGroup, mesh_index MeshIndex, m4x4 Transform)
     render_command* Command = Push(RenderGroup);
     Command->Shader = Shader_PBR;
     Command->ModelTransform = Transform;
-    Command->VertexBuffer = &Mesh->VertexBuffer;
+    Command->VertexBuffer = Mesh->VertexBuffer;
     Command->Material = FindMaterial(RenderGroup->Assets, Mesh->MaterialLibrary, Mesh->MaterialName);
     return Command;
 }
@@ -202,7 +212,7 @@ PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11
 }
 
 static void
-PushModel(render_group* RenderGroup, renderer_vertex_buffer* VertexBuffer)
+PushModel(render_group* RenderGroup, vertex_buffer_index VertexBuffer)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     Command->VertexBuffer = VertexBuffer;
@@ -507,7 +517,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
         
         if (Command->VertexBuffer)
         {
-            DrawVertexBuffer(*Command->VertexBuffer);
+            DrawVertexBuffer(Group->Assets->VertexBuffers[Command->VertexBuffer]);
         }
         else
         {
