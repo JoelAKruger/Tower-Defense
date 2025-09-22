@@ -42,7 +42,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     Assets->TextureCount = 1;
     Assets->RenderOutputCount = 1;
     Assets->FontCount = 1;
-    
+    Assets->VertexBufferCount = 1;
     
     LoadShaders(Assets);
     
