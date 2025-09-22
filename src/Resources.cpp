@@ -105,7 +105,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     
     LoadMaterials(Assets, "assets/models/Environment.mtl", "Environment.mtl");
     LoadObjects(Assets, "assets/models/Environment.obj");
-    LoadObjects(Assets, "assets/models/hexagon.obj");
+    LoadObjects(Assets, "assets/models/hexagon_new.obj");
     LoadObjects(Assets, "assets/models/wall.obj");
     LoadObjects(Assets, "assets/models/stairs.obj");
     LoadObjects(Assets, "assets/models/modular_wood.obj");
@@ -129,15 +129,14 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     SetModelLocalTransform(Assets, "Rock2_Cube.009", TranslateTransform(-52.7, 0.0f, -9.509f) *
                            ModelRotateTransform() * ScaleTransform(0.1f));
     
-    SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
-                           ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
+    SetModelLocalTransform(Assets, "Circle", ModelRotateTransform());
     
     SetModelLocalTransform(Assets, "Wall_01", ScaleTransform(0.02f) * ModelRotateTransform());
     SetModelLocalTransform(Assets, "Stairs_01", ScaleTransform(0.01f) * ModelRotateTransform());
     SetModelLocalTransform(Assets, "ModularWood_01", ScaleTransform(0.01f) * ModelRotateTransform() * RotateTransform(0.5f * Pi));
     SetModelLocalTransform(Assets, "House_01", ScaleTransform(0.01f) * ModelRotateTransform());
     
-    GameAssets->WorldRegion = GetModelHandle(Assets, "Hexagon");
+    GameAssets->WorldRegion = GetModelHandle(Assets, "Circle");
     GameAssets->PinkFlower = GetModelHandle(Assets, "2FPinkPlant_Plane.084");
     GameAssets->Bush = GetModelHandle(Assets, "Bush2_Cube.046");
     GameAssets->RibbonPlant = GetModelHandle(Assets, "RibbonPlant2_Plane.079");

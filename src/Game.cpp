@@ -641,6 +641,23 @@ struct cursor_target
     entity* HoveringRegion;
 };
 
+static m4x4
+GetModelTransformOfEntity(game_state* Game, u64 EntityIndex)
+{
+    m4x4 Result = {};
+    entity* Entity = Game->GlobalState.World.Entities + EntityIndex;
+    switch (Entity->Type)
+    {
+        case Entity_WorldRegion:
+        {
+            v3 P = GetEntityP(Game, EntityIndex);
+            Result= ScaleTransform(Entity->Size) * TranslateTransform(P);
+        } break;
+        default: Assert(0);
+    }
+    return Result;
+}
+
 static cursor_target
 GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAssets, game_input* Input)
 {
@@ -662,7 +679,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
         entity* Entity = World->Entities + RegionIndex;
         if (Entity->Type == Entity_WorldRegion)
         {
-            m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
+            m4x4 Transform = GetModelTransformOfEntity(Game, RegionIndex);
             model_index Model = GetModel(GameAssets, Entity);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             

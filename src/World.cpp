@@ -778,7 +778,7 @@ CreateWorld(world* World, u64 PlayerCount)
         {
             entity Region = {.Type = Entity_WorldRegion};
             
-            Region.Size = World->RegionSize;
+            Region.Size = 0.95f * World->RegionSize / 0.866f;
             Region.TilePositionIsValid = true;
             Region.TilePosition = {.GridX = X, .GridY = Y};
             Region.P.XY = TilePositionToRegionPosition(World, Region.TilePosition);

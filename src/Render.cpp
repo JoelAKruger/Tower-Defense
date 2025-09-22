@@ -256,7 +256,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawSkybox(RenderGroup, GameAssets);
     DrawOceanFloor(RenderGroup);
     
-    //PushModel(RenderGroup, FindVertexBuffer(Assets, "World"));
+    //TODO: These should use GetModelTransformOfEntity()
     for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
         entity* Entity = World->Entities + EntityIndex;
@@ -265,7 +265,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             case Entity_WorldRegion:
             {
                 v3 P = GetEntityP(Game, EntityIndex);
-                m4x4 Transform = TranslateTransform(P);
+                m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
                 span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldRegion, Transform);
                 render_command* Command = Commands[0];
                 Command->Color = Entity->Color;
