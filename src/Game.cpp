@@ -805,12 +805,16 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
     
-    cursor_target Cursor = GetCursorTarget(GameState, Assets, GameAssets, Input);
-    v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringRegionIndex);
-    if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.06f)
     {
-        GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
-        GameState->HoveringRegion = Cursor.HoveringRegion;
+        cursor_target Cursor = GetCursorTarget(GameState, Assets, GameAssets, Input);
+        v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringRegionIndex);
+        if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.06f)
+        {
+            GameState->HoveringWorldP = Cursor.WorldP;
+            GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
+            GameState->HoveringRegion = Cursor.HoveringRegion;
+        }
+        
     }
     
     render_group RenderGroup = {};
@@ -845,7 +849,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         {
             if (Input->ButtonDown & Button_LMouse)
             {
-                nearest_tower NearestTower = NearestTowerTo(Cursor.WorldP.XY, &GameState->GlobalState, GameState->HoveringRegionIndex);
+                nearest_tower NearestTower = NearestTowerTo(GameState->HoveringWorldP.XY, &GameState->GlobalState, GameState->HoveringRegionIndex);
                 if (NearestTower.Distance < TowerRadius)
                 {
                     SetMode(GameState, Mode_EditTower);
@@ -857,19 +861,19 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         case Mode_Place:
         {
-            v2 P = Cursor.WorldP.XY;
+            v2 P = GameState->HoveringWorldP.XY;
             
             //TODO: Fix this
-            bool Placeable = (Cursor.HoveringRegion &&
-                              !IsWater(Cursor.HoveringRegion) &&
-                              Cursor.HoveringRegion->Owner == GameState->MyClientID && 
-                              DistanceInsideRegion(Cursor.HoveringRegion, P) > TowerRadius &&
-                              NearestTowerTo(P, &GameState->GlobalState, Cursor.HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+            bool Placeable = (GameState->HoveringRegion &&
+                              !IsWater(GameState->HoveringRegion) &&
+                              GameState->HoveringRegion->Owner == GameState->MyClientID && 
+                              DistanceInsideRegion(GameState->HoveringRegion, P) > TowerRadius &&
+                              NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius);
             
             f32 TargetZ = 0.25f;
-            if (Cursor.HoveringRegion)
+            if (GameState->HoveringRegion)
             {
-                TargetZ = Cursor.HoveringRegion->P.Z;
+                TargetZ = GameState->HoveringRegion->P.Z;
             }
             
             GameState->TowerPlaceIndicatorZ = LinearInterpolate(GameState->TowerPlaceIndicatorZ, TargetZ, 40.0f * SecondsPerFrame);
@@ -878,7 +882,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             
             if (Placeable)
             {
-                v4 RegionColor = Cursor.HoveringRegion->Color;
+                v4 RegionColor = GameState->HoveringRegion->Color;
                 
                 f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
                 Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -911,15 +915,15 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         case Mode_CellUpgrade:
         {
             //TODO: Fix this
-            bool Upgradeable = (Cursor.HoveringRegion &&
-                                !IsWater(Cursor.HoveringRegion) &&
-                                Cursor.HoveringRegion->Owner == GameState->MyClientID);
+            bool Upgradeable = (GameState->HoveringRegion &&
+                                !IsWater(GameState->HoveringRegion) &&
+                                GameState->HoveringRegion->Owner == GameState->MyClientID);
             
             if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
                 player_request Request = {.Type = Request_UpgradeRegion};
                 
-                Request.RegionIndex = Cursor.HoveringRegionIndex;
+                Request.RegionIndex = GameState->HoveringRegionIndex;
                 
                 SendPacket(&Request);
             }
@@ -928,16 +932,15 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         case Mode_BuildFarm:
         {
             //TODO: Check the farm doesn't already exist
-            //TODO: Fix this
-            bool Buildable = (Cursor.HoveringRegion &&
-                              !IsWater(Cursor.HoveringRegion) &&
-                              Cursor.HoveringRegion->Owner == GameState->MyClientID);
+            bool Buildable = (GameState->HoveringRegion &&
+                              !IsWater(GameState->HoveringRegion) &&
+                              GameState->HoveringRegion->Owner == GameState->MyClientID);
             
             if (Buildable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
                 player_request Request = {.Type = Request_BuildFarm};
                 
-                Request.RegionIndex = Cursor.HoveringRegionIndex;
+                Request.RegionIndex = GameState->HoveringRegionIndex;
                 
                 SendPacket(&Request);
             }
@@ -1010,7 +1013,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         else
         {
             RegionText = ArenaPrint(Allocator.Transient, "Region %d: Owned by Player %d (Level %d)", 
-                                    GameState->HoveringRegionIndex, Cursor.HoveringRegion->Owner, GameState->HoveringRegion->Level + 1);
+                                    GameState->HoveringRegionIndex, GameState->HoveringRegion->Owner, GameState->HoveringRegion->Level + 1);
         }
         
         f32 Width = GUIStringWidth(RegionText, 0.1f);

@@ -200,6 +200,9 @@ struct shader_constants
     
     v3 WindDirection;
     f32 WindStrength;
+    
+    f32 ShadowRemove;
+    f32 Pad6[3];
 };
 
 // --- Platform Layer ---
@@ -379,8 +382,9 @@ struct render_command
     v4 Color;
     material* Material;
     bool DisableDepthTest;
-    bool DisableShadows;
+    bool DoesNotCastShadow;
     bool EnableWind;
+    bool NoShadows;
 };
 
 struct font_asset
@@ -477,6 +481,8 @@ struct game_assets
     
     renderer_vertex_buffer VertexBuffers[128];
     int VertexBufferCount;
+    
+    texture_index ButtonTextureHandle;
     
     //Used by game
     void* GameData;

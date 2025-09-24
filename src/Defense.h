@@ -273,12 +273,12 @@ struct game_state
     tower* TowerPerspective;
     
     //
+    v3 HoveringWorldP;
     entity* HoveringRegion;
     u32 HoveringRegionIndex;
     v3 RegionOutlineP;
     v3 RegionOutlineTargetP;
     f32 RegionOutlineAlpha;
-    
     
     //Placing tower
     f32 TowerPlaceIndicatorZ;
@@ -329,7 +329,7 @@ struct defense_assets
     model_textures ModelTextures;
     cube_map Skybox;
     
-    model_index WorldRegion;
+    model_index WorldRegion, WorldRegionSkirt;
     model_index PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
     model_index ModularWood, House;
     model_index Castle, Turret, Mine;

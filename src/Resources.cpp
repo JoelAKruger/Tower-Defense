@@ -30,7 +30,6 @@ LoadSkybox(game_assets* Assets, defense_assets* GameAssets)
 
 //TODO: Should this be called SetVertexBuffer
 
-
 static void
 LoadAssets(game_assets* Assets, allocator Allocator)
 {
@@ -52,6 +51,8 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     }
     
     defense_assets* GameAssets = (defense_assets*)Assets->GameData;
+    
+    Assets->ButtonTextureHandle = LoadTexture(Assets, "assets/textures/wenrexa_gui/Btn_TEST.png");
     
     GameAssets->ShadowMap = CreateShadowDepthTexture(Assets, 4096, 4096);
     
@@ -106,6 +107,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     LoadMaterials(Assets, "assets/models/Environment.mtl", "Environment.mtl");
     LoadObjects(Assets, "assets/models/Environment.obj");
     LoadObjects(Assets, "assets/models/hexagon_new.obj");
+    LoadObjects(Assets, "assets/models/Hexagon_skirt.obj");
     LoadObjects(Assets, "assets/models/wall.obj");
     LoadObjects(Assets, "assets/models/stairs.obj");
     LoadObjects(Assets, "assets/models/modular_wood.obj");
@@ -130,6 +132,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
                            ModelRotateTransform() * ScaleTransform(0.1f));
     
     SetModelLocalTransform(Assets, "Circle", ModelRotateTransform());
+    SetModelLocalTransform(Assets, "HexagonSkirt", ModelRotateTransform());
     
     SetModelLocalTransform(Assets, "Wall_01", ScaleTransform(0.02f) * ModelRotateTransform());
     SetModelLocalTransform(Assets, "Stairs_01", ScaleTransform(0.01f) * ModelRotateTransform());
@@ -137,6 +140,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     SetModelLocalTransform(Assets, "House_01", ScaleTransform(0.01f) * ModelRotateTransform());
     
     GameAssets->WorldRegion = GetModelHandle(Assets, "Circle");
+    GameAssets->WorldRegionSkirt = GetModelHandle(Assets, "HexagonSkirt");
     GameAssets->PinkFlower = GetModelHandle(Assets, "2FPinkPlant_Plane.084");
     GameAssets->Bush = GetModelHandle(Assets, "Bush2_Cube.046");
     GameAssets->RibbonPlant = GetModelHandle(Assets, "RibbonPlant2_Plane.079");

@@ -272,23 +272,18 @@ void panel_layout::Text(string Text)
 
 bool panel_layout::Button(char* Text)
 {
-#if 0
-    texture Texture = GlobalAssets->Button;
+    texture Texture = GlobalAssets->Textures[GlobalAssets->ButtonTextureHandle];
     f32 W = Texture.Width * PixelWidth;
     f32 H = Texture.Height * PixelHeight;
     
     SetShader(GlobalAssets->Shaders[Shader_GUI_Texture]);
-    SetTexture(GlobalAssets->Button);
-#endif
-    
-    f32 W = 100 * PixelWidth;
-    f32 H = 50 * PixelHeight;
+    SetTexture(Texture);
     
     v2 P = V2(X0 + X * PixelWidth, Y0 + Y * PixelHeight - H);
     v2 Size = V2(W, H);
-#if 0
+    
     GUI_DrawTexture(Texture, P, Size);
-#endif
+    
     gui_element_status Status = DoGUIElement(P, Size);
     
     v2 PixelSize = TextPixelSize(&GlobalAssets->Font, String(Text));
@@ -301,8 +296,8 @@ bool panel_layout::Button(char* Text)
         GUI_DrawRectangle(P, Size, V4(1.0f, 1.0f, 1.0f, 0.1f));
     }
     
-    //X += Texture.Width + XPad;
-    //CurrentRowPixelHeight = Max(CurrentRowPixelHeight, Texture.Height);
+    X += Texture.Width + XPad;
+    CurrentRowPixelHeight = Max(CurrentRowPixelHeight, Texture.Height);
     
     return (Status == GUI_Pressed);
 }

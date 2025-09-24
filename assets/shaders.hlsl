@@ -38,6 +38,8 @@ cbuffer Constants : register(b5)
 
 	float3 wind_direction;
 	float wind_strength;
+
+	float shadow_remove;
 };
 
 float GetShadowValue(float2 shadow_uv, float pixel_depth);
@@ -116,7 +118,7 @@ float4 PixelShader_Color(VS_Output_Default input) : SV_TARGET
 	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
 	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
 	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;	
-	float shadow = GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
+	float shadow = (1.0f - shadow_remove) * GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
 
 	return float4(input.color.rgb * (1.0f - 0.25 * shadow), 1.0f);
 }

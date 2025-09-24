@@ -289,10 +289,17 @@ PushNoDepthTest(render_group* RenderGroup)
 }
 
 static void
-PushNoShadow(render_group* RenderGroup)
+PushDoesNotCastShadow(render_group* RenderGroup)
 {
     render_command* Command = GetLastEntry(RenderGroup);
-    Command->DisableShadows = true;
+    Command->DoesNotCastShadow = true;
+}
+
+static void
+PushNoShadows(render_group* RenderGroup)
+{
+    render_command* Command = GetLastEntry(RenderGroup);
+    Command->NoShadows = true;
 }
 
 static void
@@ -451,7 +458,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
     {
         render_command* Command = Group->Commands + CommandIndex;
         
-        if ((Type & Draw_Shadow) && Command->DisableShadows)
+        if ((Type & Draw_Shadow) && Command->DoesNotCastShadow)
         {
             continue;
         }
@@ -512,6 +519,8 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
             Constants.WindDirection = {};
             Constants.WindStrength = {};
         }
+        
+        Constants.ShadowRemove = Command->NoShadows ? 1.0f : 0.0f;
         
         SetGraphicsShaderConstants(Constants);
         

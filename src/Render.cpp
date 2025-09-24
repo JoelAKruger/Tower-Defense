@@ -1,8 +1,10 @@
 static void
-DrawOceanFloor(render_group* RenderGroup)
+DrawOceanFloor(render_group* RenderGroup, f32 Z)
 {
-    PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, 0.5f), V3(100.0f, 100.0f, 0.5f), V3(0, 0, -1));
-    PushColor(RenderGroup, V4(0.1f, 0.15f, 0.3f, 1.0f));
+    PushRectBetter(RenderGroup, V3(-100.0f, -100.0f, Z), V3(100.0f, 100.0f, Z), V3(0, 0, -1));
+    PushShader(RenderGroup, Shader_Color);
+    PushColor(RenderGroup, V4(0.15f, 0.25f, 0.5f, 1.0f));
+    PushNoShadows(RenderGroup);
 }
 
 static void
@@ -47,7 +49,7 @@ DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets
     m4x4 Transform = ScaleTransform(0.9f * Game->GlobalState.World.RegionSize) * TranslateTransform(V3(P.XY, Z));
     
     PushVertexBuffer(RenderGroup, GameAssets->RegionOutline, Transform);
-    PushNoShadow(RenderGroup);
+    PushDoesNotCastShadow(RenderGroup);
     PushShader(RenderGroup, Shader_Color);
 }
 
@@ -209,7 +211,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     shader_constants Constants = {};
     
     DrawSkybox(RenderGroup, GameAssets);
-    DrawOceanFloor(RenderGroup);
+    DrawOceanFloor(RenderGroup, 0.35f);
     
     //TODO: These should use GetModelTransformOfEntity()
     for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
@@ -222,8 +224,10 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 v3 P = GetEntityP(Game, EntityIndex);
                 m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
                 span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldRegion, Transform);
-                render_command* Command = Commands[0];
-                Command->Color = Entity->Color;
+                Commands[0]->Color = Entity->Color;
+                Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
+                Commands = PushModelNew(RenderGroup, GameAssets->WorldRegionSkirt, Transform);
+                Commands[0]->Color = Entity->Color;
             } break;
             case Entity_Foliage:
             {
