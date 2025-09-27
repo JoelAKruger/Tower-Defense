@@ -298,20 +298,18 @@ GetWorldRegionForTilePosition(world* World, tile_position P)
 static bool
 IsValidTilePosition(tile_position P)
 {
-    int N = 3;
-    bool Result = (P.TileX >= -N && P.TileX < N && P.TileY >= -N && P.TileY < N &&
-                   ((P.Top && (P.TileX + P.TileY < N-1) && (P.TileX + P.TileY > -N-2)) ||
-                    (!P.Top && (P.TileX + P.TileY < N) && (P.TileX + P.TileY > -N-1))));
+    bool Result = (((P.TileY >= 0 && P.TileY <= 3) && (P.TileX >= 0 && P.TileX <= 6)) ||
+                   ((P.TileY == -1 || P.TileY == 4) && (P.TileX >= 1 && P.TileX <= 5)) ||
+                   ((P.TileY == -2 || P.TileY == 5) && (P.TileX == 3)));
     return Result;
 }
 
 static bool
 TileIsOnEdge(tile_position P)
 {
-    int N = 3;
-    bool Result = (P.TileX == -N || P.TileX == N-1 || P.TileY == -N || P.TileY == N-1 ||
-                   (P.Top && ((P.TileX + P.TileY == N-2) || (P.TileX + P.TileY == -N-1))) ||
-                   (!P.Top && ((P.TileX + P.TileY == N-1) || (P.TileX + P.TileY == -N))));
+    bool Result = ((P.TileX == 0 || P.TileX == 6) ||
+                   ((P.TileY == -1 || P.TileY == 4) && (P.TileX == 1 || P.TileX == 2 || P.TileX == 4 || P.TileX == 5)));
+    
     return Result;
 }
 
@@ -327,7 +325,7 @@ GetEntityAtTilePosition(world* World, tile_position P)
         entity* Entity = World->Entities + EntityIndex;
         tile_position TestP = Entity->TilePosition;
         
-        if (TestP.GridX == P.GridX && TestP.GridY == P.GridY && TestP.Top == P.Top &&
+        if (TestP.GridX == P.GridX && TestP.GridY == P.GridY &&
             TestP.TileX == P.TileX && TestP.TileY == P.TileY)
         {
             Result = Entity;
@@ -349,20 +347,12 @@ GetLocalNeighbours(memory_arena* Arena, world* World, tile_position P)
 {
     dynamic_array<tile_neighbour> Result = {.Arena = Arena};
     
-    tile_position TestPositions[3];
+    tile_position TestPositions[4];
     
-    if (P.Top == true)
-    {
-        TestPositions[0] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX + 1, .TileY = P.TileY,     .Top = false};
-        TestPositions[1] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY + 1, .Top = false};
-        TestPositions[2] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY,     .Top = false};
-    }
-    else
-    {
-        TestPositions[0] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX - 1, .TileY = P.TileY,     .Top = true};
-        TestPositions[1] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY - 1, .Top = true};
-        TestPositions[2] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY,     .Top = true};
-    }
+    TestPositions[0] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX + 1, .TileY = P.TileY};
+    TestPositions[1] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY + 1};
+    TestPositions[2] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX - 1, .TileY = P.TileY};
+    TestPositions[3] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY - 1};
     
     for (tile_position TestP : TestPositions)
     {
@@ -402,18 +392,8 @@ TilePositionToRegionPosition(world* World, tile_position P)
 static v2
 TilePositionToWorldPosition(world* World, tile_position P)
 {
-    int N = 3;
-    
-    v2 dP = {};
-    
-    if (P.Top)
-    {
-        dP = (World->RegionSize / N) * (M2x2(V2(0.866f, 0.5f), V2(0, 1)) * V2(P.TileX + 0.66f, P.TileY + 0.66f));
-    }
-    else
-    {
-        dP = (World->RegionSize / N) * (M2x2(V2(0.866f, 0.5f), V2(0, 1)) * V2(P.TileX + 0.33f, P.TileY + 0.33f));
-    }
+    f32 TileSize = 0.75f * 2.0f * World->RegionSize / 7.0f;
+    v2 dP = TileSize * V2(P.TileX - 3.0f, P.TileY - 1.5f);
     
     v2 Result = TilePositionToRegionPosition(World, P) + dP;
     return Result;
@@ -444,46 +424,33 @@ GetTileEdgeType(tile_position P)
     
     region_edge Result = {};
     
-    // Right side
-    if (P.TileX == N-1 && P.TileX + P.TileY != N-1 && !(P.Top == false && P.TileY == -N))
-    {
-        Result = RegionEdge_Right;
-    }
-    // Bottom right
-    else if (P.TileY == -N && (P.TileX + P.TileY != -N-1))
-    {
-        Result = RegionEdge_BottomRight;
-    }
-    // Bottom left, bottom tiles
-    else if (P.Top == false && P.TileX + P.TileY == -N && P.TileX != -N)
-    {
-        Result = RegionEdge_BottomLeft;
-    }
-    //Bottom left, top tiles
-    else if (P.Top == true && P.TileX + P.TileY == -N-1)
-    {
-        Result = RegionEdge_BottomLeft;
-    }
-    // Left side
-    else if (P.TileX == -N && !(P.Top && P.TileY == N-1))
+    if (P.TileX == 0)
     {
         Result = RegionEdge_Left;
     }
-    
-    // Top left
-    else if (P.TileY == N-1 && P.TileX + P.TileY != N-1)
+    else if (P.TileX == 6)
+    {
+        Result = RegionEdge_Right;
+    }
+    else if (P.TileY == 4 && (P.TileX == 1 || P.TileX == 2))
     {
         Result = RegionEdge_TopLeft;
     }
-    // Top right, bottom tiles
-    else if (P.Top == false && P.TileX + P.TileY == N-1)
+    else if (P.TileY == 4 && (P.TileX == 4 || P.TileX == 5))
     {
         Result = RegionEdge_TopRight;
     }
-    // Top right, top tiles
+    else if (P.TileY == -1 && (P.TileX == 1 || P.TileX == 2))
+    {
+        Result = RegionEdge_BottomLeft;
+    }
+    else if (P.TileY == -1 && (P.TileX == 4 || P.TileX == 5))
+    {
+        Result = RegionEdge_BottomRight;
+    }
     else
     {
-        Result = RegionEdge_TopRight;
+        Assert(0);
     }
     
     return Result;
@@ -571,114 +538,25 @@ GetOppositeEdgeType(region_edge Edge)
 static tile_position
 GetOppositeTileFromEdge(tile_position P)
 {
-    int N = 3;
     Assert(TileIsOnEdge(P));
     
     tile_position Result = {};
     
-    // Right side
-    if (P.TileX == N-1 && P.TileX + P.TileY != N-1 && !(P.Top == false && P.TileY == -N))
-    {
-        Result.GridX = P.GridX + 1;
-        Result.GridY = P.GridY;
-        
-        if (P.Top)
-        {
-            Result.TileX = P.TileX - (2*N-1);
-            Result.TileY = P.TileY + N;
-            Result.Top = false;
-        }
-        else
-        {
-            Result.TileX = P.TileX - (2*N-1);
-            Result.TileY = P.TileY + (N-1);
-            Result.Top = true;
-        }
-    }
-    // Bottom right
-    else if (P.TileY == -N)
-    {
-        Result.GridY = P.GridY - 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX;
-        }
-        else
-        {
-            Result.GridX = P.GridX + 1;
-        }
-        
-        if (P.Top)
-        {
-            Result.TileX = P.TileX - (N-1);
-            Result.TileY = P.TileY + (2*N-1);
-            Result.Top = false;
-        }
-        else
-        {
-            Result.TileX = P.TileX - N;
-            Result.TileY = P.TileY + (2*N-1);
-        }
-    }
-    
-    // Bottom left, bottom tiles
-    else if (P.Top == false && P.TileX + P.TileY == -N && P.TileX != -N)
-    {
-        Result.GridY = P.GridY - 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX - 1;
-        }
-        else
-        {
-            Result.GridX = P.GridX;
-        }
-        
-        Result.Top = true;
-        Result.TileX = P.TileX + N-1;
-        Result.TileY = P.TileY + N-1;
-    }
-    
-    //Bottom left, top tiles
-    else if (P.Top == true && P.TileX + P.TileY == -N-1)
-    {
-        Result.GridY = P.GridY - 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX - 1;
-        }
-        else
-        {
-            Result.GridX = P.GridX;
-        }
-        
-        Result.Top = false;
-        Result.TileX = P.TileX + N;
-        Result.TileY = P.TileY + N;
-    }
-    
-    // Left side
-    else if (P.TileX == -N && !(P.Top && P.TileY == N-1))
+    if (P.TileX == 0) //Left
     {
         Result.GridX = P.GridX - 1;
         Result.GridY = P.GridY;
-        
-        if (P.Top)
-        {
-            Result.Top = false;
-            Result.TileX = P.TileX + (2*N-1);
-            Result.TileY = P.TileY - (N-1);
-        }
-        else
-        {
-            Result.Top = true;
-            Result.TileX = P.TileX + (2*N-1);
-            Result.TileY = P.TileY - N;
-        }
+        Result.TileX = 6;
+        Result.TileY = P.TileY;
     }
-    
-    // Top left
-    else if (P.TileY == N-1 && P.TileX + P.TileY != N-1)
+    else if (P.TileX == 6) //Right
+    {
+        Result.GridX = P.GridX + 1;
+        Result.GridY = P.GridY;
+        Result.TileX = 0;
+        Result.TileY = P.TileY;
+    }
+    else if (P.TileY == 4 && (P.TileX == 1 || P.TileX == 2)) //Top left
     {
         Result.GridY = P.GridY + 1;
         if (P.GridY % 2 == 0)
@@ -689,23 +567,10 @@ GetOppositeTileFromEdge(tile_position P)
         {
             Result.GridX = P.GridX;
         }
-        
-        if (P.Top)
-        {
-            Result.Top = false;
-            Result.TileX = P.TileX + N;
-            Result.TileY = P.TileY - (2*N-1);
-        }
-        else
-        {
-            Result.Top = true;
-            Result.TileX = P.TileX + (N-1);
-            Result.TileY = P.TileY - (2*N-1);
-        }
+        Result.TileX = P.TileX + 3;
+        Result.TileY = P.TileY - 5;
     }
-    
-    // Top right, bottom tiles
-    else if (P.Top == false && P.TileX + P.TileY == N-1)
+    else if (P.TileY == 4 && (P.TileX == 4 || P.TileX == 5)) //Top right
     {
         Result.GridY = P.GridY + 1;
         if (P.GridY % 2 == 0)
@@ -716,28 +581,40 @@ GetOppositeTileFromEdge(tile_position P)
         {
             Result.GridX = P.GridX + 1;
         }
-        
-        Result.Top = true;
-        Result.TileX = P.TileX + N;
-        Result.TileY = P.TileY - N;
+        Result.TileX = P.TileX - 3;
+        Result.TileY = P.TileY - 5;
     }
-    
-    // Top right, top tiles
+    else if (P.TileY == -1 && (P.TileX == 1 || P.TileX == 2)) //Bottom left
+    {
+        Result.GridY = P.GridY - 1;
+        if (P.GridY % 2 == 0)
+        {
+            Result.GridX = P.GridX - 1;
+        }
+        else
+        {
+            Result.GridX = P.GridX;
+        }
+        Result.TileX = P.TileX + 3;
+        Result.TileY = P.TileY + 5;
+    }
+    else if (P.TileY == -1 && (P.TileX == 4 || P.TileX == 5)) //Bottom right
+    {
+        Result.GridY = P.GridY - 1;
+        if (P.GridY % 2 == 0)
+        {
+            Result.GridX = P.GridX;
+        }
+        else
+        {
+            Result.GridX = P.GridX + 1;
+        }
+        Result.TileX = P.TileX - 3;
+        Result.TileY = P.TileY + 5;
+    }
     else
     {
-        Result.GridY = P.GridY + 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX;
-        }
-        else
-        {
-            Result.GridX = P.GridX + 1;
-        }
-        
-        Result.Top = false;
-        Result.TileX = P.TileX - (N-1);
-        Result.TileY = P.TileY - (N-1);
+        Assert(0);
     }
     
     return Result;
@@ -779,7 +656,7 @@ CreateWorld(world* World, u64 PlayerCount)
         {
             entity Region = {.Type = Entity_WorldRegion};
             
-            Region.Size = 0.95f * World->RegionSize / 0.866f;
+            Region.Size = 0.97f * World->RegionSize / 0.866f;
             Region.TilePositionIsValid = true;
             Region.TilePosition = {.GridX = X, .GridY = Y};
             Region.P.XY = TilePositionToRegionPosition(World, Region.TilePosition);
@@ -921,8 +798,7 @@ CreateWorld(world* World, u64 PlayerCount)
                 tile_position NewP = GetOppositeTileFromEdge(End);
                 
                 u64 EndRegionIndex = GetWorldRegionForTilePosition(World, NewP);
-                if (EndRegionIndex == 0 ||
-                    Region->Owner != World->Entities[EndRegionIndex].Owner)
+                if (EndRegionIndex == 0)
                 {
                     break;
                 }
@@ -951,7 +827,7 @@ CreateWorld(world* World, u64 PlayerCount)
         
         entity BridgeEntity = {
             .Type = Entity_Structure,
-            .P = V3(0.5f * (P0 + P1), 0.11f),
+            .P = V3(0.5f * (P0 + P1), 0.1f),
             .Angle = VectorAngle(P1 - P0),
             .Owner = 0,
             .StructureType = Structure_ModularWood

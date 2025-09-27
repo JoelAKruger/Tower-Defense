@@ -68,7 +68,7 @@ DrawTower(render_group* RenderGroup, game_state* Game, defense_assets* Assets, t
     }
     else if (Type == Tower_Turret)
     {
-        span<render_command*> Commands = PushModelNew(RenderGroup, Assets->Turret, ModelTransform);
+        span<render_command*> Commands = PushTexturedModel(RenderGroup, Assets->Tower, ModelTransform);
         Commands[0]->Color = Color;
     }
     else
@@ -227,7 +227,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 Commands[0]->Color = Entity->Color;
                 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
                 Commands = PushModelNew(RenderGroup, GameAssets->WorldRegionSkirt, Transform);
-                Commands[0]->Color = Entity->Color;
+                Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
             } break;
             case Entity_Foliage:
             {
@@ -251,7 +251,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 
                 for (v2 Offset : Offsets)
                 {
-                    v3 P = RegionP + FarmP + V3(1.1f * World->Entities[Entity->Owner].Size * Offset, 0.0f);
+                    v3 P = RegionP + FarmP + V3(World->Entities[Entity->Parent].Size * Offset, 0.0f);
                     
                     m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
                     PushModelNew(RenderGroup, GameAssets->Grass, Transform);

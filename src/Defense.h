@@ -13,7 +13,6 @@ struct tile_position
 {
     int GridX, GridY;
     int TileX, TileY;
-    bool Top;
 };
 
 enum foliage_type : u8
@@ -332,7 +331,7 @@ struct defense_assets
     model_index WorldRegion, WorldRegionSkirt;
     model_index PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
     model_index ModularWood, House;
-    model_index Castle, Turret, Mine;
+    model_index Castle, Turret, Mine, Tower;
     
     vertex_buffer_index GUIWholeScreen;
     

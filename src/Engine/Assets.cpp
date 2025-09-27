@@ -207,6 +207,7 @@ LoadObjects(game_assets* Assets, char* Path)
             
             string Name = ParseString(&Reader);
             CurrentModel->Name = CopyString(Allocator.Permanent, Name);
+            CurrentModel->LocalTransform = IdentityTransform();
         }
         
         else if (Consume(&Reader, "v ")) //Vertex position

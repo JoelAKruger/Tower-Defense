@@ -112,6 +112,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     LoadObjects(Assets, "assets/models/stairs.obj");
     LoadObjects(Assets, "assets/models/modular_wood.obj");
     LoadObjects(Assets, "assets/models/house.obj");
+    LoadObjects(Assets, "assets/models/tower.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -136,8 +137,9 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     
     SetModelLocalTransform(Assets, "Wall_01", ScaleTransform(0.02f) * ModelRotateTransform());
     SetModelLocalTransform(Assets, "Stairs_01", ScaleTransform(0.01f) * ModelRotateTransform());
-    SetModelLocalTransform(Assets, "ModularWood_01", ScaleTransform(0.01f) * ModelRotateTransform() * RotateTransform(0.5f * Pi));
+    SetModelLocalTransform(Assets, "ModularWood_01", ScaleTransform(0.005f) * ModelRotateTransform() * RotateTransform(0.5f * Pi));
     SetModelLocalTransform(Assets, "House_01", ScaleTransform(0.01f) * ModelRotateTransform());
+    SetModelLocalTransform(Assets, "Tower", ScaleTransform(0.015f));
     
     GameAssets->WorldRegion = GetModelHandle(Assets, "Circle");
     GameAssets->WorldRegionSkirt = GetModelHandle(Assets, "HexagonSkirt");
@@ -151,6 +153,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     GameAssets->House = GetModelHandle(Assets, "House_01");
     GameAssets->Castle = GetModelHandle(Assets, "Castle");
     GameAssets->Turret = GetModelHandle(Assets, "Turret");
+    GameAssets->Tower = GetModelHandle(Assets, "Tower");
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
