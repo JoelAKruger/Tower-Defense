@@ -262,6 +262,22 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             
             *FlushWorld = true;
         } break;
+        case Request_UpgradeWall:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            
+            //TODO: Verify index is valid and entity type is correct
+            entity* Region = Game->World.Entities + Request->RegionIndex;
+            Assert(Region->Owner == SenderIndex);
+            entity Wall = {
+                .Type = Entity_Fence,
+                .Owner = (int)SenderIndex,
+                .Parent = (int)Request->RegionIndex
+            };
+            
+            AddEntity(&Game->World, Wall);
+            *FlushWorld = true;
+        } break;
         default:
         {
             Assert(0);

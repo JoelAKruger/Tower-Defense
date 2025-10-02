@@ -63,11 +63,13 @@ DrawTower(render_group* RenderGroup, game_state* Game, defense_assets* Assets, t
     
     if (Type == Tower_Castle)
     {
-        span<render_command*> Commands = PushModelNew(RenderGroup, Assets->Castle, ModelTransform);
+        //span<render_command*> Commands = PushModelNew(RenderGroup, Assets->Castle, ModelTransform);
+        span<render_command*> Commands = PushTexturedModel(RenderGroup, Assets->House07, ModelTransform);
         Commands[0]->Color = Color;
     }
     else if (Type == Tower_Turret)
     {
+        //span<render_command*> Commands = PushTexturedModel(RenderGroup,Assets->House07, ModelTransform);
         span<render_command*> Commands = PushTexturedModel(RenderGroup, Assets->Tower, ModelTransform);
         Commands[0]->Color = Color;
     }
@@ -265,6 +267,28 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 model_index Model = GetModel(GameAssets, Entity);
                 PushTexturedModel(RenderGroup, Model, Transform);
                 //PushModelNew(RenderGroup, Assets, Model, Transform);
+            } break;
+            case Entity_Fence:
+            {
+                model_index Model = GetModel(GameAssets, Entity);
+                v3 RegionP = GetEntityP(Game, Entity->Parent);
+                
+                span<v2> Vertices = GetHexagonVertexPositions(RegionP.XY, 0.89f * World->RegionSize, Assets->Allocator.Transient);
+                
+                for (u64 VertexIndex = 0; VertexIndex < Vertices.Count; VertexIndex++)
+                {
+                    v2 A = Vertices[VertexIndex];
+                    v2 B = Vertices[(VertexIndex + 1) % Vertices.Count];
+                    
+                    f32 Angle = VectorAngle(A - B);
+                    
+                    v3 P = V3(A, RegionP.Z);
+                    
+                    m4x4 Transform = RotateTransform(-Angle - 0.01f) * ScaleTransform(0.9f * World->RegionSize) * TranslateTransform(P);
+                    PushTexturedModel(RenderGroup, Model, Transform);
+                }
+                
+                
             } break;
             default: Assert(0);
         }

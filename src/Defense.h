@@ -46,7 +46,8 @@ enum entity_type : u32
     Entity_WorldRegion,
     Entity_Foliage,
     Entity_Farm,
-    Entity_Structure
+    Entity_Structure,
+    Entity_Fence
 };
 
 struct entity
@@ -100,7 +101,8 @@ enum game_mode
     Mode_EditTower,
     Mode_TowerPOV,
     Mode_CellUpgrade,
-    Mode_BuildFarm
+    Mode_BuildFarm,
+    Mode_WallUpgrade
 };
 
 enum tower_type
@@ -165,7 +167,8 @@ enum player_request_type
     Request_TargetTower,
     Request_Throw,
     Request_UpgradeRegion,
-    Request_BuildFarm
+    Request_BuildFarm,
+    Request_UpgradeWall,
 };
 
 struct player_request
@@ -330,8 +333,8 @@ struct defense_assets
     
     model_index WorldRegion, WorldRegionSkirt;
     model_index PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
-    model_index ModularWood, House;
-    model_index Castle, Turret, Mine, Tower;
+    model_index ModularWood, House, House07;
+    model_index Castle, Turret, Mine, Tower, Fence05;
     
     vertex_buffer_index GUIWholeScreen;
     

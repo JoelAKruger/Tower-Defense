@@ -389,11 +389,17 @@ TilePositionToRegionPosition(world* World, tile_position P)
     return Result;
 }
 
+static f32
+GetTileSize(world* World)
+{
+    f32 TileSize = 0.7f * 2.0f * World->RegionSize / 7.0f;
+    return TileSize;
+}
+
 static v2
 TilePositionToWorldPosition(world* World, tile_position P)
 {
-    f32 TileSize = 0.75f * 2.0f * World->RegionSize / 7.0f;
-    v2 dP = TileSize * V2(P.TileX - 3.0f, P.TileY - 1.5f);
+    v2 dP = GetTileSize(World) * V2(P.TileX - 3.0f, P.TileY - 1.5f);
     
     v2 Result = TilePositionToRegionPosition(World, P) + dP;
     return Result;
@@ -684,11 +690,11 @@ CreateWorld(world* World, u64 PlayerCount)
                 Region.P.Z = 0.1f;
             }
             
-            AddEntity(World, Region);
-        }
+            u64 RegionIndex = AddEntity(World, Region);
+        };
     }
     
-    //GenerateFoliage(World, &Arena);
+    GenerateFoliage(World, &Arena);
     
     //Add structures
     /*
@@ -745,7 +751,7 @@ CreateWorld(world* World, u64 PlayerCount)
             }
         }
     }
-*/
+    */
     
     /*
     dynamic_array<entity*> PathEnds = {.Arena = &Arena};
@@ -763,6 +769,7 @@ CreateWorld(world* World, u64 PlayerCount)
     }
     */
     
+    /*
     struct bridge
     {
         tile_position P0, P1;
@@ -835,6 +842,8 @@ CreateWorld(world* World, u64 PlayerCount)
         
         AddEntity(World, BridgeEntity);
     }
+    */
+    
 }
 
 struct nearest_foliage
@@ -930,7 +939,7 @@ GenerateFoliage(world* World, memory_arena* Arena)
 {
     f32 MinDistance = 0.05f;
     
-    for (int Index = 0; Index < 512;)
+    for (int Index = 0; Index < 1024;)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         

@@ -166,6 +166,7 @@ GetModel(defense_assets* Assets, entity* Entity)
                 default: Assert(0);
             }
         } break;
+        case Entity_Fence: Handle = Assets->Fence05; break;
         default: Assert(0);
     }
     return Handle;
@@ -597,6 +598,11 @@ DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
         SetMode(Game, Mode_CellUpgrade);
     }
     Panel.NextRow();
+    if (Panel.Button("Upgrade Defence"))
+    {
+        SetMode(Game, Mode_WallUpgrade);
+    }
+    Panel.NextRow();
     if (Panel.Button("Build Farm"))
     {
         SetMode(Game, Mode_BuildFarm);
@@ -736,7 +742,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     {
         //Top down perspective
         case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
-        case Mode_BuildFarm: 
+        case Mode_BuildFarm: case Mode_WallUpgrade:
         {
             f32 WorldZForDragging = 0.1f;
             SetCursorState(true);
@@ -863,7 +869,6 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         {
             v2 P = GameState->HoveringWorldP.XY;
             
-            //TODO: Fix this
             bool Placeable = (GameState->HoveringRegion &&
                               !IsWater(GameState->HoveringRegion) &&
                               GameState->HoveringRegion->Owner == GameState->MyClientID && 
@@ -904,6 +909,39 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
                 Request.TowerType = Type;
                 
                 SendPacket(&Request);
+            }
+            
+            if (GameState->HoveringRegion)
+            {
+                world* World = &GameState->GlobalState.World;
+                tile_position TileVisualise = {
+                    .GridX = GameState->HoveringRegion->TilePosition.GridX,
+                    .GridY = GameState->HoveringRegion->TilePosition.GridY,
+                };
+                
+                for (int X = 0; X <= 6; X++)
+                {
+                    for (int Y = -2; Y <= 5; Y++)
+                    {
+                        TileVisualise.TileX = X;
+                        TileVisualise.TileY = Y;
+                        
+                        if (IsValidTilePosition(TileVisualise))
+                        {
+                            v4 Color = ((X & 1) ^ (Y & 1)) ? V4(0.5f, 0.5f, 0.5f, 1.0f) : V4(1, 1, 1, 1);
+                            f32 Z = GetEntityP(GameState, GameState->HoveringRegionIndex).Z;
+                            
+                            v3 Center = V3(TilePositionToWorldPosition(World, TileVisualise), Z - 0.0001f);
+                            v3 TileSize = V3(GetTileSize(World), GetTileSize(World), 0.0f);
+                            
+                            v3 P0 = Center - 0.5f * TileSize;
+                            v3 P1 = Center + 0.5f * TileSize;
+                            PushRectBetter(&RenderGroup, P0, P1, V3(0, 0, -1));
+                            PushShader(&RenderGroup, Shader_Color);
+                            PushColor(&RenderGroup, Color);
+                        }
+                    }
+                }
             }
         } break;
         
@@ -946,6 +984,22 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             }
         } break;
         
+        case Mode_WallUpgrade:
+        {
+            //TODO: Check the farm doesn't already exist
+            bool Upgradeable = (GameState->HoveringRegion &&
+                                !IsWater(GameState->HoveringRegion) &&
+                                GameState->HoveringRegion->Owner == GameState->MyClientID);
+            
+            if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+            {
+                player_request Request = {.Type = Request_UpgradeWall};
+                
+                Request.RegionIndex = GameState->HoveringRegionIndex;
+                
+                SendPacket(&Request);
+            }
+        } break;
         
         //Other cases may be handled below with GUI
         default: ;
@@ -958,7 +1012,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         GameState->Mode == Mode_CellUpgrade ||
         GameState->Mode == Mode_BuildFarm ||
         GameState->Mode == Mode_Place ||
-        GameState->Mode == Mode_EditTower)
+        GameState->Mode == Mode_EditTower ||
+        GameState->Mode == Mode_WallUpgrade)
     {
         if (GameState->HoveringRegion)
         {
