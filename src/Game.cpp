@@ -137,12 +137,22 @@ RayModelIntersection(game_assets* Assets, model_index ModelHandle, m4x4 WorldTra
 }
 
 static model_index
-GetModel(defense_assets* Assets, entity* Entity)
+GetModel(defense_assets* Assets, entity* Entity, bool LowPoly)
 {
     model_index Handle = 0;
     switch (Entity->Type)
     {
-        case Entity_WorldRegion: Handle = Assets->WorldRegion; break;
+        case Entity_WorldRegion: 
+        {
+            if (LowPoly)
+            {
+                Handle = Assets->WorldRegionLowPoly;
+            }
+            else
+            {
+                Handle = Assets->WorldRegion; 
+            }
+        } break;
         case Entity_Foliage: 
         {
             switch (Entity->FoliageType)
@@ -672,7 +682,8 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
     ray_collision NearestCollision = {.T = 1000000.0f};
     world* World = &Game->GlobalState.World;
     
-    f32 WorldZ = 2.0f;
+    f32 WorldZ = 0.5f; //Arbitrary; should be decently larger than 0 though
+    f32 MaxDistance = 0.4f; //arbitrary
     
     v2 Cursor = (Game->Mode == Mode_TowerPOV) ? V2(0, 0) : Input->Cursor;
     
@@ -683,10 +694,10 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
     for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
     {
         entity* Entity = World->Entities + RegionIndex;
-        if (Entity->Type == Entity_WorldRegion)
+        if (Entity->Type == Entity_WorldRegion && DistanceSq(CursorP.XY, Entity->P.XY) < Square(MaxDistance))
         {
             m4x4 Transform = GetModelTransformOfEntity(Game, RegionIndex);
-            model_index Model = GetModel(GameAssets, Entity);
+            model_index Model = GetModel(GameAssets, Entity, Model_LowPoly);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
             if (Collision.DidHit == true && Collision.T < NearestCollision.T)
@@ -812,6 +823,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
     
     {
+        TimeBlock("GetCursorTarget");
         cursor_target Cursor = GetCursorTarget(GameState, Assets, GameAssets, Input);
         v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringRegionIndex);
         if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.06f)
@@ -911,38 +923,6 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
                 SendPacket(&Request);
             }
             
-            if (GameState->HoveringRegion)
-            {
-                world* World = &GameState->GlobalState.World;
-                tile_position TileVisualise = {
-                    .GridX = GameState->HoveringRegion->TilePosition.GridX,
-                    .GridY = GameState->HoveringRegion->TilePosition.GridY,
-                };
-                
-                for (int X = 0; X <= 6; X++)
-                {
-                    for (int Y = -2; Y <= 5; Y++)
-                    {
-                        TileVisualise.TileX = X;
-                        TileVisualise.TileY = Y;
-                        
-                        if (IsValidTilePosition(TileVisualise))
-                        {
-                            v4 Color = ((X & 1) ^ (Y & 1)) ? V4(0.5f, 0.5f, 0.5f, 1.0f) : V4(1, 1, 1, 1);
-                            f32 Z = GetEntityP(GameState, GameState->HoveringRegionIndex).Z;
-                            
-                            v3 Center = V3(TilePositionToWorldPosition(World, TileVisualise), Z - 0.0001f);
-                            v3 TileSize = V3(GetTileSize(World), GetTileSize(World), 0.0f);
-                            
-                            v3 P0 = Center - 0.5f * TileSize;
-                            v3 P1 = Center + 0.5f * TileSize;
-                            PushRectBetter(&RenderGroup, P0, P1, V3(0, 0, -1));
-                            PushShader(&RenderGroup, Shader_Color);
-                            PushColor(&RenderGroup, Color);
-                        }
-                    }
-                }
-            }
         } break;
         
         case Mode_EditTower:
@@ -1153,7 +1133,6 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, defense_assets* 
     GameState->Time += SecondsPerFrame;
     
     ReceiveServerPackets(GameState, Assets, Allocator.Transient);
-    
     if (GameState->GlobalState.GameStarted)
     {
         RunGame(GameState, Assets, SecondsPerFrame, Input, Allocator);

@@ -208,6 +208,7 @@ GetGrassRandomOffsets()
 //TODO: This should ideally only take a defense assets
 static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, defense_assets* GameAssets)
 {
+    TimeFunction;
     world* World = &Game->GlobalState.World;
     
     shader_constants Constants = {};
@@ -216,87 +217,96 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawOceanFloor(RenderGroup, 0.35f);
     
     //TODO: These should use GetModelTransformOfEntity()
-    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
-        entity* Entity = World->Entities + EntityIndex;
-        switch (Entity->Type)
+        TimeBlock("Entity Render Loop");
+        
+        for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
         {
-            case Entity_WorldRegion:
+            entity* Entity = World->Entities + EntityIndex;
+            switch (Entity->Type)
             {
-                v3 P = GetEntityP(Game, EntityIndex);
-                m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
-                span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldRegion, Transform);
-                Commands[0]->Color = Entity->Color;
-                Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
-                Commands = PushModelNew(RenderGroup, GameAssets->WorldRegionSkirt, Transform);
-                Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
-            } break;
-            case Entity_Foliage:
-            {
-                Assert(Entity->Parent);
-                
-                v3 RegionP = GetEntityP(Game, Entity->Parent);
-                
-                m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
-                model_index Model = GetModel(GameAssets, Entity);
-                PushModelNew(RenderGroup, Model, Transform);
-            } break;
-            case Entity_Farm:
-            {
-                Assert(Entity->Parent);
-                
-                v3 RegionP = GetEntityP(Game, Entity->Parent);
-                v3 FarmP = GetEntityP(Game, EntityIndex);
-                
-                DrawDirt(RenderGroup, Game, Entity->Parent);
-                span<v2> Offsets = GetGrassRandomOffsets();
-                
-                for (v2 Offset : Offsets)
+                case Entity_WorldRegion:
                 {
-                    v3 P = RegionP + FarmP + V3(World->Entities[Entity->Parent].Size * Offset, 0.0f);
-                    
-                    m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
-                    PushModelNew(RenderGroup, GameAssets->Grass, Transform);
-                    PushWind(RenderGroup);
-                }
-            } break;
-            case Entity_Structure:
-            {
-                v3 P = Entity->P;
-                m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
-                model_index Model = GetModel(GameAssets, Entity);
-                PushTexturedModel(RenderGroup, Model, Transform);
-                //PushModelNew(RenderGroup, Assets, Model, Transform);
-            } break;
-            case Entity_Fence:
-            {
-                model_index Model = GetModel(GameAssets, Entity);
-                v3 RegionP = GetEntityP(Game, Entity->Parent);
-                
-                span<v2> Vertices = GetHexagonVertexPositions(RegionP.XY, 0.89f * World->RegionSize, Assets->Allocator.Transient);
-                
-                for (u64 VertexIndex = 0; VertexIndex < Vertices.Count; VertexIndex++)
+                    v3 P = GetEntityP(Game, EntityIndex);
+                    m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
+                    span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldRegion, Transform);
+                    Commands[0]->Color = Entity->Color;
+                    Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
+                    Commands = PushModelNew(RenderGroup, GameAssets->WorldRegionSkirt, Transform);
+                    Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
+                } break;
+                case Entity_Foliage:
                 {
-                    v2 A = Vertices[VertexIndex];
-                    v2 B = Vertices[(VertexIndex + 1) % Vertices.Count];
+                    Assert(Entity->Parent);
                     
-                    f32 Angle = VectorAngle(A - B);
+                    v3 RegionP = GetEntityP(Game, Entity->Parent);
                     
-                    v3 P = V3(A, RegionP.Z);
+                    m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
+                    model_index Model = GetModel(GameAssets, Entity);
+                    PushModelNew(RenderGroup, Model, Transform);
+                } break;
+                case Entity_Farm:
+                {
+                    Assert(Entity->Parent);
                     
-                    m4x4 Transform = RotateTransform(-Angle - 0.01f) * ScaleTransform(0.9f * World->RegionSize) * TranslateTransform(P);
+                    v3 RegionP = GetEntityP(Game, Entity->Parent);
+                    v3 FarmP = GetEntityP(Game, EntityIndex);
+                    
+                    DrawDirt(RenderGroup, Game, Entity->Parent);
+                    span<v2> Offsets = GetGrassRandomOffsets();
+                    
+                    for (v2 Offset : Offsets)
+                    {
+                        v3 P = RegionP + FarmP + V3(World->Entities[Entity->Parent].Size * Offset, 0.0f);
+                        
+                        m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
+                        PushModelNew(RenderGroup, GameAssets->Grass, Transform);
+                        PushWind(RenderGroup);
+                    }
+                } break;
+                case Entity_Structure:
+                {
+                    v3 P = Entity->P;
+                    m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
+                    model_index Model = GetModel(GameAssets, Entity);
                     PushTexturedModel(RenderGroup, Model, Transform);
-                }
-                
-                
-            } break;
-            default: Assert(0);
+                    //PushModelNew(RenderGroup, Assets, Model, Transform);
+                } break;
+                case Entity_Fence:
+                {
+                    model_index Model = GetModel(GameAssets, Entity);
+                    v3 RegionP = GetEntityP(Game, Entity->Parent);
+                    
+                    span<v2> Vertices = GetHexagonVertexPositions(RegionP.XY, 0.89f * World->RegionSize, Assets->Allocator.Transient);
+                    
+                    for (u64 VertexIndex = 0; VertexIndex < Vertices.Count; VertexIndex++)
+                    {
+                        v2 A = Vertices[VertexIndex];
+                        v2 B = Vertices[(VertexIndex + 1) % Vertices.Count];
+                        
+                        f32 Angle = VectorAngle(A - B);
+                        
+                        v3 P = V3(A, RegionP.Z);
+                        
+                        m4x4 Transform = RotateTransform(-Angle - 0.01f) * ScaleTransform(0.9f * World->RegionSize) * TranslateTransform(P);
+                        PushTexturedModel(RenderGroup, Model, Transform);
+                    }
+                    
+                    
+                } break;
+                default: Assert(0);
+            }
         }
     }
     
-    DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
-    
-    DrawTowers(RenderGroup, Game, GameAssets);
+    {
+        TimeBlock("DrawRegionOutline");
+        DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
+    }
+    {
+        TimeBlock("DrawTowers");
+        DrawTowers(RenderGroup, Game, GameAssets);
+    }
     
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;

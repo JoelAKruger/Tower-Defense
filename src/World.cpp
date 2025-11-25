@@ -274,355 +274,23 @@ GetPlayerColor(u64 PlayerIndex)
     return Colors[PlayerIndex];
 }
 
-static u64
-GetWorldRegionForTilePosition(world* World, tile_position P)
-{
-    u64 Result = 0;
-    for (u64 EntityIndex = 0; EntityIndex < World->EntityCount; EntityIndex++)
-    {
-        entity* Entity = World->Entities + EntityIndex;
-        if (Entity->Type == Entity_WorldRegion)
-        {
-            Assert(Entity->TilePositionIsValid);
-            if (Entity->TilePosition.GridX == P.GridX &&
-                Entity->TilePosition.GridY == P.GridY)
-            {
-                Result = EntityIndex;
-                break;
-            }
-        }
-    }
-    return Result;
-}
-
-static bool
-IsValidTilePosition(tile_position P)
-{
-    bool Result = (((P.TileY >= 0 && P.TileY <= 3) && (P.TileX >= 0 && P.TileX <= 6)) ||
-                   ((P.TileY == -1 || P.TileY == 4) && (P.TileX >= 1 && P.TileX <= 5)) ||
-                   ((P.TileY == -2 || P.TileY == 5) && (P.TileX == 3)));
-    return Result;
-}
-
-static bool
-TileIsOnEdge(tile_position P)
-{
-    bool Result = ((P.TileX == 0 || P.TileX == 6) ||
-                   ((P.TileY == -1 || P.TileY == 4) && (P.TileX == 1 || P.TileX == 2 || P.TileX == 4 || P.TileX == 5)));
-    
-    return Result;
-}
-
-static entity*
-GetEntityAtTilePosition(world* World, tile_position P)
-{
-    Assert(IsValidTilePosition(P));
-    
-    entity* Result = 0;
-    
-    for (u64 EntityIndex = 0; EntityIndex < World->EntityCount; EntityIndex++)
-    {
-        entity* Entity = World->Entities + EntityIndex;
-        tile_position TestP = Entity->TilePosition;
-        
-        if (TestP.GridX == P.GridX && TestP.GridY == P.GridY &&
-            TestP.TileX == P.TileX && TestP.TileY == P.TileY)
-        {
-            Result = Entity;
-            break;
-        }
-    }
-    
-    return Result;
-}
-
-struct tile_neighbour
-{
-    tile_position P;
-    entity* Entity;
-};
-
-static span<tile_neighbour>
-GetLocalNeighbours(memory_arena* Arena, world* World, tile_position P)
-{
-    dynamic_array<tile_neighbour> Result = {.Arena = Arena};
-    
-    tile_position TestPositions[4];
-    
-    TestPositions[0] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX + 1, .TileY = P.TileY};
-    TestPositions[1] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY + 1};
-    TestPositions[2] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX - 1, .TileY = P.TileY};
-    TestPositions[3] = {.GridX = P.GridX, .GridY = P.GridY, .TileX = P.TileX,     .TileY = P.TileY - 1};
-    
-    for (tile_position TestP : TestPositions)
-    {
-        if (IsValidTilePosition(TestP))
-        {
-            tile_neighbour Neighbour = {
-                .P = TestP,
-                .Entity = GetEntityAtTilePosition(World, TestP)
-            };
-            Append(&Result, Neighbour);
-        }
-    }
-    
-    return ToSpan(Result);
-}
-
 static v2
-TilePositionToRegionPosition(world* World, tile_position P)
+GridPositionToRegionPosition(world* World, int GridX, int GridY)
 {
     int N = 3;
     
     f32 dX = (World->Width / World->Cols);
     f32 dY = 0.866f * World->Height / World->Rows;
     
-    f32 RegionX = World->X0 + P.GridX * dX;
-    f32 RegionY = World->Y0 + P.GridY * dY;
+    f32 RegionX = World->X0 + GridX * dX;
+    f32 RegionY = World->Y0 + GridY * dY;
     
-    if (P.GridY % 2 == 1)
+    if (GridY % 2 == 1)
     {
         RegionX += 0.5f * dX;
     }
     
     v2 Result = V2(RegionX, RegionY);
-    return Result;
-}
-
-static f32
-GetTileSize(world* World)
-{
-    f32 TileSize = 0.7f * 2.0f * World->RegionSize / 7.0f;
-    return TileSize;
-}
-
-static v2
-TilePositionToWorldPosition(world* World, tile_position P)
-{
-    v2 dP = GetTileSize(World) * V2(P.TileX - 3.0f, P.TileY - 1.5f);
-    
-    v2 Result = TilePositionToRegionPosition(World, P) + dP;
-    return Result;
-}
-
-static bool
-IsValidPathPosition(world* World, u64 RegionIndex, tile_position P, memory_arena* Arena, u32 PathOrigin)
-{
-    span<tile_neighbour> Neighbours = GetLocalNeighbours(Arena, World, P);
-    
-    u64 PathNeighbourCount = 0;
-    for (tile_neighbour Neighbour : Neighbours)
-    {
-        if (Neighbour.Entity && Neighbour.Entity->PathOrigin == PathOrigin)
-        {
-            PathNeighbourCount++;
-        }
-    }
-    
-    return (PathNeighbourCount < 2);
-}
-
-static region_edge
-GetTileEdgeType(tile_position P)
-{
-    int N = 3;
-    Assert(TileIsOnEdge(P));
-    
-    region_edge Result = {};
-    
-    if (P.TileX == 0)
-    {
-        Result = RegionEdge_Left;
-    }
-    else if (P.TileX == 6)
-    {
-        Result = RegionEdge_Right;
-    }
-    else if (P.TileY == 4 && (P.TileX == 1 || P.TileX == 2))
-    {
-        Result = RegionEdge_TopLeft;
-    }
-    else if (P.TileY == 4 && (P.TileX == 4 || P.TileX == 5))
-    {
-        Result = RegionEdge_TopRight;
-    }
-    else if (P.TileY == -1 && (P.TileX == 1 || P.TileX == 2))
-    {
-        Result = RegionEdge_BottomLeft;
-    }
-    else if (P.TileY == -1 && (P.TileX == 4 || P.TileX == 5))
-    {
-        Result = RegionEdge_BottomRight;
-    }
-    else
-    {
-        Assert(0);
-    }
-    
-    return Result;
-}
-
-static entity*
-CreatePathForRegion(world* World, tile_position Start, memory_arena* Arena, span<region_edge> DisallowedEdges, u32 PathOrigin)
-{
-    entity* End = 0;
-    
-    Assert(IsValidTilePosition(Start));
-    u64 RegionIndex = GetWorldRegionForTilePosition(World, Start);
-    Assert(RegionIndex > 0);
-    
-    entity* Region = World->Entities + RegionIndex;
-    
-    entity Pebble = {
-        .Type = Entity_Foliage,
-        .Size = 0.01f,
-        .P = V3(TilePositionToWorldPosition(World, Start), 0.01f),
-        .Angle = 0,
-        .Owner = Region->Owner,
-        .Parent = (i32) RegionIndex,
-        .FoliageType = Foliage_Paving,
-        .TilePositionIsValid = true,
-        .TilePosition = Start,
-        .PathOrigin = PathOrigin
-    };
-    
-    AddEntity(World, Pebble);
-    
-    for (int I = 0; I < 100; I++)
-    {
-        span<tile_neighbour> Neighbours = GetLocalNeighbours(Arena, World, Pebble.TilePosition);
-        
-        int Index = RandomBetween(0, Neighbours.Count - 1);
-        if (!Neighbours[Index].Entity &&
-            IsValidPathPosition(World, RegionIndex, Neighbours[Index].P, Arena, PathOrigin))
-        {
-            tile_position P = Neighbours[Index].P;
-            bool IsOnEdge = TileIsOnEdge(P);
-            
-            if (IsOnEdge)
-            {
-                region_edge EdgeType = GetTileEdgeType(P);
-                if (Contains(EdgeType, DisallowedEdges))
-                {
-                    continue;
-                }
-            }
-            
-            Pebble.P = V3(TilePositionToWorldPosition(World, Neighbours[Index].P), 0.01f);
-            Pebble.TilePosition = Neighbours[Index].P;
-            u64 EntityIndex = AddEntity(World, Pebble);
-            End = World->Entities + EntityIndex;
-            
-            if (IsOnEdge)
-            {
-                break;
-            }
-        }
-    }
-    
-    return End;
-}
-
-static region_edge
-GetOppositeEdgeType(region_edge Edge)
-{
-    region_edge Result = {};
-    switch (Edge)
-    {
-        case RegionEdge_None: Result = RegionEdge_None; break;
-        case RegionEdge_Right: Result = RegionEdge_Left; break;
-        case RegionEdge_BottomRight: Result = RegionEdge_TopLeft; break;
-        case RegionEdge_BottomLeft: Result = RegionEdge_TopRight; break;
-        case RegionEdge_Left: Result = RegionEdge_Right; break;
-        case RegionEdge_TopLeft: Result = RegionEdge_BottomRight; break;
-        case RegionEdge_TopRight: Result = RegionEdge_BottomLeft; break;
-    }
-    return Result;
-}
-
-//TODO: Write this in terms of the function a bit above
-static tile_position
-GetOppositeTileFromEdge(tile_position P)
-{
-    Assert(TileIsOnEdge(P));
-    
-    tile_position Result = {};
-    
-    if (P.TileX == 0) //Left
-    {
-        Result.GridX = P.GridX - 1;
-        Result.GridY = P.GridY;
-        Result.TileX = 6;
-        Result.TileY = P.TileY;
-    }
-    else if (P.TileX == 6) //Right
-    {
-        Result.GridX = P.GridX + 1;
-        Result.GridY = P.GridY;
-        Result.TileX = 0;
-        Result.TileY = P.TileY;
-    }
-    else if (P.TileY == 4 && (P.TileX == 1 || P.TileX == 2)) //Top left
-    {
-        Result.GridY = P.GridY + 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX - 1;
-        }
-        else
-        {
-            Result.GridX = P.GridX;
-        }
-        Result.TileX = P.TileX + 3;
-        Result.TileY = P.TileY - 5;
-    }
-    else if (P.TileY == 4 && (P.TileX == 4 || P.TileX == 5)) //Top right
-    {
-        Result.GridY = P.GridY + 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX;
-        }
-        else
-        {
-            Result.GridX = P.GridX + 1;
-        }
-        Result.TileX = P.TileX - 3;
-        Result.TileY = P.TileY - 5;
-    }
-    else if (P.TileY == -1 && (P.TileX == 1 || P.TileX == 2)) //Bottom left
-    {
-        Result.GridY = P.GridY - 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX - 1;
-        }
-        else
-        {
-            Result.GridX = P.GridX;
-        }
-        Result.TileX = P.TileX + 3;
-        Result.TileY = P.TileY + 5;
-    }
-    else if (P.TileY == -1 && (P.TileX == 4 || P.TileX == 5)) //Bottom right
-    {
-        Result.GridY = P.GridY - 1;
-        if (P.GridY % 2 == 0)
-        {
-            Result.GridX = P.GridX;
-        }
-        else
-        {
-            Result.GridX = P.GridX + 1;
-        }
-        Result.TileX = P.TileX - 3;
-        Result.TileY = P.TileY + 5;
-    }
-    else
-    {
-        Assert(0);
-    }
-    
     return Result;
 }
 
@@ -651,8 +319,8 @@ CreateWorld(world* World, u64 PlayerCount)
     World->Width  = 2.0f;
     World->Height = 2.0f;
     
-    World->Rows = 13;
-    World->Cols = 13;
+    World->Rows = 20;
+    World->Cols = 20;
     
     World->RegionSize = 0.5f * World->Height / World->Rows;
     
@@ -663,9 +331,7 @@ CreateWorld(world* World, u64 PlayerCount)
             entity Region = {.Type = Entity_WorldRegion};
             
             Region.Size = 0.97f * World->RegionSize / 0.866f;
-            Region.TilePositionIsValid = true;
-            Region.TilePosition = {.GridX = X, .GridY = Y};
-            Region.P.XY = TilePositionToRegionPosition(World, Region.TilePosition);
+            Region.P.XY = GridPositionToRegionPosition(World, X, Y);
             
             f32 RegionHeight = GetWorldHeight(Region.P.XY, Seed);
             Region.P.Z = 0.1f;

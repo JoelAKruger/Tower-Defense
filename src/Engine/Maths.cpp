@@ -240,6 +240,25 @@ struct rect
 	v2 MaxCorner;
 };
 
+inline f32
+Distance(v2 A, v2 B)
+{
+    return Length(A - B);
+}
+
+inline f32
+Distance(v3 A, v3 B)
+{
+    return Length(A - B);
+}
+
+inline f32
+DistanceSq(v2 A, v2 B)
+{
+    return LengthSq(A - B);
+}
+
+
 //
 //----------Rectangles----------
 //

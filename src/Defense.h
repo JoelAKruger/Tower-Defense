@@ -9,12 +9,6 @@ enum region_edge
     RegionEdge_TopRight
 };
 
-struct tile_position
-{
-    int GridX, GridY;
-    int TileX, TileY;
-};
-
 enum foliage_type : u8
 {
     Foliage_Null,
@@ -63,9 +57,6 @@ struct entity
     foliage_type FoliageType;
     structure_type StructureType;
     i8 Level;
-    
-    bool TilePositionIsValid;
-    tile_position TilePosition;
     
     u32 PathOrigin;
 };
@@ -331,7 +322,7 @@ struct defense_assets
     model_textures ModelTextures;
     cube_map Skybox;
     
-    model_index WorldRegion, WorldRegionSkirt;
+    model_index WorldRegion, WorldRegionLowPoly, WorldRegionSkirt;
     model_index PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
     model_index ModularWood, House, House07;
     model_index Castle, Turret, Mine, Tower, Fence05;
@@ -382,7 +373,13 @@ void InitialiseServerState(global_game_state* Game);
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
 v3 GetEntityP(game_state* Game, u64 EntityIndex);
-model_index GetModel(defense_assets* Assets, entity* Entity);
+
+model_index GetModel(defense_assets* Assets, entity* Entity, bool LowPoly = false);
+enum
+{
+    Model_Normal = 0,
+    Model_LowPoly = 1
+};
 
 ray_collision WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection);
 vertex_buffer_index CreateRegionOutlineMesh(game_assets* Assets);

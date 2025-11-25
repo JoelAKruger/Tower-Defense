@@ -107,6 +107,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     LoadMaterials(Assets, "assets/models/Environment.mtl", "Environment.mtl");
     LoadObjects(Assets, "assets/models/Environment.obj");
     LoadObjects(Assets, "assets/models/hexagon_new.obj");
+    LoadObjects(Assets, "assets/models/Hexagon_new_lowpoly.obj");
     LoadObjects(Assets, "assets/models/Hexagon_skirt.obj");
     LoadObjects(Assets, "assets/models/wall.obj");
     LoadObjects(Assets, "assets/models/stairs.obj");
@@ -146,6 +147,7 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     SetModelLocalTransform(Assets, "Fence_05", ScaleTransform(0.245f));
     
     GameAssets->WorldRegion = GetModelHandle(Assets, "Circle");
+    GameAssets->WorldRegionLowPoly = GetModelHandle(Assets, "Circle_LowPoly");
     GameAssets->WorldRegionSkirt = GetModelHandle(Assets, "HexagonSkirt");
     GameAssets->PinkFlower = GetModelHandle(Assets, "2FPinkPlant_Plane.084");
     GameAssets->Bush = GetModelHandle(Assets, "Bush2_Cube.046");
