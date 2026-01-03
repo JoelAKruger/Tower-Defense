@@ -448,7 +448,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
 {
     bool DepthTestIsEnabled = true;
     shader CurrentShader = Shader_Null;
-    texture_handle CurrentTexture = 0;
+    texture_handle CurrentTexture = {};
     
     SetDepthTest(DepthTestIsEnabled);
     SetShader({});
@@ -482,7 +482,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
         
         if (Command->Texture && (Command->Texture != CurrentTexture))
         {
-            SetTexture(Group->Assets->Textures[Command->Texture]);
+            SetTexture(Command->Texture);
             CurrentTexture = Command->Texture;
         }
         

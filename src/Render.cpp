@@ -326,12 +326,12 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetDepthTest(true);
     SetFrontCullMode(true); //INCORRECTLY NAMED FUNCTION
     UnsetShadowMap();
-    ClearOutput(Assets->RenderOutputs[GameAssets->ShadowMap]);
-    SetOutput(Assets->RenderOutputs[GameAssets->ShadowMap]);
+    ClearOutput(GameAssets->ShadowMap);
+    SetOutput(GameAssets->ShadowMap);
     DrawRenderGroup(RenderGroup, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
     SetFrontCullMode(false);
     SetOutput({});
-    SetShadowMap(Assets->RenderOutputs[GameAssets->ShadowMap]);
+    SetShadowMap(GameAssets->ShadowMap);
     
     Constants.WorldToClipTransform = WorldTransform;
     
@@ -348,16 +348,16 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     Constants.ClipPlane = V4(0.0f, 0.0f, -1.0f, Game->WaterZ);
     Constants.WorldToClipTransform = ReflectionWorldTransform;
-    ClearOutput(Assets->RenderOutputs[GameAssets->WaterReflection]);
-    SetOutput(Assets->RenderOutputs[GameAssets->WaterReflection]);
+    ClearOutput(GameAssets->WaterReflection);
+    SetOutput(GameAssets->WaterReflection);
     DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
     
     //Refraction texture
     //The clip plane could probably be removed but having it might mean a few less calculations of the pixel shader
     Constants.ClipPlane = V4(0.0f, 0.0f, 1.0f, -(Game->WaterZ - 0.05f));
     Constants.WorldToClipTransform = WorldTransform;
-    ClearOutput(Assets->RenderOutputs[GameAssets->WaterRefraction]);
-    SetOutput(Assets->RenderOutputs[GameAssets->WaterRefraction]);
+    ClearOutput(GameAssets->WaterRefraction);
+    SetOutput(GameAssets->WaterRefraction);
     DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
     
     //Draw normal world
@@ -366,19 +366,19 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     DrawWater(RenderGroup, Game->WaterZ);
     
     //Set reflection and refraction textures
-    ClearOutput(Assets->RenderOutputs[GameAssets->Output1]);
-    SetOutput(Assets->RenderOutputs[GameAssets->Output1]);
-    SetShadowMap(Assets->RenderOutputs[GameAssets->ShadowMap]);
-    SetTexture(Assets->RenderOutputs[GameAssets->WaterReflection].Texture, 2);
-    SetTexture(Assets->RenderOutputs[GameAssets->WaterRefraction].Texture, 3);
-    SetTexture(Assets->Textures[GameAssets->WaterDuDv], 4);
-    SetTexture(Assets->Textures[GameAssets->WaterFlow], 5);
-    SetTexture(Assets->Textures[GameAssets->WaterNormal], 6);
+    ClearOutput(GameAssets->Output1);
+    SetOutput(GameAssets->Output1);
+    SetShadowMap(GameAssets->ShadowMap);
+    SetTexture(GameAssets->WaterReflection, 2);
+    SetTexture(GameAssets->WaterRefraction, 3);
+    SetTexture(GameAssets->WaterDuDv, 4);
+    SetTexture(GameAssets->WaterFlow, 5);
+    SetTexture(GameAssets->WaterNormal, 6);
     
-    SetTexture(Assets->Textures[GameAssets->ModelTextures.Ambient], 7);
-    SetTexture(Assets->Textures[GameAssets->ModelTextures.Diffuse], 8);
-    SetTexture(Assets->Textures[GameAssets->ModelTextures.Normal], 9);
-    SetTexture(Assets->Textures[GameAssets->ModelTextures.Specular], 10);
+    SetTexture(GameAssets->ModelTextures.Ambient, 7);
+    SetTexture(GameAssets->ModelTextures.Diffuse, 8);
+    SetTexture(GameAssets->ModelTextures.Normal, 9);
+    SetTexture(GameAssets->ModelTextures.Specular, 10);
     
     DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
     
@@ -392,10 +392,10 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetGUIShaderConstant(IdentityTransform());
     SetDepthTest(false);
     
-    ClearOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[0]]);
-    SetOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[0]]);
+    ClearOutput(GameAssets->BloomMipmaps[0]);
+    SetOutput(GameAssets->BloomMipmaps[0]);
     
-    SetTexture(Assets->RenderOutputs[GameAssets->Output1].Texture, 11);
+    SetTexture(GameAssets->Output1, 11);
     
     SetShader(Shader_Bloom_Filter);
     
@@ -406,21 +406,21 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetShader(Shader_Bloom_Downsample);
     for (u64 MipmapIndex = 1; MipmapIndex < ArrayCount(GameAssets->BloomMipmaps); MipmapIndex++)
     {
-        ClearOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]]);
-        SetOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]]);
+        ClearOutput(GameAssets->BloomMipmaps[MipmapIndex]);
+        SetOutput(GameAssets->BloomMipmaps[MipmapIndex]);
         
-        SetTexture(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex - 1]].Texture, 11);
+        SetTexture(GameAssets->BloomMipmaps[MipmapIndex - 1], 11);
         DrawVertexBuffer(WholeScreen);
     }
     
     //Upsampling
     SetShader(Shader_Bloom_Upsample);
     SetBlendMode(BlendMode_Add);
-    ClearOutput(Assets->RenderOutputs[GameAssets->BloomAccum], V4(0, 0, 0, 0));
-    SetOutput(Assets->RenderOutputs[GameAssets->BloomAccum]);
+    ClearOutput(GameAssets->BloomAccum, V4(0, 0, 0, 0));
+    SetOutput(GameAssets->BloomAccum);
     for (u64 MipmapIndex = 0; MipmapIndex < ArrayCount(GameAssets->BloomMipmaps); MipmapIndex++)
     {
-        SetTexture(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]].Texture, 11);
+        SetTexture(GameAssets->BloomMipmaps[MipmapIndex], 11);
         DrawVertexBuffer(WholeScreen);
     }
     
@@ -430,13 +430,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetShader(Shader_GUI_HDR_To_SDR);
     
     SetBlendMode(BlendMode_Blend);
-    SetTexture(Assets->RenderOutputs[GameAssets->Output1].Texture, 0);
+    SetTexture(GameAssets->Output1, 0);
     DrawVertexBuffer(WholeScreen);
     
     SetShader(Shader_GUI_Texture);
     
     SetBlendMode(BlendMode_Add);
-    SetTexture(Assets->RenderOutputs[GameAssets->BloomAccum].Texture, 0);
+    SetTexture(GameAssets->BloomAccum, 0);
     DrawVertexBuffer(WholeScreen);
     
     SetBlendMode(BlendMode_Blend);

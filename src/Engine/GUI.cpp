@@ -1,5 +1,5 @@
 void GUI_DrawRectangle(v2 Position, v2 Size, v4 Color = {});
-void GUI_DrawTexture(texture Texture, v2 P, v2 Size);
+void GUI_DrawTexture(texture_handle Texture, v2 P, v2 Size);
 void GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f), f32 Scale = 1.0f);
 
 struct gui_state
@@ -202,7 +202,7 @@ struct panel_layout
     int YPad;
     int Width, Height;
     
-    texture_handle TextureHandle;
+    texture_handle Texture;
     
     int CurrentRowPixelHeight;
     
@@ -229,20 +229,18 @@ DefaultPanelLayout(f32 X0, f32 Y0, texture_handle Texture, f32 Scale = 1.0f)
     Layout.YPad = 15;
     Layout.X = Layout.XPad;
     Layout.Y = -Layout.YPad;
-    Layout.TextureHandle = Texture;
+    Layout.Texture = Texture;
     
     return Layout;
 }
 
 void panel_layout::DoBackground()
 {
-    texture Texture = GlobalAssets->Textures[TextureHandle];
+    Width = GetTextureWidth(Texture);
+    Height = GetTextureHeight(Texture);
     
-    f32 W = Texture.Width * PixelWidth;
-    f32 H = Texture.Height * PixelHeight;
-    
-    Width = Texture.Width;
-    Height = Texture.Height;
+    f32 W = Width * PixelWidth;
+    f32 H = Height * PixelHeight;
     
     GUI_DrawTexture(Texture, V2(X0, Y0 - H), V2(W, H));
 }
@@ -266,9 +264,9 @@ void panel_layout::Text(string Text)
 
 bool panel_layout::Button(char* Text)
 {
-    texture Texture = GlobalAssets->Textures[GlobalAssets->ButtonTextureHandle];
-    f32 W = Texture.Width * PixelWidth;
-    f32 H = Texture.Height * PixelHeight;
+    texture_handle Texture = GlobalAssets->ButtonTextureHandle;
+    f32 W = GetTextureWidth(Texture) * PixelWidth;
+    f32 H = GetTextureHeight(Texture) * PixelHeight;
     
     SetShader(Shader_GUI_Texture);
     SetTexture(Texture);
@@ -290,8 +288,8 @@ bool panel_layout::Button(char* Text)
         GUI_DrawRectangle(P, Size, V4(1.0f, 1.0f, 1.0f, 0.1f));
     }
     
-    X += Texture.Width + XPad;
-    CurrentRowPixelHeight = Max(CurrentRowPixelHeight, Texture.Height);
+    X += GetTextureWidth(Texture) + XPad;
+    CurrentRowPixelHeight = Max(CurrentRowPixelHeight, GetTextureHeight(Texture));
     
     return (Status == GUI_Pressed);
 }
@@ -326,7 +324,7 @@ GUI_DrawRectangle(v2 P, v2 Size, v4 Color)
 }
 
 static void
-GUI_DrawTexture(texture Texture, v2 P, v2 Size)
+GUI_DrawTexture(texture_handle Texture, v2 P, v2 Size)
 {
     v2 Origin = P;
     v2 XAxis = V2(Size.X, 0.0f);
@@ -353,6 +351,9 @@ GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color, f32 Scale)
     f32 X = P.X;
     f32 Y = P.Y;
     
+    int FontTextureWidth = GetTextureWidth(Font->Texture);
+    int FontTextureHeight = GetTextureHeight(Font->Texture);
+    
     for (u32 I = 0; I < Text.Length; I++)
     {
         uint8_t Char = (uint8_t)Text.Text[I];
@@ -372,12 +373,12 @@ GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color, f32 Scale)
         VertexData[6 * I + 4].P = {X0 + Width, Y1 - Height};
         VertexData[6 * I + 5].P = {X0, Y1 - Height};
         
-        VertexData[6 * I + 0].UV = {(f32)BakedChar.x0 / Font->Texture.Width, (f32)BakedChar.y1 / Font->Texture.Height};
-        VertexData[6 * I + 1].UV = {(f32)BakedChar.x0 / Font->Texture.Width, (f32)BakedChar.y0 / Font->Texture.Height};
-        VertexData[6 * I + 2].UV = {(f32)BakedChar.x1 / Font->Texture.Width, (f32)BakedChar.y0 / Font->Texture.Height};
-        VertexData[6 * I + 3].UV = {(f32)BakedChar.x1 / Font->Texture.Width, (f32)BakedChar.y0 / Font->Texture.Height};
-        VertexData[6 * I + 4].UV = {(f32)BakedChar.x1 / Font->Texture.Width, (f32)BakedChar.y1 / Font->Texture.Height};
-        VertexData[6 * I + 5].UV = {(f32)BakedChar.x0 / Font->Texture.Width, (f32)BakedChar.y1 / Font->Texture.Height};
+        VertexData[6 * I + 0].UV = {(f32)BakedChar.x0 / FontTextureWidth, (f32)BakedChar.y1 / FontTextureHeight};
+        VertexData[6 * I + 1].UV = {(f32)BakedChar.x0 / FontTextureWidth, (f32)BakedChar.y0 / FontTextureHeight};
+        VertexData[6 * I + 2].UV = {(f32)BakedChar.x1 / FontTextureWidth, (f32)BakedChar.y0 / FontTextureHeight};
+        VertexData[6 * I + 3].UV = {(f32)BakedChar.x1 / FontTextureWidth, (f32)BakedChar.y0 / FontTextureHeight};
+        VertexData[6 * I + 4].UV = {(f32)BakedChar.x1 / FontTextureWidth, (f32)BakedChar.y1 / FontTextureHeight};
+        VertexData[6 * I + 5].UV = {(f32)BakedChar.x0 / FontTextureWidth, (f32)BakedChar.y1 / FontTextureHeight};
         
         VertexData[6 * I + 0].Color = Color;
         VertexData[6 * I + 1].Color = Color;

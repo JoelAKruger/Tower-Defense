@@ -25,12 +25,11 @@ struct font_texture
 };
 typedef font_texture d3d11_font_texture;
 
-struct texture
+struct d3d11_texture
 {
     ID3D11ShaderResourceView* TextureView;
     int Width, Height;
 };
-typedef texture d3d11_texture;
 
 struct render_output
 {
@@ -63,7 +62,6 @@ typedef renderer_vertex_buffer d3d11_vertex_buffer;
 static ID3D11Device1* D3D11Device;
 static ID3D11DeviceContext* D3D11DeviceContext;
 static ID3D11DepthStencilView* DepthBufferView;
-render_output RenderOutput;
 font_texture* DefaultFont;
 
 void CreateD3D11Device();

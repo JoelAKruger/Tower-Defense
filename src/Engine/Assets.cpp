@@ -1,12 +1,3 @@
-static render_output_handle
-CreateShadowDepthTexture(game_assets* Assets, int Width, int Height)
-{
-    render_output_handle Result = Assets->RenderOutputCount++;
-    Assert(Result < ArrayCount(Assets->RenderOutputs));
-    Assets->RenderOutputs[Result] = PlatformCreateShadowDepthTexture(Width, Height);
-    return Result;
-};
-
 static texture_handle
 LoadTexture(game_assets* Assets, char* Path)
 {
@@ -14,10 +5,7 @@ LoadTexture(game_assets* Assets, char* Path)
     stbi_set_flip_vertically_on_load(true);
     stbi_uc* TextureData = stbi_load(Path, &Width, &Height, &Channels, 4);
     
-    texture_handle Result = Assets->TextureCount++;
-    Assert(Result < ArrayCount(Assets->Textures));
-    
-    Assets->Textures[Result] = PlatformCreateTexture((u32*)TextureData, Width, Height, 4);
+    texture_handle Result = PlatformCreateTexture((u32*)TextureData, Width, Height, 4);
     
     free(TextureData);
     
@@ -46,15 +34,6 @@ LoadFont(game_assets* Assets, char* Path, f32 Size)
     
     Assets->Fonts[Result] = Font;
     
-    return Result;
-}
-
-static render_output_handle
-CreateRenderOutput(game_assets* Assets, int Width, int Height)
-{
-    render_output_handle Result = Assets->RenderOutputCount++;
-    Assert(Result < ArrayCount(Assets->RenderOutputs));
-    Assets->RenderOutputs[Result] = PlatformCreateRenderOutput(Width, Height);
     return Result;
 }
 

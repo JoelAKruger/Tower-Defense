@@ -156,6 +156,29 @@ struct renderer_vertex_buffer;
 struct font_texture;
 struct game_assets;
 
+struct texture_handle 
+{
+    u64 Index;
+    operator bool() { return Index != 0; }
+};
+struct render_output_handle 
+{
+    u64 Index;
+    operator bool() { return Index != 0; }
+};
+
+template <typename type>
+bool operator==(type A, type B)
+{
+    return (A.Index == B.Index);
+}
+
+template <typename type>
+bool operator!=(type A, type B)
+{
+    return (A.Index != B.Index);
+}
+
 #ifdef _WIN32
 #include "Platform_Win32_DX11.h"
 #endif
@@ -239,16 +262,16 @@ struct shader_constants
 span<u8> LoadFile(memory_arena* Arena, char* Path);
 
 //Textures
-void SetTexture(texture Texture, int Index = 0);
+void SetTexture(texture_handle Texture, int Index = 0);
 void SetFontTexture(font_texture Texture);
 void UnsetTexture(int Index = 0);
 void DeleteTexture(texture* Texture);
 texture CreateTexture(char* Path);
-texture PlatformCreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
+texture_handle PlatformCreateTexture(u32* TextureData, int Width, int Height, int Channels = 4);
 
 //Shaders
 void LoadShaders(game_assets* Assets);
-void SetShader(shader Shader);
+void SetShader(renderer_shader Shader);
 void SetGraphicsShaderConstants(shader_constants Constants);
 void SetGUIShaderConstant(m4x4 Transform);
 
@@ -268,8 +291,8 @@ render_output CreateRenderOutput(int Width, int Height);
 void Delete(render_output* Output);
 void SetShadowMap(render_output Texture);
 void UnsetShadowMap();
-void ClearOutput(render_output Output, v4 Color = {0.2f, 0.4f, 0.6f, 1.0f});
-void SetOutput(render_output Output);
+void ClearOutput(render_output_handle Output, v4 Color = {0.2f, 0.4f, 0.6f, 1.0f});
+void SetOutput(render_output_handle Output);
 void SetFrameBufferAsOutput();
 render_output CreateShadowDepthTexture(int Width, int Height);
 
@@ -354,9 +377,7 @@ struct triangle
 };
 
 typedef u64 mesh_handle;
-typedef u64 render_output_handle;
 typedef u64 model_handle;
-typedef u64 texture_handle;
 typedef u64 font_handle;
 typedef u64 vertex_buffer_handle;
 typedef u64 material_handle;
@@ -389,7 +410,7 @@ struct render_command
 
 struct font_asset
 {
-    texture Texture;
+    texture_handle Texture;
     stbtt_bakedchar BakedChars[128];
     f32 Size;
 };
@@ -467,12 +488,6 @@ struct game_assets
     
     model Models[128];
     int ModelCount;
-    
-    texture Textures[32];
-    int TextureCount;
-    
-    render_output RenderOutputs[128];
-    int RenderOutputCount;
     
     font_asset Fonts[8];
     int FontCount;

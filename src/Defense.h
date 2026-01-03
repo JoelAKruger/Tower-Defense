@@ -306,8 +306,8 @@ struct game_state
 
 struct defense_assets
 {
-    texture_handle WaterReflection;
-    texture_handle WaterRefraction;
+    render_output_handle WaterReflection;
+    render_output_handle WaterRefraction;
     texture_handle WaterDuDv;
     texture_handle WaterNormal;
     texture_handle WaterFlow;

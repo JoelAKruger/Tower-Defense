@@ -42,6 +42,7 @@ f32 GlobalAspectRatio;
 int GlobalOutputWidth;
 int GlobalOutputHeight;
 HWND GlobalWindow;
+render_output_handle DefaultRenderOutput;
 
 LRESULT CALLBACK WindowProc(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam);
 
@@ -96,7 +97,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     CreateD3D11Device();
     IDXGISwapChain1* SwapChain = CreateD3D11SwapChain(Window);
-    RenderOutput = GetDefaultRenderOutput(SwapChain);
+    DefaultRenderOutput = GetDefaultRenderOutput(SwapChain);
     SetBlendMode(BlendMode_Blend);
     
     CreateSamplers();
@@ -153,15 +154,16 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         if (GlobalWindowDidResize)
         {
             D3D11DeviceContext->OMSetRenderTargets(0, 0, 0);
-            ClearRenderOutput(RenderOutput);
+            ClearRenderOutput(DefaultRenderOutput);
             
             HRESULT Result = SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
             Assert(SUCCEEDED(Result));
             
-            RenderOutput = GetDefaultRenderOutput(SwapChain);
-            GlobalAspectRatio = (f32)RenderOutput.Width / (f32)RenderOutput.Height;
-            GlobalOutputWidth = RenderOutput.Width;
-            GlobalOutputHeight = RenderOutput.Height;
+            DefaultRenderOutput = GetDefaultRenderOutput(SwapChain);
+            GlobalOutputWidth = GetRenderOutputWidth(DefaultRenderOutput);
+            GlobalOutputHeight = GetRenderOutputHeight(DefaultRenderOutput);
+            GlobalAspectRatio = (f32)GlobalOutputWidth / (f32)GlobalOutputHeight;
+            
             
             GlobalWindowDidResize = false;
             
@@ -207,8 +209,8 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         {
             TimeBlock("Clear");
-            ClearOutput(RenderOutput);
-            SetOutput(RenderOutput);
+            ClearOutput(DefaultRenderOutput);
+            SetOutput(DefaultRenderOutput);
         }
         
         {

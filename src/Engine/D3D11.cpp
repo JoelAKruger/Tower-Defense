@@ -1,6 +1,14 @@
 memory_arena GraphicsArena;
 
-d3d11_shader D3D11GlobalShaders[Shader_Count];
+d3d11_shader  D3D11GlobalShaders[Shader_Count];
+
+d3d11_texture D3D11GlobalTextures[64];
+u64           D3D11GlobalTextureCount = 1;
+
+d3d11_render_output D3D11GlobalRenderOutputs[64];
+u64                 D3D11GlobalRenderOutputCount;
+
+
 
 static void
 CreateD3D11Device()
@@ -89,10 +97,13 @@ IDXGISwapChain1* CreateD3D11SwapChain(HWND Window)
     return SwapChain;
 }
 
-static render_output
+static render_output_handle
 GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
 {
-    render_output Result = {};
+    render_output_handle Handle = {D3D11GlobalRenderOutputCount++};
+    Assert(D3D11GlobalRenderOutputCount < ArrayCount(D3D11GlobalRenderOutputs));
+    
+    d3d11_render_output* Result = D3D11GlobalRenderOutputs + Handle.Index;
     
     //Get frame buffer
     ID3D11Texture2D* FrameBuffer;
@@ -103,10 +114,10 @@ GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
     D3D11_TEXTURE2D_DESC FrameBufferDesc;
     FrameBuffer->GetDesc(&FrameBufferDesc);
     
-    Result.Width = FrameBufferDesc.Width;
-    Result.Height = FrameBufferDesc.Height;
+    Result->Width = FrameBufferDesc.Width;
+    Result->Height = FrameBufferDesc.Height;
     
-    HResult = D3D11Device->CreateRenderTargetView(FrameBuffer, 0, &Result.RenderTargetView);
+    HResult = D3D11Device->CreateRenderTargetView(FrameBuffer, 0, &Result->RenderTargetView);
     Assert(SUCCEEDED(HResult));
     FrameBuffer->Release();
     
@@ -120,20 +131,23 @@ GetDefaultRenderOutput(IDXGISwapChain1* SwapChain)
     HResult = D3D11Device->CreateTexture2D(&DepthBufferDesc, 0, &DepthBuffer);
     Assert(SUCCEEDED(HResult));
     
-    HResult = D3D11Device->CreateDepthStencilView(DepthBuffer, 0, &Result.DepthStencilView);
+    HResult = D3D11Device->CreateDepthStencilView(DepthBuffer, 0, &Result->DepthStencilView);
     Assert(SUCCEEDED(HResult));
     
     DepthBuffer->Release();
     
-    return Result;
+    return Handle;
 }
 
 //TODO: This has no way of being resized :(
 //TODO: This duplicates code in CreateShadowTexture() or whatever the hell that other function is called
-static render_output
+static render_output_handle
 D3D11CreateRenderOutput(int Width, int Height)
 {
-    render_output Result = {};
+    render_output_handle Handle = {D3D11GlobalRenderOutputCount++};
+    Assert(D3D11GlobalRenderOutputCount < ArrayCount(D3D11GlobalRenderOutputs));
+    
+    d3d11_render_output* Result = D3D11GlobalRenderOutputs + Handle.Index;
     
     //Create texture
     ID3D11Texture2D* ColorTexture = 0;
@@ -151,7 +165,7 @@ D3D11CreateRenderOutput(int Width, int Height)
     D3D11Device->CreateTexture2D(&Desc, 0, &ColorTexture);
     
     //Create render target view for colour texture
-    HRESULT HResult = D3D11Device->CreateRenderTargetView(ColorTexture, 0, &Result.RenderTargetView);
+    HRESULT HResult = D3D11Device->CreateRenderTargetView(ColorTexture, 0, &Result->RenderTargetView);
     Assert(SUCCEEDED(HResult));
     
     //Create shader resource view for colour texture
@@ -160,7 +174,7 @@ D3D11CreateRenderOutput(int Width, int Height)
     ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDesc.Texture2D.MipLevels = 1;
     //TODO: Check if ShaderResourceViewDesc can be null
-    D3D11Device->CreateShaderResourceView(ColorTexture, &ShaderResourceViewDesc, &Result.ShaderResourceView);
+    D3D11Device->CreateShaderResourceView(ColorTexture, &ShaderResourceViewDesc, &Result->ShaderResourceView);
     
     //Create depth map
     ID3D11Texture2D* DepthTexture = 0;
@@ -181,25 +195,26 @@ D3D11CreateRenderOutput(int Width, int Height)
     DepthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
     DepthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
     
-    D3D11Device->CreateDepthStencilView(DepthTexture, &DepthStencilViewDesc, &Result.DepthStencilView);
+    D3D11Device->CreateDepthStencilView(DepthTexture, &DepthStencilViewDesc, &Result->DepthStencilView);
     
     //Create shader resource view for depth texture
     ShaderResourceViewDesc = {};
     ShaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDesc.Texture2D.MipLevels = 1;
-    D3D11Device->CreateShaderResourceView(DepthTexture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
+    D3D11Device->CreateShaderResourceView(DepthTexture, &ShaderResourceViewDesc, &Result->DepthStencilShaderResourceView);
     
-    Result.Width = Width;
-    Result.Height = Height;
-    Result.Texture.TextureView = Result.ShaderResourceView;
+    Result->Width = Width;
+    Result->Height = Height;
+    Result->Texture.TextureView = Result->ShaderResourceView;
     
-    return Result;
+    return Handle;
 }
 
 static void
-ClearRenderOutput(render_output Output)
+ClearRenderOutput(render_output_handle Handle)
 {
+    render_output Output = D3D11GlobalRenderOutputs[Handle.Index];
     if (Output.RenderTargetView) Output.RenderTargetView->Release();
     if (Output.DepthStencilView) Output.DepthStencilView->Release();
     if (Output.DepthStencilShaderResourceView) Output.DepthStencilShaderResourceView->Release();
@@ -461,10 +476,13 @@ CreateSamplers()
     SafeRelease(Samplers[2]);
 }
 
-static texture
+static texture_handle
 D3D11CreateTexture(u32* TextureData, int Width, int Height, int Channels)
 {
-    texture Result = {};
+    texture_handle Handle = {D3D11GlobalTextureCount++};
+    Assert(D3D11GlobalTextureCount < ArrayCount(D3D11GlobalTextures));
+    
+    d3d11_texture* Result = D3D11GlobalTextures + Handle.Index;
     
     D3D11_TEXTURE2D_DESC TextureDesc = {};
     TextureDesc.Width = Width;
@@ -489,18 +507,40 @@ D3D11CreateTexture(u32* TextureData, int Width, int Height, int Channels)
     ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDesc.Texture2D.MipLevels = -1;
     
-    D3D11Device->CreateShaderResourceView(Texture, &ShaderResourceViewDesc, &Result.TextureView);
+    D3D11Device->CreateShaderResourceView(Texture, &ShaderResourceViewDesc, &Result->TextureView);
     //D3D11DeviceContext->GenerateMips(Result.TextureView);
     
-    Result.Width = Width;
-    Result.Height = Height;
+    Result->Width = Width;
+    Result->Height = Height;
     
-    return Result;
+    return Handle;
+}
+
+int GetTextureWidth(texture_handle Handle)
+{
+    return D3D11GlobalTextures[Handle.Index].Width;
+}
+
+int GetTextureHeight(texture_handle Handle)
+{
+    return D3D11GlobalTextures[Handle.Index].Height;
+}
+
+int GetRenderOutputWidth(render_output_handle Handle)
+{
+    return D3D11GlobalRenderOutputs[Handle.Index].Width;
+}
+
+int GetRenderOutputHeight(render_output_handle Handle)
+{
+    return D3D11GlobalRenderOutputs[Handle.Index].Height;
 }
 
 static void
-DeleteTexture(texture* Texture)
+DeleteTexture(texture_handle Handle)
 {
+    Assert(Handle.Index < ArrayCount(D3D11GlobalTextures));
+    d3d11_texture* Texture = D3D11GlobalTextures + Handle.Index;
     if (Texture->TextureView)
     {
         Texture->TextureView->Release();
@@ -508,8 +548,10 @@ DeleteTexture(texture* Texture)
     *Texture = {};
 }
 
-void Delete(render_output* Output)
+void Delete(render_output_handle Handle)
 {
+    render_output* Output = D3D11GlobalRenderOutputs + Handle.Index;
+    
     SafeRelease(Output->RenderTargetView);
     SafeRelease(Output->DepthStencilView);
     SafeRelease(Output->ShaderResourceView);
@@ -519,9 +561,14 @@ void Delete(render_output* Output)
     *Output = {};
 }
 
-static render_output
+static render_output_handle
 D3D11CreateShadowDepthTexture(int Width, int Height)
 {
+    render_output_handle Handle = {D3D11GlobalRenderOutputCount++};
+    Assert(D3D11GlobalRenderOutputCount < ArrayCount(D3D11GlobalRenderOutputs));
+    
+    d3d11_render_output* Result = D3D11GlobalRenderOutputs + Handle.Index;
+    
     ID3D11Texture2D* DepthTexture = 0;
     
     //Create depth map
@@ -534,7 +581,6 @@ D3D11CreateShadowDepthTexture(int Width, int Height)
     Desc.SampleDesc.Count = 1;
     Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
     
-    render_output Result = {};
     D3D11Device->CreateTexture2D(&Desc, 0, &DepthTexture);
     
     //Create depth stencil view
@@ -542,21 +588,21 @@ D3D11CreateShadowDepthTexture(int Width, int Height)
     DepthStencilViewDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
     DepthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
     
-    D3D11Device->CreateDepthStencilView(DepthTexture, &DepthStencilViewDesc, &Result.DepthStencilView);
+    D3D11Device->CreateDepthStencilView(DepthTexture, &DepthStencilViewDesc, &Result->DepthStencilView);
     
     //Create shader resource view
     D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc = {};
     ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     ShaderResourceViewDesc.Texture2D.MipLevels = 1;
-    D3D11Device->CreateShaderResourceView(DepthTexture, &ShaderResourceViewDesc, &Result.DepthStencilShaderResourceView);
+    D3D11Device->CreateShaderResourceView(DepthTexture, &ShaderResourceViewDesc, &Result->DepthStencilShaderResourceView);
     
-    Result.Width = Width;
-    Result.Height = Height;
+    Result->Width = Width;
+    Result->Height = Height;
     
     DepthTexture->Release();
     
-    return Result;
+    return Handle;
 }
 
 static f32 
@@ -625,9 +671,19 @@ SetGUIShaderConstant(m4x4 Transform)
 }
 
 static void
-SetTexture(texture Texture, int Index)
+SetTexture(texture_handle Handle, int Index)
 {
+    Assert(Handle.Index < ArrayCount(D3D11GlobalTextures));
+    d3d11_texture Texture = D3D11GlobalTextures[Handle.Index];
     D3D11DeviceContext->PSSetShaderResources(Index, 1, &Texture.TextureView);
+}
+
+static void
+SetTexture(render_output_handle Handle, int Index)
+{
+    Assert(Handle.Index < ArrayCount(D3D11GlobalRenderOutputs));
+    d3d11_render_output RenderOutput = D3D11GlobalRenderOutputs[Handle.Index];
+    D3D11DeviceContext->PSSetShaderResources(Index, 1, &RenderOutput.Texture.TextureView);
 }
 
 static void 
@@ -644,9 +700,10 @@ UnsetTexture(int Index)
 }
 
 static void
-SetShadowMap(render_output Texture)
+SetShadowMap(render_output_handle Handle)
 {
-    D3D11DeviceContext->PSSetShaderResources(1, 1, &Texture.DepthStencilShaderResourceView);
+    render_output RenderOutput = D3D11GlobalRenderOutputs[Handle.Index];
+    D3D11DeviceContext->PSSetShaderResources(1, 1, &RenderOutput.DepthStencilShaderResourceView);
 }
 
 static void
@@ -735,8 +792,10 @@ SetBlendMode(blend_mode Mode)
 }
 
 static void
-ClearOutput(render_output Output, v4 Color)
+ClearOutput(render_output_handle Handle, v4 Color)
 {
+    d3d11_render_output Output = D3D11GlobalRenderOutputs[Handle.Index];
+    
     if (Output.RenderTargetView)
     {
         D3D11DeviceContext->ClearRenderTargetView(Output.RenderTargetView, (FLOAT*)&Color);
@@ -751,12 +810,14 @@ ClearOutput(render_output Output, v4 Color)
 static void
 SetFrameBufferAsOutput()
 {
-    SetOutput(RenderOutput);
+    //TODO: Fix this
+    SetOutput({1});
 }
 
 static void
-SetOutput(render_output Output)
+SetOutput(render_output_handle Handle)
 {
+    render_output Output = D3D11GlobalRenderOutputs[Handle.Index];
     if (Output.RenderTargetView)
     {
         D3D11DeviceContext->OMSetRenderTargets(1, &Output.RenderTargetView, Output.DepthStencilView);

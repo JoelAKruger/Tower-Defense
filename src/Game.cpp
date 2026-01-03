@@ -611,7 +611,7 @@ DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
     
     player* Player = GetPlayer(Game);
     
-    panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f, 1.0f);
+    panel_layout Panel = DefaultPanelLayout(-1.0f, 1.0f, {}, 1.0f);
     //Panel.DoBackground();
     
     Panel.Image(Assets->Crystal);

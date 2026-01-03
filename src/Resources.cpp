@@ -38,8 +38,6 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     
     Assets->MeshCount = 1;
     Assets->ModelCount = 1;
-    Assets->TextureCount = 1;
-    Assets->RenderOutputCount = 1;
     Assets->FontCount = 1;
     Assets->VertexBufferCount = 1;
     
@@ -54,16 +52,16 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     
     Assets->ButtonTextureHandle = LoadTexture(Assets, "assets/textures/wenrexa_gui/Btn_TEST.png");
     
-    GameAssets->ShadowMap = CreateShadowDepthTexture(Assets, 4096, 4096);
+    GameAssets->ShadowMap = PlatformCreateShadowDepthTexture(4096, 4096);
     
     LoadSkybox(Assets, GameAssets);
     
-    GameAssets->WaterReflection = CreateRenderOutput(Assets, 2048, 2048);
-    GameAssets->WaterRefraction = CreateRenderOutput(Assets, 2048, 2048);
+    GameAssets->WaterReflection = PlatformCreateRenderOutput(2048, 2048);
+    GameAssets->WaterRefraction = PlatformCreateRenderOutput(2048, 2048);
     GameAssets->WaterDuDv   = LoadTexture(Assets, "assets/textures/water_dudv.png");
     GameAssets->WaterNormal = LoadTexture(Assets, "assets/textures/water_normal.png");
     
-    GameAssets->Output1 = CreateRenderOutput(Assets, GlobalOutputWidth, GlobalOutputHeight);
+    GameAssets->Output1 = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
     
     GameAssets->Button = LoadTexture(Assets, "assets/textures/wenrexa_gui/Btn_TEST.png");
     GameAssets->Panel = LoadTexture(Assets, "assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
@@ -79,16 +77,16 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     //Assets->ModelTextures.Normal = CreateTexture("assets/textures/Carvalho-Munique_normal.jpg");
     //Assets->ModelTextures.Specular = CreateTexture("assets/textures/Carvalho-Munique_specular.jpg");
     
-    GameAssets->BloomMipmaps[0] = CreateRenderOutput(Assets, 1024, 1024);
-    GameAssets->BloomMipmaps[1] = CreateRenderOutput(Assets, 512, 512);
-    GameAssets->BloomMipmaps[2] = CreateRenderOutput(Assets, 256, 256);
-    GameAssets->BloomMipmaps[3] = CreateRenderOutput(Assets, 128, 128);
-    GameAssets->BloomMipmaps[4] = CreateRenderOutput(Assets, 64, 64);
-    GameAssets->BloomMipmaps[5] = CreateRenderOutput(Assets, 32, 32);
-    GameAssets->BloomMipmaps[6] = CreateRenderOutput(Assets, 16, 16);
-    GameAssets->BloomMipmaps[7] = CreateRenderOutput(Assets, 8, 8);
+    GameAssets->BloomMipmaps[0] = PlatformCreateRenderOutput(1024, 1024);
+    GameAssets->BloomMipmaps[1] = PlatformCreateRenderOutput(512, 512);
+    GameAssets->BloomMipmaps[2] = PlatformCreateRenderOutput(256, 256);
+    GameAssets->BloomMipmaps[3] = PlatformCreateRenderOutput(128, 128);
+    GameAssets->BloomMipmaps[4] = PlatformCreateRenderOutput(64, 64);
+    GameAssets->BloomMipmaps[5] = PlatformCreateRenderOutput(32, 32);
+    GameAssets->BloomMipmaps[6] = PlatformCreateRenderOutput(16, 16);
+    GameAssets->BloomMipmaps[7] = PlatformCreateRenderOutput(8, 8);
     
-    GameAssets->BloomAccum = CreateRenderOutput(Assets, 1024, 1024);
+    GameAssets->BloomAccum = PlatformCreateRenderOutput(1024, 1024);
     
     material DefaultMaterial = {};
     DefaultMaterial.DiffuseColor = V3(0, 0, 0);
@@ -235,9 +233,8 @@ ResizeAssets(game_assets* Assets)
     if (Assets && Assets->GameData)
     {
         defense_assets* GameAssets = (defense_assets*) Assets->GameData;
-        render_output* Output = Assets->RenderOutputs + GameAssets->Output1;
-        Delete(Output);
-        *Output = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
+        Delete(GameAssets->Output1);
+        GameAssets->Output1 = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
     }
 }
 
