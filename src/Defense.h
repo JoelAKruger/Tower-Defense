@@ -47,7 +47,7 @@ enum entity_type : u32
 struct entity
 {
     entity_type Type;
-    u32 ModelHandle;
+    //u32 ModelHandle;
     f32 Size;
     v3 P; //Can be overriden locally
     f32 Angle;
@@ -58,7 +58,6 @@ struct entity
     structure_type StructureType;
     i8 Level;
     
-    u32 PathOrigin;
 };
 
 struct world
@@ -269,12 +268,13 @@ struct game_state
     v3 HoveringWorldP;
     entity* HoveringRegion;
     u32 HoveringRegionIndex;
+    
     v3 RegionOutlineP;
     v3 RegionOutlineTargetP;
     f32 RegionOutlineAlpha;
     
     //Placing tower
-    f32 TowerPlaceIndicatorZ;
+    v3 TowerPlaceIndicatorP;
     
     global_game_state GlobalState;
     u32 MyClientID;
@@ -301,6 +301,7 @@ struct game_state
     v3 LightP;
     v3 LightDirection;
     f32 WaterZ;
+    f32 ShadowIntensity;
 };
 
 struct defense_assets

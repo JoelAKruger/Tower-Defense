@@ -318,6 +318,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.CameraPos = Game->CameraP;
     Constants.LightDirection = Game->LightDirection;
     Constants.LightColor = Game->SkyColor;
+    Constants.ShadowIntensity = Game->ShadowIntensity;
     
     SetBlendMode(BlendMode_Blend);
     

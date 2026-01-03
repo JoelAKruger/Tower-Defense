@@ -76,7 +76,8 @@ static bool
 IsWater(entity* Entity)
 {
     Assert(Entity->Type == Entity_WorldRegion);
-    return (Entity->Owner == -1);
+    f32 LandZ = 0.1f;
+    return (Entity->P.Z > LandZ);
 }
 
 static bool
@@ -336,6 +337,7 @@ CreateWorld(world* World, u64 PlayerCount)
             f32 RegionHeight = GetWorldHeight(Region.P.XY, Seed);
             Region.P.Z = 0.1f;
             
+            bool GenerateFoliage = false;
             bool RegionIsWater = (RegionHeight < 0.5f);
             if (RegionIsWater)
             {
@@ -351,9 +353,20 @@ CreateWorld(world* World, u64 PlayerCount)
             }
             else
             {
-                Region.Owner = RandomBetween(0, PlayerCount - 1);
-                Region.Color = GetPlayerColor(Region.Owner);
+                bool RegionIsFoliage = Random() > 0.5f;
                 Region.P.Z = 0.1f;
+                
+                if (RegionIsFoliage)
+                {
+                    GenerateFoliage = true;
+                    Region.Owner = -1;
+                    Region.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
+                }
+                else
+                {
+                    Region.Owner = RandomBetween(0, PlayerCount - 1);
+                    Region.Color = GetPlayerColor(Region.Owner);
+                }
             }
             
             u64 RegionIndex = AddEntity(World, Region);
@@ -610,11 +623,10 @@ GenerateFoliage(world* World, memory_arena* Arena)
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
         u64 RegionIndex = GetWorldRegionIndex(World, TestP);
+        entity* Region = World->Entities + RegionIndex;
         
-        if (RegionIndex)
+        if (RegionIndex && IsWater(Region))
         {
-            entity* Region = World->Entities + RegionIndex;
-            
             v3 P = V3(TestP, 0);
             foliage_type FoliageType = RandomFoliage(IsWater(Region));
             f32 Size = GetDefaultSizeOf(FoliageType) * RandomBetween(0.5f, 1.5f);

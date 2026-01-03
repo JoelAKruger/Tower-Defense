@@ -274,6 +274,39 @@ GetSkyColor(int Hour, int Minute)
     return Result;
 }
 
+static f32 
+GetShadowIntensity(int Hour, int Minute) 
+{
+    int TimeOfDay = 60 * (Hour % 24) + Minute;
+    
+    int Hours[] = {0, 7, 9, 14, 16, 24};
+    f32 Colors[] = {
+        0, 0, 1, 1, 0, 0
+    };
+    
+    Assert(ArrayCount(Hours) == ArrayCount(Colors));
+    
+    f32 Result = {};
+    for (size_t I = 0; I < ArrayCount(Hours) - 1; I++) 
+    {
+        int Time = 60 * Hours[I];
+        int NextTime = 60 * Hours[(I + 1) % ArrayCount(Hours)];
+        
+        if (TimeOfDay >= Time && TimeOfDay < NextTime)
+        {
+            f32 t = (f32)(TimeOfDay - Time) / (f32)(NextTime - Time);
+            
+            f32 A = Colors[I];
+            f32 B = Colors[(I + 1) % ArrayCount(Colors)];
+            
+            Result = LinearInterpolate(A, B, t);
+        }
+        
+    }
+    
+    return Result;
+}
+
 static v3
 ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
 {
@@ -382,7 +415,7 @@ SetMode(game_state* GameState, game_mode NewMode)
     GameState->SelectedTowerIndex = {};
     GameState->TowerEditMode = {};
     GameState->TowerPerspective = {};
-    GameState->TowerPlaceIndicatorZ = 2.0f;
+    GameState->TowerPlaceIndicatorP = V3(0, 0, 2.0f);
 }
 
 static v3
@@ -846,7 +879,8 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     int CurrentHour = (int)Time % 24;
     int CurrentMinute = (int)(60.0f * (Time - (int)Time));
     
-    GameState->SkyColor = 3.0f *V3(1,1,1); //GetSkyColor(CurrentHour, CurrentMinute);
+    GameState->SkyColor = 1.0f *V3(1,1,1); // + 2.0f * GetSkyColor(CurrentHour, CurrentMinute);
+    GameState->ShadowIntensity = GetShadowIntensity(CurrentHour, CurrentMinute);
     f32 t = (CurrentHour * 60 + CurrentMinute) / (24.0f * 60.0f);
     
     //GameState->LightP = V3(4.0f * sinf(t * 2 * Pi), -1.0f, 4.0f * cosf(t * 2 * Pi));
@@ -879,21 +913,16 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         case Mode_Place:
         {
-            v2 P = GameState->HoveringWorldP.XY;
+            //TODO: This might crash
+            v3 P = GameState->HoveringRegion->P;
             
             bool Placeable = (GameState->HoveringRegion &&
                               !IsWater(GameState->HoveringRegion) &&
-                              GameState->HoveringRegion->Owner == GameState->MyClientID && 
-                              DistanceInsideRegion(GameState->HoveringRegion, P) > TowerRadius &&
-                              NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius);
+                              GameState->HoveringRegion->Owner == GameState->MyClientID /* && 
+                              DistanceInsideRegion(GameState->HoveringRegion, P) > TowerRadius &&*/
+                              /*NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius*/);
             
-            f32 TargetZ = 0.25f;
-            if (GameState->HoveringRegion)
-            {
-                TargetZ = GameState->HoveringRegion->P.Z;
-            }
-            
-            GameState->TowerPlaceIndicatorZ = LinearInterpolate(GameState->TowerPlaceIndicatorZ, TargetZ, 40.0f * SecondsPerFrame);
+            GameState->TowerPlaceIndicatorP = LinearInterpolate(GameState->TowerPlaceIndicatorP, P, 40.0f * SecondsPerFrame);
             
             v4 Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
             
@@ -910,13 +939,14 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             tower_type Type = GameState->PlacementType;
             
             //In steady-state, draw slightly above a normal tower to prevent z-fighting
-            DrawTower(&RenderGroup, GameState, GameAssets, Type, V3(P, GameState->TowerPlaceIndicatorZ - 0.001f), Color);
+            DrawTower(&RenderGroup, GameState, GameAssets, Type, GameState->TowerPlaceIndicatorP + V3(0, 0, -0.001f), Color);
             
             if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
                 player_request Request = {.Type = Request_PlaceTower};
                 
-                Request.TowerP = P;
+                //TODO: This needs to be changed
+                Request.TowerP = P.XY;
                 Request.TowerRegionIndex = GameState->HoveringRegionIndex;
                 Request.TowerType = Type;
                 

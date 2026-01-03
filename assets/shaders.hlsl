@@ -39,6 +39,7 @@ cbuffer Constants : register(b5)
 	float3 wind_direction;
 	float wind_strength;
 
+	float shadow_intensity;
 	float shadow_remove;
 };
 
@@ -196,7 +197,7 @@ float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 
 	float3 result = float3(0, 0, 0);
 	result += ambient * input.color * light_color;
-	result += 0.9f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - 0.8f * shadow));
+	result += 0.9f * (brdf_unity(input.color, input.pos_world, light_direction, input.normal) * (1.0f - 0.8f * shadow * shadow_intensity));
 	
 	float camera_distance = distance(input.pos_world, camera_pos);
 	float fog_density = 0.01f;

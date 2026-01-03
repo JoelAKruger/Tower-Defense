@@ -201,8 +201,9 @@ struct shader_constants
     v3 WindDirection;
     f32 WindStrength;
     
+    f32 ShadowIntensity;
     f32 ShadowRemove;
-    f32 Pad6[3];
+    f32 Pad6[2];
 };
 
 // --- Platform Layer ---
