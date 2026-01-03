@@ -1,20 +1,20 @@
-static render_output_index
+static render_output_handle
 CreateShadowDepthTexture(game_assets* Assets, int Width, int Height)
 {
-    render_output_index Result = Assets->RenderOutputCount++;
+    render_output_handle Result = Assets->RenderOutputCount++;
     Assert(Result < ArrayCount(Assets->RenderOutputs));
     Assets->RenderOutputs[Result] = PlatformCreateShadowDepthTexture(Width, Height);
     return Result;
 };
 
-static texture_index
+static texture_handle
 LoadTexture(game_assets* Assets, char* Path)
 {
     int Width = 0, Height = 0, Channels = 0;
     stbi_set_flip_vertically_on_load(true);
     stbi_uc* TextureData = stbi_load(Path, &Width, &Height, &Channels, 4);
     
-    texture_index Result = Assets->TextureCount++;
+    texture_handle Result = Assets->TextureCount++;
     Assert(Result < ArrayCount(Assets->Textures));
     
     Assets->Textures[Result] = PlatformCreateTexture((u32*)TextureData, Width, Height, 4);
@@ -24,7 +24,7 @@ LoadTexture(game_assets* Assets, char* Path)
     return Result;
 }
 
-static font_index
+static font_handle
 LoadFont(game_assets* Assets, char* Path, f32 Size)
 {
     font_asset Font = {};
@@ -41,7 +41,7 @@ LoadFont(game_assets* Assets, char* Path, f32 Size)
     Font.Size = 0.45f * Size;
     Font.Texture = PlatformCreateTexture((u32*)TempTexture, TextureWidth, TextureHeight, 1);
     
-    font_index Result = Assets->FontCount++;
+    font_handle Result = Assets->FontCount++;
     Assert(Result < ArrayCount(Assets->Fonts));
     
     Assets->Fonts[Result] = Font;
@@ -49,19 +49,19 @@ LoadFont(game_assets* Assets, char* Path, f32 Size)
     return Result;
 }
 
-static render_output_index
+static render_output_handle
 CreateRenderOutput(game_assets* Assets, int Width, int Height)
 {
-    render_output_index Result = Assets->RenderOutputCount++;
+    render_output_handle Result = Assets->RenderOutputCount++;
     Assert(Result < ArrayCount(Assets->RenderOutputs));
     Assets->RenderOutputs[Result] = PlatformCreateRenderOutput(Width, Height);
     return Result;
 }
 
-static vertex_buffer_index
+static vertex_buffer_handle
 CreateVertexBuffer(game_assets* Assets, void* Data, u64 Bytes, int Topology, u64 Stride)
 {
-    vertex_buffer_index Result = Assets->VertexBufferCount++;
+    vertex_buffer_handle Result = Assets->VertexBufferCount++;
     Assert(Assets->VertexBufferCount <= ArrayCount(Assets->VertexBuffers));
     Assets->VertexBuffers[Result] = PlatformCreateVertexBuffer(Data, Bytes, Topology, Stride);
     return Result;
@@ -96,7 +96,7 @@ CreateMeshTriangles(dynamic_array<v3> Positions, dynamic_array<obj_file_face> Fa
     return {.Memory = Triangles, .Count = TriCount};
 }
 
-static vertex_buffer_index
+static vertex_buffer_handle
 CreateMeshVertexBuffer(game_assets* Assets, dynamic_array<v3> Positions, dynamic_array<v3> Normals, dynamic_array<v2> TexCoords, dynamic_array<obj_file_face> Faces, allocator Allocator)
 {
     u64 VertexCount = Faces.Count * 3 * 2;
@@ -134,16 +134,16 @@ CreateMeshVertexBuffer(game_assets* Assets, dynamic_array<v3> Positions, dynamic
         }
     }
     
-    vertex_buffer_index Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
-                                                    D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
+    vertex_buffer_handle Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
+                                                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(vertex));
     return Result;
 }
 
-static span<mesh_index>
+static span<mesh_handle>
 LoadObjects(game_assets* Assets, char* Path)
 {
     allocator Allocator = Assets->Allocator;
-    dynamic_array<mesh_index> Result = {.Arena = Allocator.Transient};
+    dynamic_array<mesh_handle> Result = {.Arena = Allocator.Transient};
     
     span<u8> File = LoadFile(Allocator.Transient, Path);
     file_reader Reader = {(char*)File.Memory, (char*)File.Memory + File.Count};
@@ -185,7 +185,7 @@ LoadObjects(game_assets* Assets, char* Path)
             //TODO: This code is copied from below (fix)
             if (Faces.Count > 0)
             {
-                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh_handle MeshIndex = (Assets->MeshCount++);
                 mesh* Mesh = Assets->Meshes + MeshIndex;
                 Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
                 
@@ -236,7 +236,7 @@ LoadObjects(game_assets* Assets, char* Path)
         {
             if (Faces.Count > 0)
             {
-                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh_handle MeshIndex = (Assets->MeshCount++);
                 mesh* Mesh = Assets->Meshes + MeshIndex;
                 Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
                 
@@ -278,7 +278,7 @@ LoadObjects(game_assets* Assets, char* Path)
     //TODO: This code is copied from above (fix)
     if (Faces.Count > 0)
     {
-        mesh_index MeshIndex = (Assets->MeshCount++);
+        mesh_handle MeshIndex = (Assets->MeshCount++);
         mesh* Mesh = Assets->Meshes + MeshIndex;
         Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
         
@@ -387,7 +387,7 @@ LoadMaterials(game_assets* Assets, char* Path, char* Library)
 }
 
 static void
-SetModelLocalTransform(game_assets* Assets, model_index Model, m4x4 Transform)
+SetModelLocalTransform(game_assets* Assets, model_handle Model, m4x4 Transform)
 {
     Assets->Models[Model].LocalTransform = Transform;
 }
@@ -408,7 +408,7 @@ SetModelLocalTransform(game_assets* Assets, char* ModelName_, m4x4 Transform)
     Assert(0);
 }
 
-static model_index
+static model_handle
 GetModelHandle(game_assets* Assets, char* ModelName_)
 {
     string ModelName = String(ModelName_);

@@ -108,7 +108,7 @@ TransformPoint(v3 P, m4x4 Transform)
 }
 
 static ray_collision
-RayModelIntersection(game_assets* Assets, model_index ModelHandle, m4x4 WorldTransform, v3 Ray0, v3 RayDir)
+RayModelIntersection(game_assets* Assets, model_handle ModelHandle, m4x4 WorldTransform, v3 Ray0, v3 RayDir)
 {
     model* Model = Assets->Models + ModelHandle;
     ray_collision Result = {};
@@ -136,10 +136,10 @@ RayModelIntersection(game_assets* Assets, model_index ModelHandle, m4x4 WorldTra
     return Result;
 }
 
-static model_index
+static model_handle
 GetModel(defense_assets* Assets, entity* Entity, bool LowPoly)
 {
-    model_index Handle = 0;
+    model_handle Handle = 0;
     switch (Entity->Type)
     {
         case Entity_WorldRegion: 
@@ -191,7 +191,7 @@ WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3
     {
         entity* Entity = World->Entities + RegionIndex;
         m4x4 Transform = TranslateTransform(Entity->P.X, Entity->P.Y, Entity->P.Z);
-        model_index Model = GetModel(GameAssets, Entity);
+        model_handle Model = GetModel(GameAssets, Entity);
         if (Model)
         {
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
@@ -219,7 +219,7 @@ RayCast(game_state* Game, game_assets* Assets, defense_assets* GameAssets, v3 Ra
         entity* Entity = World->Entities + EntityIndex;
         v3 RegionP = GetEntityP(Game, Entity->Parent);
         m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
-        model_index Model = GetModel(GameAssets, Entity);
+        model_handle Model = GetModel(GameAssets, Entity);
         if (Model)
         {
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Ray0, RayDirection);
@@ -730,7 +730,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
         if (Entity->Type == Entity_WorldRegion && DistanceSq(CursorP.XY, Entity->P.XY) < Square(MaxDistance))
         {
             m4x4 Transform = GetModelTransformOfEntity(Game, RegionIndex);
-            model_index Model = GetModel(GameAssets, Entity, Model_LowPoly);
+            model_handle Model = GetModel(GameAssets, Entity, Model_LowPoly);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
             if (Collision.DidHit == true && Collision.T < NearestCollision.T)

@@ -51,7 +51,7 @@ Push(render_group* RenderGroup)
 }
 
 static render_command*
-PushVertexBuffer(render_group* RenderGroup, vertex_buffer_index VertexBuffer, m4x4 Transform)
+PushVertexBuffer(render_group* RenderGroup, vertex_buffer_handle VertexBuffer, m4x4 Transform)
 {
     render_command* Command = Push(RenderGroup);
     Command->VertexBuffer = VertexBuffer;
@@ -61,7 +61,7 @@ PushVertexBuffer(render_group* RenderGroup, vertex_buffer_index VertexBuffer, m4
 }
 
 static render_command*
-PushMesh(render_group* RenderGroup, mesh_index MeshIndex, m4x4 Transform)
+PushMesh(render_group* RenderGroup, mesh_handle MeshIndex, m4x4 Transform)
 {
     mesh* Mesh = RenderGroup->Assets->Meshes + MeshIndex;
     
@@ -148,7 +148,7 @@ void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0, 
 }
 
 static render_command*
-PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
+PushTexturedRect(render_group* RenderGroup, texture_handle Texture, v3 P0, v3 P1, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
@@ -175,7 +175,7 @@ PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1,
 
 // Clockwise ordering
 static void
-PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3)
+PushTexturedRect(render_group* RenderGroup, texture_handle Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     
@@ -200,7 +200,7 @@ PushTexturedRect(render_group* RenderGroup, texture_index Texture, v3 P0, v3 P1,
 }
 
 static void
-PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader_index Shader)
+PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader Shader)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     Command->VertexData = Data;
@@ -212,7 +212,7 @@ PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11
 }
 
 static void
-PushModel(render_group* RenderGroup, vertex_buffer_index VertexBuffer)
+PushModel(render_group* RenderGroup, vertex_buffer_handle VertexBuffer)
 {
     render_command* Command = GetNextEntry(RenderGroup);
     Command->VertexBuffer = VertexBuffer;
@@ -221,7 +221,7 @@ PushModel(render_group* RenderGroup, vertex_buffer_index VertexBuffer)
 }
 
 static span<render_command*>
-PushModelNew(render_group* RenderGroup, model_index ModelHandle, m4x4 Transform)
+PushModelNew(render_group* RenderGroup, model_handle ModelHandle, m4x4 Transform)
 {
     game_assets* Assets = RenderGroup->Assets;
     model* Model = Assets->Models + ModelHandle;
@@ -233,7 +233,7 @@ PushModelNew(render_group* RenderGroup, model_index ModelHandle, m4x4 Transform)
     
     for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
     {
-        mesh_index Mesh = Model->Meshes[MeshIndex];
+        mesh_handle Mesh = Model->Meshes[MeshIndex];
         
         render_command* Command = PushMesh(RenderGroup, Mesh, ModelTransform);
         Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
@@ -245,7 +245,7 @@ PushModelNew(render_group* RenderGroup, model_index ModelHandle, m4x4 Transform)
 }
 
 static span<render_command*>
-PushTexturedModel(render_group* RenderGroup, model_index ModelHandle, m4x4 Transform)
+PushTexturedModel(render_group* RenderGroup, model_handle ModelHandle, m4x4 Transform)
 {
     game_assets* Assets = RenderGroup->Assets;
     model* Model = Assets->Models + ModelHandle;
@@ -255,7 +255,7 @@ PushTexturedModel(render_group* RenderGroup, model_index ModelHandle, m4x4 Trans
     
     for (u64 MeshIndex = 0; MeshIndex < Model->MeshCount; MeshIndex++)
     {
-        mesh_index Mesh = Model->Meshes[MeshIndex];
+        mesh_handle Mesh = Model->Meshes[MeshIndex];
         
         render_command* Command = PushMesh(RenderGroup, Mesh, ModelTransform);
         Command->Material = FindMaterial(Assets, Assets->Meshes[Mesh].MaterialLibrary, 
@@ -310,7 +310,7 @@ PushWind(render_group* RenderGroup)
 }
 
 static void
-PushShader(render_group* RenderGroup, shader_index Shader)
+PushShader(render_group* RenderGroup, shader Shader)
 {
     render_command* Command = GetLastEntry(RenderGroup);
     Command->Shader = Shader;
@@ -447,8 +447,8 @@ static void
 DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type)
 {
     bool DepthTestIsEnabled = true;
-    shader_index CurrentShader = Shader_Null;
-    texture_index CurrentTexture = 0;
+    shader CurrentShader = Shader_Null;
+    texture_handle CurrentTexture = 0;
     
     SetDepthTest(DepthTestIsEnabled);
     SetShader({});
@@ -463,7 +463,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
             continue;
         }
         
-        shader_index Shader = Command->Shader;
+        shader Shader = Command->Shader;
         
         //Override shader if only position is needed
         if (Type & Draw_OnlyDepth)

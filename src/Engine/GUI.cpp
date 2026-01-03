@@ -18,9 +18,9 @@ gui_state GlobalGUIState;
 u32 GlobalGUIIdentifierCounter;
 
 game_assets* GlobalAssets;
-shader GUIColorShader;
-shader GUIFontShader;
-shader GUITextureShader;
+renderer_shader GUIColorShader;
+renderer_shader GUIFontShader;
+renderer_shader GUITextureShader;
 
 static void
 BeginGUI(game_input* Input, game_assets* Assets)
@@ -208,7 +208,7 @@ struct panel_layout
     int YPad;
     int Width, Height;
     
-    texture_index TextureHandle;
+    texture_handle TextureHandle;
     
     int CurrentRowPixelHeight;
     
@@ -217,12 +217,12 @@ struct panel_layout
     void Text(string Text);
     void Text(char* Text);
     bool Button(char* Text);
-    void Image(texture_index Texture);
+    void Image(texture_handle Texture);
 };
 
 
 static panel_layout
-DefaultPanelLayout(f32 X0, f32 Y0, texture_index Texture, f32 Scale = 1.0f)
+DefaultPanelLayout(f32 X0, f32 Y0, texture_handle Texture, f32 Scale = 1.0f)
 {
     panel_layout Layout = {};
     
@@ -302,7 +302,7 @@ bool panel_layout::Button(char* Text)
     return (Status == GUI_Pressed);
 }
 
-void panel_layout::Image(texture_index Texture)
+void panel_layout::Image(texture_handle Texture)
 {
 #if 0
     f32 W = Texture.Width * PixelWidth;

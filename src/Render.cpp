@@ -242,7 +242,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     v3 RegionP = GetEntityP(Game, Entity->Parent);
                     
                     m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
-                    model_index Model = GetModel(GameAssets, Entity);
+                    model_handle Model = GetModel(GameAssets, Entity);
                     PushModelNew(RenderGroup, Model, Transform);
                 } break;
                 case Entity_Farm:
@@ -268,13 +268,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 {
                     v3 P = Entity->P;
                     m4x4 Transform = RotateTransform(-Entity->Angle) * TranslateTransform(P); //idk why angle is negativo
-                    model_index Model = GetModel(GameAssets, Entity);
+                    model_handle Model = GetModel(GameAssets, Entity);
                     PushTexturedModel(RenderGroup, Model, Transform);
                     //PushModelNew(RenderGroup, Assets, Model, Transform);
                 } break;
                 case Entity_Fence:
                 {
-                    model_index Model = GetModel(GameAssets, Entity);
+                    model_handle Model = GetModel(GameAssets, Entity);
                     v3 RegionP = GetEntityP(Game, Entity->Parent);
                     
                     span<v2> Vertices = GetHexagonVertexPositions(RegionP.XY, 0.89f * World->RegionSize, Assets->Allocator.Transient);

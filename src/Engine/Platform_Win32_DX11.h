@@ -5,13 +5,13 @@
 #include <ws2tcpip.h>
 #include <d3d11_1.h>
 
-struct shader
+struct renderer_shader
 {
     ID3D11VertexShader* VertexShader;
     ID3D11PixelShader* PixelShader;
     ID3D11InputLayout* InputLayout;
 };
-typedef shader d3d11_shader;
+typedef renderer_shader d3d11_shader;
 
 //TODO: Get rid of this from the engine
 struct font_texture

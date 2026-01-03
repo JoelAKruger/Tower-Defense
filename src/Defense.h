@@ -306,31 +306,31 @@ struct game_state
 
 struct defense_assets
 {
-    texture_index WaterReflection;
-    texture_index WaterRefraction;
-    texture_index WaterDuDv;
-    texture_index WaterNormal;
-    texture_index WaterFlow;
+    texture_handle WaterReflection;
+    texture_handle WaterRefraction;
+    texture_handle WaterDuDv;
+    texture_handle WaterNormal;
+    texture_handle WaterFlow;
     
-    render_output_index ShadowMap;
-    render_output_index Output1;
+    render_output_handle ShadowMap;
+    render_output_handle Output1;
     
-    render_output_index BloomMipmaps[8];
-    render_output_index BloomAccum;
+    render_output_handle BloomMipmaps[8];
+    render_output_handle BloomAccum;
     
-    texture_index Button, Panel, Crystal, Target;
+    texture_handle Button, Panel, Crystal, Target;
     
     model_textures ModelTextures;
     cube_map Skybox;
     
-    model_index WorldRegion, WorldRegionLowPoly, WorldRegionSkirt;
-    model_index PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
-    model_index ModularWood, House, House07;
-    model_index Castle, Turret, Mine, Tower, Fence05;
+    model_handle WorldRegion, WorldRegionLowPoly, WorldRegionSkirt;
+    model_handle PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
+    model_handle ModularWood, House, House07;
+    model_handle Castle, Turret, Mine, Tower, Fence05;
     
-    vertex_buffer_index GUIWholeScreen;
+    vertex_buffer_handle GUIWholeScreen;
     
-    model_index RegionOutline;
+    model_handle RegionOutline;
 };
 
 struct map_file_header
@@ -375,7 +375,7 @@ void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
 v3 GetEntityP(game_state* Game, u64 EntityIndex);
 
-model_index GetModel(defense_assets* Assets, entity* Entity, bool LowPoly = false);
+model_handle GetModel(defense_assets* Assets, entity* Entity, bool LowPoly = false);
 enum
 {
     Model_Normal = 0,
@@ -383,4 +383,4 @@ enum
 };
 
 ray_collision WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection);
-vertex_buffer_index CreateRegionOutlineMesh(game_assets* Assets);
+vertex_buffer_handle CreateRegionOutlineMesh(game_assets* Assets);

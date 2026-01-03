@@ -267,7 +267,7 @@ LoadObjectsFromFileForServer(game_assets* Assets, allocator Allocator, char* Pat
             //TODO: This code is copied from below (fix)
             if (Faces.Count > 0)
             {
-                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh_handle MeshIndex = (Assets->MeshCount++);
                 mesh* Mesh = Assets->Meshes + MeshIndex;
                 Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
                 
@@ -297,7 +297,7 @@ LoadObjectsFromFileForServer(game_assets* Assets, allocator Allocator, char* Pat
         {
             if (Faces.Count > 0)
             {
-                mesh_index MeshIndex = (Assets->MeshCount++);
+                mesh_handle MeshIndex = (Assets->MeshCount++);
                 mesh* Mesh = Assets->Meshes + MeshIndex;
                 Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
                 
@@ -330,7 +330,7 @@ LoadObjectsFromFileForServer(game_assets* Assets, allocator Allocator, char* Pat
     //TODO: This code is copied from above (fix)
     if (Faces.Count > 0)
     {
-        mesh_index MeshIndex = (Assets->MeshCount++);
+        mesh_handle MeshIndex = (Assets->MeshCount++);
         mesh* Mesh = Assets->Meshes + MeshIndex;
         Assert(Assets->MeshCount < ArrayCount(Assets->Meshes));
         
@@ -365,7 +365,7 @@ GetHexagonVertexPositions(v2 P, f32 Radius, memory_arena* Arena)
     return Result;
 }
 
-static vertex_buffer_index
+static vertex_buffer_handle
 CreateRegionOutlineMesh(game_assets* Assets)
 {
     span<v2> HexagonVertices = GetHexagonVertexPositions(V2(0, 0), 1.0f, Assets->Allocator.Transient);
@@ -417,8 +417,8 @@ CreateRegionOutlineMesh(game_assets* Assets)
         }
     }
     
-    vertex_buffer_index Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
-                                                    D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
+    vertex_buffer_handle Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
+                                                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
     
     return Result;
 }
