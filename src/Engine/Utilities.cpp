@@ -483,3 +483,67 @@ Contains(type Target, span<type> Span)
 //Index of target in array
 #define IndexOf(target, array) IndexOfCounted(target, array, ArrayCount(array))
 
+struct resource_tracker
+{
+    bool Allocated;
+    char* File;
+    int Line;
+    char* Tag;
+};
+
+template <typename type, typename handle_type, int Count>
+struct resource_table
+{
+    resource_tracker Trackers[Count];
+    type Array[Count];
+    
+    type& operator[](handle_type Handle)
+    {
+        Assert(Handle.Index < Count);
+        return Array[Handle.Index];
+    }
+    type* operator+(handle_type Handle)
+    {
+        Assert(Handle.Index < Count);
+        return Array + Handle.Index;
+    }
+    
+    handle_type GetOrAllocateHandleWithTag(char* Tag)
+    {
+        for (u64 I = 0; I < Count; I++)
+        {
+            if (Trackers[I].Allocated && (strcmp(Trackers[I].Tag, Tag) == 0))
+            {
+                return handle_type{I};
+            }
+        }
+        return AllocHandle(Tag);
+    }
+    
+    handle_type AllocHandle(char* Tag, char* File = 0, int Line = 0)
+    {
+        for (u64 I = 0; I < Count; I++)
+        {
+            if (!Trackers[I].Allocated)
+            {
+                Trackers[I] = {
+                    .Allocated = true,
+                    .File = File,
+                    .Line = Line,
+                    .Tag = Tag
+                };
+                
+                Array[I] = {};
+                return handle_type{I};
+            }
+        }
+        Assert(0);
+        return {};
+    }
+    
+    type& Allocate(char* Description = 0, char* File = 0, int Line = 0)
+    {
+        handle_type Handle = AllocateIndex(Description, File, Line);
+        return Array[Handle];
+    }
+};
