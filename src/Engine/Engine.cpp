@@ -220,7 +220,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         if (Assets.Initialised)
         {
             SetGUIShaderConstant(IdentityTransform());
-            SetShader(Assets.Shaders[Shader_GUI_Font]);
+            SetShader(Shader_GUI_Font);
             f32 X = -0.99f;
             f32 Y = 0.95f;
             for (string Text : Profile)
@@ -542,6 +542,5 @@ void Assert_(bool Value, int Line, char* File)
         __debugbreak();
     }
 }
-
 
 static_assert(__COUNTER__ <= ArrayCount(GlobalProfileEntries), "Too many profiles");

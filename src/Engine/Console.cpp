@@ -255,7 +255,7 @@ UpdateConsole(game_state* GameState, console* Console, game_input* Input, memory
 static void
 DrawConsole(console* Console, memory_arena* Arena)
 {
-    SetShader(GUIColorShader);
+    SetShader(Shader_GUI_Color);
     f32 ScreenTop = 0.5625;
     
     f32 X0 = -0.8f;
@@ -289,7 +289,7 @@ DrawConsole(console* Console, memory_arena* Arena)
                           TextColor);
     }
     
-    SetShader(GUIFontShader);
+    SetShader(Shader_GUI_Font);
     DrawGUIString(Input, V2(X0, Y0 + 0.25f * InputTextHeight), TextColor, InputTextHeight);
     
     for (string History : Console->History)

@@ -1,5 +1,7 @@
 memory_arena GraphicsArena;
 
+d3d11_shader D3D11GlobalShaders[Shader_Count];
+
 static void
 CreateD3D11Device()
 {
@@ -338,11 +340,12 @@ void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer)
     }
 }
 
-void SetShader(d3d11_shader Shader)
+void SetShader(shader Shader)
 {
-    D3D11DeviceContext->IASetInputLayout(Shader.InputLayout);
-    D3D11DeviceContext->VSSetShader(Shader.VertexShader, 0, 0);
-    D3D11DeviceContext->PSSetShader(Shader.PixelShader, 0, 0);
+    d3d11_shader* D3D11Shader = D3D11GlobalShaders + Shader;
+    D3D11DeviceContext->IASetInputLayout(D3D11Shader->InputLayout);
+    D3D11DeviceContext->VSSetShader(D3D11Shader->VertexShader, 0, 0);
+    D3D11DeviceContext->PSSetShader(D3D11Shader->PixelShader, 0, 0);
 }
 
 
@@ -785,45 +788,45 @@ LoadShaders(game_assets* Assets)
         {"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
     
-    Assets->Shaders[Shader_Texture]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                  "PixelShader_Texture", "MyVertexShader");
+    D3D11GlobalShaders[Shader_Texture]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                     "PixelShader_Texture", "MyVertexShader");
     
-    Assets->Shaders[Shader_Color]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                "PixelShader_Color", "MyVertexShader");
+    D3D11GlobalShaders[Shader_Color]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                   "PixelShader_Color", "MyVertexShader");
     
-    Assets->Shaders[Shader_Water]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
-                                                "PixelShader_Water", "MyVertexShader");
+    D3D11GlobalShaders[Shader_Water]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                   "PixelShader_Water", "MyVertexShader");
     
-    Assets->Shaders[Shader_Model]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
-                                                "PixelShader_Model", "MyVertexShader");
+    D3D11GlobalShaders[Shader_Model]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                   "PixelShader_Model", "MyVertexShader");
     
-    Assets->Shaders[Shader_TexturedModel]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
-                                                        "PixelShader_TexturedModel", "MyVertexShader");
+    D3D11GlobalShaders[Shader_TexturedModel]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                           "PixelShader_TexturedModel", "MyVertexShader");
     
-    Assets->Shaders[Shader_ModelWithTexture] = CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
-                                                            "PixelShader_ModelWithTexture", "MyVertexShader");
+    D3D11GlobalShaders[Shader_ModelWithTexture] = CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc),
+                                                               "PixelShader_ModelWithTexture", "MyVertexShader");
     
-    Assets->Shaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                                    0, "MyVertexShader");
+    D3D11GlobalShaders[Shader_OnlyDepth]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                       0, "MyVertexShader");
     
-    Assets->Shaders[Shader_PBR]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
-                                              "PixelShader_PBR", "MyVertexShader");
+    D3D11GlobalShaders[Shader_PBR]= CreateShader(L"assets/shaders.hlsl", InputElementDesc, ArrayCount(InputElementDesc), 
+                                                 "PixelShader_PBR", "MyVertexShader");
     
-    Assets->Shaders[Shader_GUI_Color] = CreateShader(L"assets/guishaders.hlsl", 
-                                                     GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Color", "GUI_VertexShader");
+    D3D11GlobalShaders[Shader_GUI_Color] = CreateShader(L"assets/guishaders.hlsl", 
+                                                        GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Color", "GUI_VertexShader");
     
-    Assets->Shaders[Shader_GUI_Texture] = CreateShader(L"assets/guishaders.hlsl", 
-                                                       GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Texture", "GUI_VertexShader");
+    D3D11GlobalShaders[Shader_GUI_Texture] = CreateShader(L"assets/guishaders.hlsl", 
+                                                          GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Texture", "GUI_VertexShader");
     
-    Assets->Shaders[Shader_GUI_Font] = CreateShader(L"assets/guishaders.hlsl", 
-                                                    GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Font", "GUI_VertexShader");
+    D3D11GlobalShaders[Shader_GUI_Font] = CreateShader(L"assets/guishaders.hlsl", 
+                                                       GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_Font", "GUI_VertexShader");
     
-    Assets->Shaders[Shader_GUI_HDR_To_SDR] = CreateShader(L"assets/guishaders.hlsl", 
-                                                          GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_HDR_To_SDR", "GUI_VertexShader");
+    D3D11GlobalShaders[Shader_GUI_HDR_To_SDR] = CreateShader(L"assets/guishaders.hlsl", 
+                                                             GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "GUI_PixelShader_HDR_To_SDR", "GUI_VertexShader");
     
-    Assets->Shaders[Shader_Bloom_Filter] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Filter", "Bloom_VertexShader");
+    D3D11GlobalShaders[Shader_Bloom_Filter] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Filter", "Bloom_VertexShader");
     
-    Assets->Shaders[Shader_Bloom_Downsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Downsample", "Bloom_VertexShader");
+    D3D11GlobalShaders[Shader_Bloom_Downsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Downsample", "Bloom_VertexShader");
     
-    Assets->Shaders[Shader_Bloom_Upsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Upsample", "Bloom_VertexShader");
+    D3D11GlobalShaders[Shader_Bloom_Upsample] = CreateShader(L"assets/post_processing_shaders.hlsl", GUIInputElementDesc, ArrayCount(GUIInputElementDesc), "Bloom_PixelShader_Upsample", "Bloom_VertexShader");
 }

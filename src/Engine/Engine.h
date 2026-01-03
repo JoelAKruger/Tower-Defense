@@ -248,7 +248,7 @@ texture PlatformCreateTexture(u32* TextureData, int Width, int Height, int Chann
 
 //Shaders
 void LoadShaders(game_assets* Assets);
-void SetShader(renderer_shader Shader);
+void SetShader(shader Shader);
 void SetGraphicsShaderConstants(shader_constants Constants);
 void SetGUIShaderConstant(m4x4 Transform);
 
@@ -353,7 +353,6 @@ struct triangle
     v3 Positions[3];
 };
 
-//TODO: Rename to handle
 typedef u64 mesh_handle;
 typedef u64 render_output_handle;
 typedef u64 model_handle;
@@ -455,8 +454,6 @@ struct game_assets
     allocator Allocator;
     
     //Old asset system
-    renderer_shader Shaders[Shader_Count];
-    
     font_asset Font;
     
     //New asset system

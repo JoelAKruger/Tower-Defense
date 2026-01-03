@@ -458,7 +458,7 @@ RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena
         Game->TowerEditMode = TowerEdit_SetTarget;
     }
     
-    SetShader(GUIFontShader); //TODO: Remove
+    SetShader(Shader_GUI_Font); //TODO: Remove
     Layout.Label("Tower Editor");
     
     Layout.NextRow();
@@ -1047,7 +1047,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     //Draw health bars
     if (ShouldDrawHealthBars && GameState->CameraP.Z > WorldInfoZThreshold)
     {
-        SetShader(GUIColorShader);
+        SetShader(Shader_GUI_Color);
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
         {
             tower* Tower = GameState->GlobalState.Towers + TowerIndex;
@@ -1109,7 +1109,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     string PosString = ArenaPrint(Allocator.Transient, "CameraP (%f, %f, %f), POV %f, CameraDir (%f, %f, %f)", 
                                   GameState->CameraP.X, GameState->CameraP.Y, GameState->CameraP.Z, GameState->FOV,
                                   GameState->CameraDirection.X, GameState->CameraDirection.Y, GameState->CameraDirection.Z);
-    SetShader(GUIFontShader);
+    SetShader(Shader_GUI_Font);
     DrawGUIString(PosString, V2(-0.95f, -0.95f));
     
     string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);

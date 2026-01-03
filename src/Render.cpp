@@ -397,13 +397,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     
     SetTexture(Assets->RenderOutputs[GameAssets->Output1].Texture, 11);
     
-    SetShader(Assets->Shaders[Shader_Bloom_Filter]);
+    SetShader(Shader_Bloom_Filter);
     
     renderer_vertex_buffer WholeScreen = Assets->VertexBuffers[GameAssets->GUIWholeScreen];
     DrawVertexBuffer(WholeScreen);
     
     //Downsampling
-    SetShader(Assets->Shaders[Shader_Bloom_Downsample]);
+    SetShader(Shader_Bloom_Downsample);
     for (u64 MipmapIndex = 1; MipmapIndex < ArrayCount(GameAssets->BloomMipmaps); MipmapIndex++)
     {
         ClearOutput(Assets->RenderOutputs[GameAssets->BloomMipmaps[MipmapIndex]]);
@@ -414,7 +414,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     }
     
     //Upsampling
-    SetShader(Assets->Shaders[Shader_Bloom_Upsample]);
+    SetShader(Shader_Bloom_Upsample);
     SetBlendMode(BlendMode_Add);
     ClearOutput(Assets->RenderOutputs[GameAssets->BloomAccum], V4(0, 0, 0, 0));
     SetOutput(Assets->RenderOutputs[GameAssets->BloomAccum]);
@@ -427,13 +427,13 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     //Composing
     SetFrameBufferAsOutput();
     
-    SetShader(Assets->Shaders[Shader_GUI_HDR_To_SDR]);
+    SetShader(Shader_GUI_HDR_To_SDR);
     
     SetBlendMode(BlendMode_Blend);
     SetTexture(Assets->RenderOutputs[GameAssets->Output1].Texture, 0);
     DrawVertexBuffer(WholeScreen);
     
-    SetShader(Assets->Shaders[Shader_GUI_Texture]);
+    SetShader(Shader_GUI_Texture);
     
     SetBlendMode(BlendMode_Add);
     SetTexture(Assets->RenderOutputs[GameAssets->BloomAccum].Texture, 0);

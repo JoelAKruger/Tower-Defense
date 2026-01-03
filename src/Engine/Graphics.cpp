@@ -476,7 +476,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
         
         if (CurrentShader != Shader)
         {
-            SetShader(Group->Assets->Shaders[Shader]);
+            SetShader(Shader);
             CurrentShader = Shader;
         }
         

@@ -18,9 +18,6 @@ gui_state GlobalGUIState;
 u32 GlobalGUIIdentifierCounter;
 
 game_assets* GlobalAssets;
-renderer_shader GUIColorShader;
-renderer_shader GUIFontShader;
-renderer_shader GUITextureShader;
 
 static void
 BeginGUI(game_input* Input, game_assets* Assets)
@@ -39,9 +36,6 @@ BeginGUI(game_input* Input, game_assets* Assets)
 	GlobalGUIIdentifierCounter = 1;
     
     GlobalAssets = Assets;
-    GUIColorShader = Assets->Shaders[Shader_GUI_Color];
-    GUIFontShader = Assets->Shaders[Shader_GUI_Font];
-    GUITextureShader = Assets->Shaders[Shader_GUI_Texture];
 }
 
 static inline bool
@@ -119,12 +113,12 @@ Button(v2 Position, v2 Size, string String)
 	}
     
     //TODO: Buffer GUI elements
-    SetShader(GUIColorShader);
+    SetShader(Shader_GUI_Color);
 	GUI_DrawRectangle(Position, Size, Color);
     
     f32 FontSize = 0.7f * Size.Y;
     f32 TextWidth = GUIStringWidth(String, FontSize);
-	SetShader(GUIFontShader);
+	SetShader(Shader_GUI_Font);
     DrawGUIString(String, V2(Position.X + 0.5f * Size.X - 0.5f * TextWidth, Position.Y + 0.25f * Size.Y), V4(1.0f, 1.0f, 1.0f, 1.0f), FontSize);
     
 	return (Status == GUI_Pressed);
@@ -276,7 +270,7 @@ bool panel_layout::Button(char* Text)
     f32 W = Texture.Width * PixelWidth;
     f32 H = Texture.Height * PixelHeight;
     
-    SetShader(GlobalAssets->Shaders[Shader_GUI_Texture]);
+    SetShader(Shader_GUI_Texture);
     SetTexture(Texture);
     
     v2 P = V2(X0 + X * PixelWidth, Y0 + Y * PixelHeight - H);
@@ -327,7 +321,7 @@ GUI_DrawRectangle(v2 P, v2 Size, v4 Color)
     v2 Origin = P;
     v2 XAxis = V2(Size.X, 0.0f);
     v2 YAxis = V2(0.0f, Size.Y);
-    SetShader(GlobalAssets->Shaders[Shader_GUI_Color]);
+    SetShader(Shader_GUI_Color);
     DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, Color);
 }
 
@@ -338,7 +332,7 @@ GUI_DrawTexture(texture Texture, v2 P, v2 Size)
     v2 XAxis = V2(Size.X, 0.0f);
     v2 YAxis = V2(0.0f, Size.Y);
     SetTexture(Texture);
-    SetShader(GlobalAssets->Shaders[Shader_GUI_Texture]);
+    SetShader(Shader_GUI_Texture);
     DrawQuad(Origin + YAxis, Origin + YAxis + XAxis, Origin, Origin + XAxis, {});
 }
 
@@ -395,7 +389,7 @@ GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color, f32 Scale)
         X += BakedChar.xadvance * PixelWidth;
     }
     
-    SetShader(GlobalAssets->Shaders[Shader_GUI_Font]);
+    SetShader(Shader_GUI_Font);
     SetTexture(GlobalAssets->Font.Texture);
     
     DrawVertices((f32*)VertexData, Stride * VertexCount, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Stride);
