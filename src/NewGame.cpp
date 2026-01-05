@@ -1,10 +1,6 @@
 #include "Engine/Engine.h"
 #include "Engine/Engine.cpp"
 
-struct app_state
-{
-};
-
 static void
 ResizeAssets(game_assets* Assets)
 {
@@ -12,7 +8,7 @@ ResizeAssets(game_assets* Assets)
 
 struct asset_handles
 {
-    model_index Model;
+    model_handle Model;
 };
 
 void LoadAssets(game_assets* Assets, allocator Allocator)
@@ -27,19 +23,12 @@ void LoadAssets(game_assets* Assets, allocator Allocator)
     Handles->Model = GetModelHandle(Assets, "Castle");
 }
 
-void UpdateAndRender(app_state** App_, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
+void UpdateAndRender(void** ApplicationState, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
 {
     if (!Assets->Initialised)
     {
         LoadAssets(Assets, Allocator);
     }
-    
-    if (*App_ == 0)
-    {
-        *App_ = AllocStruct(Allocator.Permanent, app_state);
-    }
-    
-    app_state* App = *App_;
     
     shader_constants Constants = {};
     
@@ -53,7 +42,7 @@ void UpdateAndRender(app_state** App_, game_assets* Assets, f32 DeltaTime, game_
     
     SetDepthTest(true);
     SetFrameBufferAsOutput();
-    SetShader(Assets->Shaders[Shader_Model]);
+    SetShader(Shader_Model);
     SetGraphicsShaderConstants(Constants);
     DrawVertexBuffer(Assets->VertexBuffers[Assets->Meshes[Assets->Models[Handles->Model].Meshes[0]].VertexBuffer]);
 }

@@ -859,7 +859,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         TimeBlock("GetCursorTarget");
         cursor_target Cursor = GetCursorTarget(GameState, Assets, GameAssets, Input);
         v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringRegionIndex);
-        if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.06f)
+        if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.015f)
         {
             GameState->HoveringWorldP = Cursor.WorldP;
             GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
@@ -1216,19 +1216,19 @@ void Command_water_flow(int ArgCount, string* Args, console* Console, game_state
     CreateWaterFlowMap(&GameState->GlobalState.World, Assets, Arena);
 }
 
-static void UpdateAndRender(app_state** App_, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
+static void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
 {
     if (!Assets->Initialised)
     {
         LoadAssets(Assets, Allocator);
     }
     
-    if (*App_ == 0)
+    if (*ApplicationData == 0)
     {
-        *App_ = AllocStruct(Allocator.Permanent, app_state);
+        *(app_state**)ApplicationData = AllocStruct(Allocator.Permanent, app_state);
     }
     
-    app_state* App = *App_;
+    app_state* App = *(app_state**)ApplicationData;
     
 #if DEVELOPER_MODE == 1
     App->CurrentScreen = Screen_Game;

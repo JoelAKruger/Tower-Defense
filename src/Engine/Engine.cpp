@@ -129,7 +129,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
     
     dynamic_array<string> Profile = {};
     
-    app_state* AppState = 0;
+    void* ApplicationState = 0;
     game_assets Assets = {.Allocator = Allocator};
     
     while (true)
@@ -215,7 +215,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
         
         {
             TimeBlock("Update & Render");
-            UpdateAndRender(&AppState, &Assets, SecondsPerFrame, &Input, Allocator);
+            UpdateAndRender(&ApplicationState, &Assets, SecondsPerFrame, &Input, Allocator);
         }
         
         // Draw profiling information

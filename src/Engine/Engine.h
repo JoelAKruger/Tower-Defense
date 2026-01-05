@@ -338,10 +338,8 @@ struct game_input
     f32 ScrollDelta;
 };
 
-struct app_state;
-
 // --- Game Layer ---
-void UpdateAndRender(app_state** App, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator);
+void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator);
 
 struct font_asset;
 v2 TextPixelSize(font_asset* Font, string String);
