@@ -1080,7 +1080,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         }
         
         f32 Width = GUIStringWidth(RegionText, 0.1f);
-        GUI_DrawText(&Assets->Font, RegionText, V2(-0.5f * Width, 0.9f));
+        GUI_DrawText(Assets->Font, RegionText, V2(-0.5f * Width, 0.9f));
     }
     
     //Draw crosshair

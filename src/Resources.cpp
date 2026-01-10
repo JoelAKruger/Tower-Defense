@@ -59,7 +59,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->Crystal = LoadTexture("assets/textures/crystal.png");
     Handles->Target = LoadTexture("assets/target.png");
     
-    Assets->Font = LoadFont("assets/fonts/TitilliumWeb-Regular.ttf", 75.0f, Allocator.Transient);
+    Assets->Font = LoadFont(Assets, "assets/fonts/TitilliumWeb-Regular.ttf", 75.0f);
     
     Handles->ModelTextures.Ambient = LoadTexture("assets/textures/Carvalho-Munique_ambient.jpg");
     Handles->ModelTextures.Diffuse = LoadTexture("assets/textures/Carvalho-Munique_Diffuse.jpg");

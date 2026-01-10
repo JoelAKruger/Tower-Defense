@@ -406,6 +406,7 @@ GetModelHandle(game_assets* Assets, char* ModelName_)
 
 //DELETE EVERYTHING BELOW HERE
 
+/*
 static font_asset
 LoadFont(char* Path, f32 Size, memory_arena* Arena)
 {
@@ -427,3 +428,4 @@ LoadFont(char* Path, f32 Size, memory_arena* Arena)
     
     return Result;
 }
+*/

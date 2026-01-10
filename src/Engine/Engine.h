@@ -271,7 +271,7 @@ texture_handle PlatformCreateTexture(u32* TextureData, int Width, int Height, in
 
 //Shaders
 void LoadShaders(game_assets* Assets);
-void SetShader(renderer_shader Shader);
+void SetShader(shader Shader);
 void SetGraphicsShaderConstants(shader_constants Constants);
 void SetGUIShaderConstant(m4x4 Transform);
 
@@ -473,8 +473,7 @@ struct game_assets
     bool Initialised;
     allocator Allocator;
     
-    //Old asset system
-    font_asset Font;
+    font_handle Font;
     
     //New asset system
     material Materials[32];

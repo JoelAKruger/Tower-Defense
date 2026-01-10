@@ -31,6 +31,7 @@
 #include "GUI.cpp"
 #include "Console.cpp"
 #include "Assets.cpp"
+#include "Main.cpp"
 
 memory_arena GlobalDebugArena;
 
@@ -59,7 +60,7 @@ void Win32SaveFile(char* Path, span<u8> Data);
 
 static bool GlobalWindowDidResize;
 
-int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowCode)
+int WINAPI EngineMain(HINSTANCE Instance, LPWSTR CommandLine, int ShowCode)
 {
     //Required for profiling
     GetCPUFrequency(10);

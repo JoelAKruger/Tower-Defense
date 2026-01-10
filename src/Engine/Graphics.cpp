@@ -620,7 +620,6 @@ RotateTransform(f32 Radians)
     return Result;
 }
 
-
 //From: 
 //https://learn.microsoft.com/en-us/windows/win32/direct3d9/projection-transform
 static m4x4
@@ -700,6 +699,13 @@ TextPixelSize(font_asset* Font, string String)
     f32 Height = Font->Size;
     f32 Width = (f32)TextPixelWidth(Font, String);
     return {Width, Height};
+}
+
+static v2
+TextPixelSize(game_assets* Assets, font_handle Handle, string String)
+{
+    Assert(Handle < ArrayCount(Assets->Fonts));
+    return TextPixelSize(Assets->Fonts + Handle, String);
 }
 
 static ssao_kernel

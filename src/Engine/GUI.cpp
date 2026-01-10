@@ -1,6 +1,6 @@
 void GUI_DrawRectangle(v2 Position, v2 Size, v4 Color = {});
 void GUI_DrawTexture(texture_handle Texture, v2 P, v2 Size);
-void GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f), f32 Scale = 1.0f);
+void GUI_DrawText(font_handle Font, string Text, v2 P, v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f), f32 Scale = 1.0f);
 
 struct gui_state
 {
@@ -254,9 +254,9 @@ void panel_layout::NextRow()
 
 void panel_layout::Text(string Text)
 {
-    v2 PixelSize = TextPixelSize(&GlobalAssets->Font, Text);
+    v2 PixelSize = TextPixelSize(GlobalAssets, GlobalAssets->Font, Text);
     v2 P = V2(X0 + X * PixelWidth, Y0 + PixelHeight * (Y - 0.5f * CurrentRowPixelHeight - 0.5f * PixelSize.Y));
-    GUI_DrawText(&GlobalAssets->Font, Text, P);
+    GUI_DrawText(GlobalAssets->Font, Text, P);
     
     X += (int)PixelSize.X + XPad;
     CurrentRowPixelHeight = Max(CurrentRowPixelHeight, (int)PixelSize.Y);
@@ -278,10 +278,10 @@ bool panel_layout::Button(char* Text)
     
     gui_element_status Status = DoGUIElement(P, Size);
     
-    v2 PixelSize = TextPixelSize(&GlobalAssets->Font, String(Text));
+    v2 PixelSize = TextPixelSize(GlobalAssets, GlobalAssets->Font, String(Text));
     
     v2 TextP = P + 0.5f * Size - 0.5f * V2(PixelSize.X * PixelWidth, PixelSize.Y * PixelHeight);
-    GUI_DrawText(&GlobalAssets->Font, String(Text), TextP, V4(1, 1, 1, 1), Scale);
+    GUI_DrawText(GlobalAssets->Font, String(Text), TextP, V4(1, 1, 1, 1), Scale);
     
     if (Status == GUI_Hot)
     {
@@ -335,8 +335,11 @@ GUI_DrawTexture(texture_handle Texture, v2 P, v2 Size)
 }
 
 static void
-GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color, f32 Scale)
+GUI_DrawText(font_handle FontHandle, string Text, v2 P, v4 Color, f32 Scale)
 {
+    Assert(FontHandle < ArrayCount(GlobalAssets->Fonts));
+    font_asset* Font = GlobalAssets->Fonts + FontHandle;
+    
     v2 PixelSize = TextPixelSize(Font, Text);
     f32 PixelWidth = Scale * 2.0f / GlobalOutputWidth;
     f32 PixelHeight = Scale * 2.0f / GlobalOutputHeight;
@@ -391,7 +394,7 @@ GUI_DrawText(font_asset* Font, string Text, v2 P, v4 Color, f32 Scale)
     }
     
     SetShader(Shader_GUI_Font);
-    SetTexture(GlobalAssets->Font.Texture);
+    SetTexture(GlobalAssets->Fonts[GlobalAssets->Font].Texture);
     
     DrawVertices((f32*)VertexData, Stride * VertexCount, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Stride);
 }
