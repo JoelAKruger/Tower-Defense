@@ -67,6 +67,7 @@ font_texture* DefaultFont;
 void CreateD3D11Device();
 void CreateSamplers();
 f32 D3D11TextWidth(string String, f32 Size, f32 AspectRatio = 1.0f);
+int WINAPI EngineMain(HINSTANCE Instance, LPWSTR CommandLine, int ShowCode);
 
 #define PlatformTextWidth                D3D11TextWidth
 #define PlatformCreateShadowDepthTexture D3D11CreateShadowDepthTexture

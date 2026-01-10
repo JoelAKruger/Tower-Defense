@@ -340,6 +340,7 @@ struct game_input
 
 // --- Game Layer ---
 void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator);
+void ResizeAssets(void** ApplicationData);
 
 struct font_asset;
 v2 TextPixelSize(font_asset* Font, string String);
@@ -494,13 +495,7 @@ struct game_assets
     int VertexBufferCount;
     
     texture_handle ButtonTextureHandle;
-    
-    //Used by game
-    void* GameData;
 };
-
-void ResizeAssets(game_assets* Assets);
-
 
 enum render_draw_type
 {

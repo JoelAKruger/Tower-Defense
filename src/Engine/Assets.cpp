@@ -1,5 +1,5 @@
 static texture_handle
-LoadTexture(game_assets* Assets, char* Path)
+LoadTexture(char* Path)
 {
     int Width = 0, Height = 0, Channels = 0;
     stbi_set_flip_vertically_on_load(true);

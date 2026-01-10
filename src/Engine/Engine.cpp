@@ -167,7 +167,7 @@ int WINAPI wWinMain(HINSTANCE Instance, HINSTANCE, LPWSTR CommandLine, int ShowC
             
             GlobalWindowDidResize = false;
             
-            ResizeAssets(&Assets);
+            ResizeAssets(&ApplicationState);
         }
         
         //-------------------------

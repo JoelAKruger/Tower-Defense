@@ -297,10 +297,10 @@ RunServer()
     
     CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ServerNetworkThread, 0, 0, 0);
     
-    game_assets* LoadServerAssets(allocator Allocator);
-    game_assets* Assets = LoadServerAssets(Allocator);
-    //TODO: i dont know what happens here...
-    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
+    game_assets Assets = {};
+    
+    defense_assets LoadServerAssets(game_assets* Assets, allocator Allocator);
+    defense_assets AssetHandles = LoadServerAssets(&Assets, Allocator);
     
     global_game_state Game = {};
     
@@ -334,7 +334,7 @@ RunServer()
                 
                 player_request* Request = (player_request*)Packet.Data;
                 
-                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, Assets, GameAssets, Packet.SenderIndex, 
+                span<server_packet_message> ServerPackets = ServerHandleRequest(&Game, &Assets, &AssetHandles, Packet.SenderIndex, 
                                                                                 Request, &TArena, &FlushWorld);
                 
                 for (server_packet_message& ServerPacket : ServerPackets)

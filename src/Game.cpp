@@ -747,10 +747,8 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
 }
 
 static void
-RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
-    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
-    
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyClientID) &&
         (GameState->Mode == Mode_Waiting))
@@ -857,7 +855,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     {
         TimeBlock("GetCursorTarget");
-        cursor_target Cursor = GetCursorTarget(GameState, Assets, GameAssets, Input);
+        cursor_target Cursor = GetCursorTarget(GameState, Assets, AssetHandles, Input);
         v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringRegionIndex);
         if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.015f)
         {
@@ -873,7 +871,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     RenderGroup.Assets = Assets;
     
     //Draw animations
-    TickAnimations(GameState, &RenderGroup, GameAssets, SecondsPerFrame);
+    TickAnimations(GameState, &RenderGroup, AssetHandles, SecondsPerFrame);
     
     f32 Time = GameState->Time / 1.0f;
     int CurrentHour = (int)Time % 24;
@@ -939,7 +937,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
             tower_type Type = GameState->PlacementType;
             
             //In steady-state, draw slightly above a normal tower to prevent z-fighting
-            DrawTower(&RenderGroup, GameState, GameAssets, Type, GameState->TowerPlaceIndicatorP + V3(0, 0, -0.001f), Color);
+            DrawTower(&RenderGroup, GameState, AssetHandles, Type, GameState->TowerPlaceIndicatorP + V3(0, 0, -0.001f), Color);
             
             if (Placeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
@@ -957,7 +955,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
         
         case Mode_EditTower:
         {
-            DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup, GameAssets);
+            DrawCrosshairForTowerEditor(GameState, GameState->SelectedTowerIndex, Input, &RenderGroup, AssetHandles);
         } break;
         
         case Mode_CellUpgrade:
@@ -1033,7 +1031,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     
     GameState->RegionOutlineP = LinearInterpolate(GameState->RegionOutlineP, GameState->RegionOutlineTargetP, 0.95f);
     
-    RenderWorld(&RenderGroup, GameState, Assets, GameAssets);
+    RenderWorld(&RenderGroup, GameState, Assets, AssetHandles);
     
     v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
     u64 HoveringEntityIndex = 0; //RayCast(GameState, Assets, GameAssets, GameState->CameraP, CursorWorldP - GameState->CameraP);
@@ -1098,7 +1096,7 @@ RunGame(game_state* GameState, game_assets* Assets, f32 SecondsPerFrame, game_in
     //TODO: Create a proper layout system
     if (GameState->Mode == Mode_MyTurn)
     {
-        DoTowerMenu(GameState, GameAssets, Allocator.Transient);
+        DoTowerMenu(GameState, AssetHandles, Allocator.Transient);
     }
     
     if (GameState->Mode == Mode_EditTower)
@@ -1156,7 +1154,7 @@ ReceiveServerPackets(game_state* Game, game_assets* Assets, memory_arena* Arena)
 }
 
 static void 
-GameUpdateAndRender(game_state* GameState, game_assets* Assets, defense_assets* GameAssets, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
+GameUpdateAndRender(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
     UpdateConsole(GameState, GameState->Console, Input, Allocator.Transient, Assets, SecondsPerFrame);
     
@@ -1165,11 +1163,11 @@ GameUpdateAndRender(game_state* GameState, game_assets* Assets, defense_assets* 
     ReceiveServerPackets(GameState, Assets, Allocator.Transient);
     if (GameState->GlobalState.GameStarted)
     {
-        RunGame(GameState, Assets, SecondsPerFrame, Input, Allocator);
+        RunGame(GameState, Assets, AssetHandles, SecondsPerFrame, Input, Allocator);
     }
     else
     {
-        RunLobby(GameState, Assets, GameAssets, SecondsPerFrame, Input, Allocator);
+        RunLobby(GameState, Assets, AssetHandles, SecondsPerFrame, Input, Allocator);
     }
     
     DrawGUIString(String(IsConnectedToServer() ? "Connected" : "Not connected"), V2(-0.95f, 0.0f));
@@ -1218,11 +1216,6 @@ void Command_water_flow(int ArgCount, string* Args, console* Console, game_state
 
 static void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 DeltaTime, game_input* Input, allocator Allocator)
 {
-    if (!Assets->Initialised)
-    {
-        LoadAssets(Assets, Allocator);
-    }
-    
     if (*ApplicationData == 0)
     {
         *(app_state**)ApplicationData = AllocStruct(Allocator.Permanent, app_state);
@@ -1234,7 +1227,12 @@ static void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 Del
     App->CurrentScreen = Screen_Game;
 #endif
     
-    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
+    defense_assets* AssetHandles = &App->AssetHandles;
+    
+    if (!Assets->Initialised)
+    {
+        LoadAssets(Assets, AssetHandles, Allocator);
+    }
     
     switch (App->CurrentScreen)
     {
@@ -1254,7 +1252,7 @@ static void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 Del
             {
                 App->GameState = GameInitialise(Allocator);
             }
-            GameUpdateAndRender(App->GameState, Assets, GameAssets, DeltaTime, Input, Allocator);
+            GameUpdateAndRender(App->GameState, Assets, AssetHandles, DeltaTime, Input, Allocator);
         } break;
         
         default: Assert(0);

@@ -356,6 +356,8 @@ enum app_screen
 
 struct app_state
 {
+    defense_assets AssetHandles;
+    
     app_screen CurrentScreen;
     
     game_state* GameState;

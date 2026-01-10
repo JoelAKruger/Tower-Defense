@@ -11,7 +11,7 @@ CreateModelVertexBuffer(allocator Allocator, char* Path, bool SwitchOrder)
 }
 
 static void
-LoadSkybox(game_assets* Assets, defense_assets* GameAssets)
+LoadSkybox(defense_assets* Handles)
 {
     char* Paths[6] = {
         "assets/textures/skybox/clouds1_up.bmp",
@@ -24,14 +24,12 @@ LoadSkybox(game_assets* Assets, defense_assets* GameAssets)
     
     for (int TextureIndex = 0; TextureIndex < 6; TextureIndex++)
     {
-        GameAssets->Skybox.Textures[TextureIndex] = LoadTexture(Assets, Paths[TextureIndex]);
+        Handles->Skybox.Textures[TextureIndex] = LoadTexture(Paths[TextureIndex]);
     }
 }
 
-//TODO: Should this be called SetVertexBuffer
-
 static void
-LoadAssets(game_assets* Assets, allocator Allocator)
+LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
 {
     Assert(Assets->Initialised == false);
     Assets->Initialised = true;
@@ -43,50 +41,40 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     
     LoadShaders(Assets);
     
-    if (!Assets->GameData)
-    {
-        Assets->GameData = AllocStruct(Allocator.Permanent, defense_assets);
-    }
+    Assets->ButtonTextureHandle = LoadTexture("assets/textures/wenrexa_gui/Btn_TEST.png");
     
-    defense_assets* GameAssets = (defense_assets*)Assets->GameData;
+    Handles->ShadowMap = PlatformCreateShadowDepthTexture(4096, 4096);
     
-    Assets->ButtonTextureHandle = LoadTexture(Assets, "assets/textures/wenrexa_gui/Btn_TEST.png");
+    LoadSkybox(Handles);
     
-    GameAssets->ShadowMap = PlatformCreateShadowDepthTexture(4096, 4096);
+    Handles->WaterReflection = PlatformCreateRenderOutput(2048, 2048);
+    Handles->WaterRefraction = PlatformCreateRenderOutput(2048, 2048);
+    Handles->WaterDuDv   = LoadTexture("assets/textures/water_dudv.png");
+    Handles->WaterNormal = LoadTexture("assets/textures/water_normal.png");
     
-    LoadSkybox(Assets, GameAssets);
+    Handles->Output1 = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
     
-    GameAssets->WaterReflection = PlatformCreateRenderOutput(2048, 2048);
-    GameAssets->WaterRefraction = PlatformCreateRenderOutput(2048, 2048);
-    GameAssets->WaterDuDv   = LoadTexture(Assets, "assets/textures/water_dudv.png");
-    GameAssets->WaterNormal = LoadTexture(Assets, "assets/textures/water_normal.png");
-    
-    GameAssets->Output1 = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
-    
-    GameAssets->Button = LoadTexture(Assets, "assets/textures/wenrexa_gui/Btn_TEST.png");
-    GameAssets->Panel = LoadTexture(Assets, "assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
-    GameAssets->Crystal = LoadTexture(Assets, "assets/textures/crystal.png");
-    GameAssets->Target = LoadTexture(Assets, "assets/target.png");
+    Handles->Button = LoadTexture("assets/textures/wenrexa_gui/Btn_TEST.png");
+    Handles->Panel = LoadTexture("assets/textures/wenrexa_gui/Panel1_NoOpacity592x975px.png");
+    Handles->Crystal = LoadTexture("assets/textures/crystal.png");
+    Handles->Target = LoadTexture("assets/target.png");
     
     Assets->Font = LoadFont("assets/fonts/TitilliumWeb-Regular.ttf", 75.0f, Allocator.Transient);
     
-    GameAssets->ModelTextures.Ambient = LoadTexture(Assets, "assets/textures/Carvalho-Munique_ambient.jpg");
-    GameAssets->ModelTextures.Diffuse = LoadTexture(Assets, "assets/textures/Carvalho-Munique_Diffuse.jpg");
-    GameAssets->ModelTextures.Diffuse = LoadTexture(Assets, "assets/textures/Texture_01.png");
-    //Assets->ModelTextures.Diffuse = CreateTexture("assets/textures/Carvalho-Munique_Diffuse.jpg");
-    //Assets->ModelTextures.Normal = CreateTexture("assets/textures/Carvalho-Munique_normal.jpg");
-    //Assets->ModelTextures.Specular = CreateTexture("assets/textures/Carvalho-Munique_specular.jpg");
+    Handles->ModelTextures.Ambient = LoadTexture("assets/textures/Carvalho-Munique_ambient.jpg");
+    Handles->ModelTextures.Diffuse = LoadTexture("assets/textures/Carvalho-Munique_Diffuse.jpg");
+    Handles->ModelTextures.Diffuse = LoadTexture("assets/textures/Texture_01.png");
     
-    GameAssets->BloomMipmaps[0] = PlatformCreateRenderOutput(1024, 1024);
-    GameAssets->BloomMipmaps[1] = PlatformCreateRenderOutput(512, 512);
-    GameAssets->BloomMipmaps[2] = PlatformCreateRenderOutput(256, 256);
-    GameAssets->BloomMipmaps[3] = PlatformCreateRenderOutput(128, 128);
-    GameAssets->BloomMipmaps[4] = PlatformCreateRenderOutput(64, 64);
-    GameAssets->BloomMipmaps[5] = PlatformCreateRenderOutput(32, 32);
-    GameAssets->BloomMipmaps[6] = PlatformCreateRenderOutput(16, 16);
-    GameAssets->BloomMipmaps[7] = PlatformCreateRenderOutput(8, 8);
+    Handles->BloomMipmaps[0] = PlatformCreateRenderOutput(1024, 1024);
+    Handles->BloomMipmaps[1] = PlatformCreateRenderOutput(512, 512);
+    Handles->BloomMipmaps[2] = PlatformCreateRenderOutput(256, 256);
+    Handles->BloomMipmaps[3] = PlatformCreateRenderOutput(128, 128);
+    Handles->BloomMipmaps[4] = PlatformCreateRenderOutput(64, 64);
+    Handles->BloomMipmaps[5] = PlatformCreateRenderOutput(32, 32);
+    Handles->BloomMipmaps[6] = PlatformCreateRenderOutput(16, 16);
+    Handles->BloomMipmaps[7] = PlatformCreateRenderOutput(8, 8);
     
-    GameAssets->BloomAccum = PlatformCreateRenderOutput(1024, 1024);
+    Handles->BloomAccum = PlatformCreateRenderOutput(1024, 1024);
     
     material DefaultMaterial = {};
     DefaultMaterial.DiffuseColor = V3(0, 0, 0);
@@ -144,22 +132,22 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     SetModelLocalTransform(Assets, "House_07", ScaleTransform(0.008f));
     SetModelLocalTransform(Assets, "Fence_05", ScaleTransform(0.245f));
     
-    GameAssets->WorldRegion = GetModelHandle(Assets, "Circle");
-    GameAssets->WorldRegionLowPoly = GetModelHandle(Assets, "Circle_LowPoly");
-    GameAssets->WorldRegionSkirt = GetModelHandle(Assets, "HexagonSkirt");
-    GameAssets->PinkFlower = GetModelHandle(Assets, "2FPinkPlant_Plane.084");
-    GameAssets->Bush = GetModelHandle(Assets, "Bush2_Cube.046");
-    GameAssets->RibbonPlant = GetModelHandle(Assets, "RibbonPlant2_Plane.079");
-    GameAssets->Grass = GetModelHandle(Assets, "GrassPatch101_Plane.040");
-    GameAssets->Rock = GetModelHandle(Assets, "Rock2_Cube.009");
-    GameAssets->Paving = GetModelHandle(Assets, "Rock2_Cube.009");
-    GameAssets->ModularWood = GetModelHandle(Assets, "ModularWood_01");
-    GameAssets->House = GetModelHandle(Assets, "House_01");
-    GameAssets->Castle = GetModelHandle(Assets, "Castle");
-    GameAssets->Turret = GetModelHandle(Assets, "Turret");
-    GameAssets->Tower = GetModelHandle(Assets, "Tower");
-    GameAssets->House07 = GetModelHandle(Assets, "House_07");
-    GameAssets->Fence05 = GetModelHandle(Assets, "Fence_05");
+    Handles->WorldRegion = GetModelHandle(Assets, "Circle");
+    Handles->WorldRegionLowPoly = GetModelHandle(Assets, "Circle_LowPoly");
+    Handles->WorldRegionSkirt = GetModelHandle(Assets, "HexagonSkirt");
+    Handles->PinkFlower = GetModelHandle(Assets, "2FPinkPlant_Plane.084");
+    Handles->Bush = GetModelHandle(Assets, "Bush2_Cube.046");
+    Handles->RibbonPlant = GetModelHandle(Assets, "RibbonPlant2_Plane.079");
+    Handles->Grass = GetModelHandle(Assets, "GrassPatch101_Plane.040");
+    Handles->Rock = GetModelHandle(Assets, "Rock2_Cube.009");
+    Handles->Paving = GetModelHandle(Assets, "Rock2_Cube.009");
+    Handles->ModularWood = GetModelHandle(Assets, "ModularWood_01");
+    Handles->House = GetModelHandle(Assets, "House_01");
+    Handles->Castle = GetModelHandle(Assets, "Castle");
+    Handles->Turret = GetModelHandle(Assets, "Turret");
+    Handles->Tower = GetModelHandle(Assets, "Tower");
+    Handles->House07 = GetModelHandle(Assets, "House_07");
+    Handles->Fence05 = GetModelHandle(Assets, "Fence_05");
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
@@ -170,10 +158,10 @@ LoadAssets(game_assets* Assets, allocator Allocator)
         {V2(-1, -1), {}, V2(0, 1)}
     };
     
-    GameAssets->GUIWholeScreen = CreateVertexBuffer(Assets, Vertices, ArrayCount(Vertices) * sizeof(gui_vertex),
-                                                    D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
+    Handles->GUIWholeScreen = CreateVertexBuffer(Assets, Vertices, ArrayCount(Vertices) * sizeof(gui_vertex),
+                                                 D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
     
-    GameAssets->RegionOutline = CreateRegionOutlineMesh(Assets);
+    Handles->RegionOutline = CreateRegionOutlineMesh(Assets);
     
 #define LOG 1
 #if LOG == 1
@@ -195,10 +183,10 @@ LoadAssets(game_assets* Assets, allocator Allocator)
     Assert(Assets->MaterialCount < ArrayCount(Assets->Materials));
 }
 
-static game_assets*
-LoadServerAssets(allocator Allocator)
+static defense_assets
+LoadServerAssets(game_assets* Assets, allocator Allocator)
 {
-    game_assets* Assets = AllocStruct(Allocator.Permanent, game_assets);
+    defense_assets Result = {};
     
     Assets->Allocator = Allocator;
     
@@ -224,17 +212,17 @@ LoadServerAssets(allocator Allocator)
     SetModelLocalTransform(Assets, "Hexagon", TranslateTransform(0.0f, -5.0f, 0.0f) * 
                            ModelRotateTransform() * ScaleTransform(0.09f, 0.09f, 0.09f));
     
-    return Assets;
+    return Result;
 }
 
 static void
-ResizeAssets(game_assets* Assets)
+ResizeAssets(void** ApplicationState)
 {
-    if (Assets && Assets->GameData)
+    app_state* App = *(app_state**)ApplicationState;
+    if (App)
     {
-        defense_assets* GameAssets = (defense_assets*) Assets->GameData;
-        Delete(GameAssets->Output1);
-        GameAssets->Output1 = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
+        Delete(App->AssetHandles.Output1);
+        App->AssetHandles.Output1 = PlatformCreateRenderOutput(GlobalOutputWidth, GlobalOutputHeight);
     }
 }
 
