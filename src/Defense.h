@@ -34,10 +34,15 @@ enum structure_type : u8
     Structure_House
 };
 
+struct entity_handle
+{
+    i32 Index;
+};
+
 enum entity_type : u32
 {
     Entity_Null,
-    Entity_WorldRegion,
+    Entity_WorldHex,
     Entity_Foliage,
     Entity_Farm,
     Entity_Structure,
@@ -53,11 +58,18 @@ struct entity
     f32 Angle;
     i32 Owner;
     i32 Parent;
+    i32 Region;
     v4 Color;
     foliage_type FoliageType;
     structure_type StructureType;
     i8 Level;
-    
+};
+
+struct world_region
+{
+    v2 Center;
+    entity_handle Hexes[32];
+    int HexCount;
 };
 
 struct world
@@ -65,12 +77,15 @@ struct world
     f32 X0, Y0;
     f32 Width, Height;
     
-    f32 RegionSize;
+    f32 HexSize;
     
     int Rows, Cols;
     
     entity Entities[2048];
     u32 EntityCount;
+    
+    world_region Regions[16];
+    int RegionCount;
 };
 
 struct editor
@@ -108,7 +123,7 @@ struct tower
     tower_type Type;
     
     v2 P;
-    u32 RegionIndex;
+    u32 HexIndex;
     f32 Health;
     
     v2 Target;
@@ -156,7 +171,7 @@ enum player_request_type
     Request_EndTurn,
     Request_TargetTower,
     Request_Throw,
-    Request_UpgradeRegion,
+    Request_UpgradeHex,
     Request_BuildFarm,
     Request_UpgradeWall,
 };
@@ -167,7 +182,7 @@ struct player_request
     
     //Type == PlaceTower
     tower_type TowerType;
-    u32        TowerRegionIndex;
+    u32        TowerHexIndex;
     v2         TowerP;
     
     //Type == AimTower
@@ -179,7 +194,7 @@ struct player_request
     v3 Direction;
     
     //Type == UpgradeRegion
-    u32 RegionIndex;
+    u32 HexIndex;
 };
 
 enum animation_type : u32
@@ -266,12 +281,12 @@ struct game_state
     
     //
     v3 HoveringWorldP;
-    entity* HoveringRegion;
-    u32 HoveringRegionIndex;
+    entity* HoveringHex;
+    u32 HoveringHexIndex;
     
-    v3 RegionOutlineP;
-    v3 RegionOutlineTargetP;
-    f32 RegionOutlineAlpha;
+    v3 HexOutlineP;
+    v3 HexOutlineTargetP;
+    f32 HexOutlineAlpha;
     
     //Placing tower
     v3 TowerPlaceIndicatorP;
@@ -323,14 +338,14 @@ struct defense_assets
     model_textures ModelTextures;
     cube_map Skybox;
     
-    model_handle WorldRegion, WorldRegionLowPoly, WorldRegionSkirt;
+    model_handle WorldHex, WorldHexLowPoly, WorldHexSkirt;
     model_handle PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
     model_handle ModularWood, House, House07;
     model_handle Castle, Turret, Mine, Tower, Fence05;
     
     vertex_buffer_handle GUIWholeScreen;
     
-    model_handle RegionOutline;
+    model_handle HexOutline;
 };
 
 struct map_file_header
@@ -385,4 +400,4 @@ enum
 };
 
 ray_collision WorldCollision(world* World, game_assets* Assets, defense_assets* GameAssets, v3 Ray0, v3 RayDirection);
-vertex_buffer_handle CreateRegionOutlineMesh(game_assets* Assets);
+vertex_buffer_handle CreateHexOutlineMesh(game_assets* Assets);

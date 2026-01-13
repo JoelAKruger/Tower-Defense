@@ -132,9 +132,9 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     SetModelLocalTransform(Assets, "House_07", ScaleTransform(0.008f));
     SetModelLocalTransform(Assets, "Fence_05", ScaleTransform(0.245f));
     
-    Handles->WorldRegion = GetModelHandle(Assets, "Circle");
-    Handles->WorldRegionLowPoly = GetModelHandle(Assets, "Circle_LowPoly");
-    Handles->WorldRegionSkirt = GetModelHandle(Assets, "HexagonSkirt");
+    Handles->WorldHex = GetModelHandle(Assets, "Circle");
+    Handles->WorldHexLowPoly = GetModelHandle(Assets, "Circle_LowPoly");
+    Handles->WorldHexSkirt = GetModelHandle(Assets, "HexagonSkirt");
     Handles->PinkFlower = GetModelHandle(Assets, "2FPinkPlant_Plane.084");
     Handles->Bush = GetModelHandle(Assets, "Bush2_Cube.046");
     Handles->RibbonPlant = GetModelHandle(Assets, "RibbonPlant2_Plane.079");
@@ -161,7 +161,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->GUIWholeScreen = CreateVertexBuffer(Assets, Vertices, ArrayCount(Vertices) * sizeof(gui_vertex),
                                                  D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, sizeof(gui_vertex));
     
-    Handles->RegionOutline = CreateRegionOutlineMesh(Assets);
+    Handles->HexOutline = CreateHexOutlineMesh(Assets);
     
 #define LOG 1
 #if LOG == 1
@@ -351,7 +351,7 @@ GetHexagonVertexPositions(v2 P, f32 Radius, memory_arena* Arena)
 }
 
 static vertex_buffer_handle
-CreateRegionOutlineMesh(game_assets* Assets)
+CreateHexOutlineMesh(game_assets* Assets)
 {
     span<v2> HexagonVertices = GetHexagonVertexPositions(V2(0, 0), 1.0f, Assets->Allocator.Transient);
     

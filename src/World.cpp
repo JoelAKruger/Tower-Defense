@@ -1,7 +1,7 @@
 static v2
-GetRegionVertex(entity* Region, i32 Index)
+GetHexVertex(entity* Hex, i32 Index)
 {
-    Assert(Region->Type == Entity_WorldRegion);
+    Assert(Hex->Type == Entity_WorldHex);
     
     v2 Offsets[6] = {
         {0.0f, 1.0f},
@@ -12,27 +12,27 @@ GetRegionVertex(entity* Region, i32 Index)
         {-0.86603f, 0.5f}
     };
     
-    Assert(Region->Type == Entity_WorldRegion);
+    Assert(Hex->Type == Entity_WorldHex);
     u32 VertexIndex = (ArrayCount(Offsets) + Index) % (ArrayCount(Offsets));
     
-    v2 Result = Region->P.XY + Region->Size * Offsets[VertexIndex];
+    v2 Result = Hex->P.XY + Hex->Size * Offsets[VertexIndex];
     return Result;
 }
 
 // Unused
 static span<entity*>
-GetRegionNeighbours(world* World, entity* Region, memory_arena* Arena)
+GetHexNeighbours(world* World, entity* Hex, memory_arena* Arena)
 {
-    Assert(Region->Type == Entity_WorldRegion);
+    Assert(Hex->Type == Entity_WorldHex);
     
     dynamic_array<entity*> Result = {.Arena = Arena};
     
     for (u64 EntityIndex = 0; EntityIndex < World->EntityCount; EntityIndex++)
     {
         entity* Entity = World->Entities + EntityIndex;
-        if (Entity != Region && 
-            Entity->Type == Entity_WorldRegion && 
-            Length(Entity->P - Region->P) < 2.5f * Region->Size)
+        if (Entity != Hex && 
+            Entity->Type == Entity_WorldHex && 
+            Length(Entity->P - Hex->P) < 2.5f * Hex->Size)
         {
             Append(&Result, Entity);
         }
@@ -42,9 +42,9 @@ GetRegionNeighbours(world* World, entity* Region, memory_arena* Arena)
 }
 
 static bool
-RegionsAreNeighbours(entity* A, entity* B)
+HexesAreNeighbours(entity* A, entity* B)
 {
-    Assert(A->Type == Entity_WorldRegion && B->Type == Entity_WorldRegion);
+    Assert(A->Type == Entity_WorldHex && B->Type == Entity_WorldHex);
     Assert(A->Size == B->Size);
     
     return (Length(A->P - B->P) < 2.5f * A->Size);
@@ -52,7 +52,7 @@ RegionsAreNeighbours(entity* A, entity* B)
 
 /*
 static v2
-GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
+GetLocalHexVertex(game_state* Game, u64 EntityIndex, i64 Index)
 {
     v3 P = GetEntityP(Game, EntityIndex);
     f32 Size = Game->GlobalState.World.Entities[EntityIndex].Size;
@@ -75,7 +75,7 @@ GetLocalRegionVertex(game_state* Game, u64 EntityIndex, i64 Index)
 static bool
 IsWater(entity* Entity)
 {
-    Assert(Entity->Type == Entity_WorldRegion);
+    Assert(Entity->Type == Entity_WorldHex);
     f32 LandZ = 0.1f;
     return (Entity->P.Z > LandZ);
 }
@@ -94,20 +94,20 @@ LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
 }
 
 static bool
-InRegion(entity* Region, v2 WorldPos)
+InHex(entity* Hex, v2 WorldPos)
 {
-    Assert(Region->Type == Entity_WorldRegion);
+    Assert(Hex->Type == Entity_WorldHex);
     
     v2 A0 = WorldPos;
     
-    v2 A1 = Region->P.XY;
+    v2 A1 = Hex->P.XY;
     
     u32 IntersectCount = 0;
     
     for (u32 TestIndex = 0; TestIndex < 6; TestIndex++)
     {
-        v2 B0 = GetRegionVertex(Region, TestIndex);
-        v2 B1 = GetRegionVertex(Region, TestIndex + 1);
+        v2 B0 = GetHexVertex(Hex, TestIndex);
+        v2 B1 = GetHexVertex(Hex, TestIndex + 1);
         
         if (LinesIntersect(A0, A1, B0, B1))
         {
@@ -119,15 +119,15 @@ InRegion(entity* Region, v2 WorldPos)
 }
 
 static f32
-DistanceInsideRegion(entity* Region, v2 P)
+DistanceInsideHex(entity* Hex, v2 P)
 {
-    Assert(Region->Type == Entity_WorldRegion);
+    Assert(Hex->Type == Entity_WorldHex);
     
     f32 MinDistance = 1000.0f;
     for (u32 VertexIndex = 0; VertexIndex < 6; VertexIndex++)
     {
-        v2 A = GetRegionVertex(Region, VertexIndex);
-        v2 B = GetRegionVertex(Region, VertexIndex + 1);
+        v2 A = GetHexVertex(Hex, VertexIndex);
+        v2 B = GetHexVertex(Hex, VertexIndex + 1);
         
         v2 AP = P - A;
         v2 AB = B - A;
@@ -167,7 +167,7 @@ struct nearest_tower
 };
 
 static nearest_tower
-NearestTowerTo(v2 P, global_game_state* Game, u32 RegionIndex)
+NearestTowerTo(v2 P, global_game_state* Game, u32 HexIndex)
 {
     f32 NearestDistanceSq = 10000.0f;
     tower* Nearest = 0;
@@ -175,7 +175,7 @@ NearestTowerTo(v2 P, global_game_state* Game, u32 RegionIndex)
     for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
     {
         tower* Tower = Game->Towers + TowerIndex;
-        if (Tower->RegionIndex == RegionIndex)
+        if (Tower->HexIndex == HexIndex)
         {
             f32 DistSq = LengthSq(Tower->P - P);
             if (DistSq < NearestDistanceSq)
@@ -276,23 +276,72 @@ GetPlayerColor(u64 PlayerIndex)
 }
 
 static v2
-GridPositionToRegionPosition(world* World, int GridX, int GridY)
+GridPositionToHexPosition(world* World, int GridX, int GridY)
 {
     int N = 3;
     
     f32 dX = (World->Width / World->Cols);
     f32 dY = 0.866f * World->Height / World->Rows;
     
-    f32 RegionX = World->X0 + GridX * dX;
-    f32 RegionY = World->Y0 + GridY * dY;
+    f32 HexX = World->X0 + GridX * dX;
+    f32 HexY = World->Y0 + GridY * dY;
     
     if (GridY % 2 == 1)
     {
-        RegionX += 0.5f * dX;
+        HexX += 0.5f * dX;
     }
     
-    v2 Result = V2(RegionX, RegionY);
+    v2 Result = V2(HexX, HexY);
     return Result;
+}
+
+struct nearest_region
+{
+    f32 Distance;
+    int Region;
+};
+
+static nearest_region
+NearestRegionTo(v2 P, world* World)
+{
+    nearest_region Result = {
+        .Distance = FLT_MAX,
+        .Region = -1
+    };
+    
+    for (int I = 0; I < World->RegionCount; I++)
+    {
+        f32 Dist = Distance(P, World->Regions[I].Center);
+        if (Dist < Result.Distance)
+        {
+            Result.Distance = Dist;
+            Result.Region = I;
+        }
+    }
+    
+    return Result;
+}
+
+static void
+CreateRegionCenters(world* World)
+{
+    f32 MinDistance = 0.2f;
+    int Count = 0;
+    
+    while (Count < 1000 && World->RegionCount < ArrayCount(World->Regions))
+    {
+        v2 MinP = GridPositionToHexPosition(World, 7, 7);
+        v2 MaxP = GridPositionToHexPosition(World, World->Cols - 7, World->Rows - 5);
+        v2 RandomP = V2(RandomBetween(MinP.X, MaxP.X),
+                        RandomBetween(MinP.Y, MaxP.Y));
+        
+        if (NearestRegionTo(RandomP, World).Distance >= MinDistance)
+        {
+            World->Regions[World->RegionCount++].Center = RandomP;
+        }
+        
+        Count++;
+    }
 }
 
 static void
@@ -323,205 +372,61 @@ CreateWorld(world* World, u64 PlayerCount)
     World->Rows = 20;
     World->Cols = 20;
     
-    World->RegionSize = 0.5f * World->Height / World->Rows;
+    World->HexSize = 0.5f * World->Height / World->Rows;
+    
+    CreateRegionCenters(World);
     
     for (int Y = 0; Y < World->Rows; Y++)
     {
         for (int X = 0; X < World->Cols; X++)
         {
-            entity Region = {.Type = Entity_WorldRegion};
+            entity Hex = {.Type = Entity_WorldHex};
             
-            Region.Size = 0.97f * World->RegionSize / 0.866f;
-            Region.P.XY = GridPositionToRegionPosition(World, X, Y);
+            Hex.Size = 0.97f * World->HexSize / 0.866f;
+            Hex.P.XY = GridPositionToHexPosition(World, X, Y);
             
-            f32 RegionHeight = GetWorldHeight(Region.P.XY, Seed);
-            Region.P.Z = 0.1f;
+            f32 HexHeight = GetWorldHeight(Hex.P.XY, Seed);
+            Hex.P.Z = 0.1f;
             
             bool GenerateFoliage = false;
-            bool RegionIsWater = (RegionHeight < 0.5f);
-            if (RegionIsWater)
+            bool HexIsWater = (HexHeight < 0.5f);
+            if (HexIsWater)
             {
-                Region.Owner = -1;
-                Region.Color = GetWaterColor(RegionHeight);
-                Region.P.Z = 0.25f * (1.0f - RegionHeight);
+                Hex.Owner = -1;
+                Hex.Color = GetWaterColor(HexHeight);
+                Hex.P.Z = 0.25f * (1.0f - HexHeight);
                 
                 //Prevent z-fighting with water
-                if (Region.P.Z < 0.13f)
+                if (Hex.P.Z < 0.13f)
                 {
-                    Region.P.Z = 0.13f;
+                    Hex.P.Z = 0.13f;
                 }
             }
             else
             {
-                bool RegionIsFoliage = Random() > 0.5f;
-                Region.P.Z = 0.1f;
+                bool HexIsFoliage = Random() > 0.5f;
+                Hex.P.Z = 0.1f;
                 
-                if (RegionIsFoliage)
+                if (HexIsFoliage)
                 {
                     GenerateFoliage = true;
-                    Region.Owner = -1;
-                    Region.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
+                    Hex.Owner = -1;
+                    Hex.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
                 }
                 else
                 {
-                    Region.Owner = RandomBetween(0, PlayerCount - 1);
-                    Region.Color = GetPlayerColor(Region.Owner);
+                    Hex.Owner = RandomBetween(0, PlayerCount - 1);
+                    Hex.Color = GetPlayerColor(Hex.Owner);
                 }
             }
             
-            u64 RegionIndex = AddEntity(World, Region);
+            Hex.Region = NearestRegionTo(Hex.P.XY, World).Region;
+            
+            u64 HexIndex = AddEntity(World, Hex);
         };
     }
     
     GenerateFoliage(World, &Arena);
-    
-    //Add structures
-    /*
-    entity* A = World->Entities + 0x60;
-    if (A->Type == Entity_WorldRegion && !IsWater(A))
-    {
-        int N = 4;
-        for (int U = -N; U < N; U++)
-        {
-            for (int V = -N; V < N; V++)
-            {
-                bool DoBottom = V == N-1;
-                bool DoTop = V == N-1;
-                
-                if (DoBottom)
-                {
-                    tile_position P = {.GridX = A->TilePosition.GridX, .GridY = A->TilePosition.GridY, 
-                        .TileX = U, .TileY = V, .Top = false};
-                    
-                    entity Pebble = {
-                        .Type = Entity_Foliage,
-                        .Size = 0.01f,
-                        .P = V3(TilePositionToWorldPosition(World, P), A->P.Z),
-                        .Angle = 0,
-                        .Owner = A->Owner,
-                        .Parent = (i32) 0x60,
-                        .FoliageType = Foliage_Rock,
-                        .TilePositionIsValid = true,
-                        .TilePosition = P
-                    };
-                    
-                    AddEntity(World, Pebble);
-                }
-                
-                if (DoTop)
-                {
-                    tile_position P = {.GridX = A->TilePosition.GridX, .GridY = A->TilePosition.GridY, 
-                        .TileX = U, .TileY = V, .Top = true};
-                    
-                    entity Pebble = {
-                        .Type = Entity_Foliage,
-                        .Size = 0.01f,
-                        .P = V3(TilePositionToWorldPosition(World, P), A->P.Z),
-                        .Angle = 0,
-                        .Owner = A->Owner,
-                        .Parent = (i32) 0x60,
-                        .FoliageType = Foliage_Rock,
-                        .TilePositionIsValid = true,
-                        .TilePosition = P
-                    };
-                    
-                    AddEntity(World, Pebble);
-                }
-            }
-        }
-    }
-    */
-    
-    /*
-    dynamic_array<entity*> PathEnds = {.Arena = &Arena};
-    
-    for (u64 RegionIndex = 0; RegionIndex < World->EntityCount; RegionIndex++)
-    {
-        entity* Region = World->Entities + RegionIndex;
-        if (Region->Type == Entity_WorldRegion &&
-            !IsWater(Region))
-        {
-            tile_position Start = {.GridX = Region->TilePosition.GridX, .GridY = Region->TilePosition.GridY};
-            entity* PathEnd = CreatePathForRegion(World, Start, &Arena);
-            Append(&PathEnds, PathEnd);
-        }
-    }
-    */
-    
-    /*
-    struct bridge
-    {
-        tile_position P0, P1;
-    };
-    
-    dynamic_array<bridge> Bridges = {.Arena = &Arena};
-    span<region_edge> DisallowedEdges = AllocSpan(&Arena, region_edge, 1);
-    
-    for (int RegionIndex = 0; RegionIndex < World->EntityCount; RegionIndex++)
-    {
-        entity* Region = World->Entities + RegionIndex;
-        tile_position P = Region->TilePosition;
-        
-        if (Region->Type == Entity_WorldRegion && !IsWater(Region))
-        {
-            int MaxRegionCount = 5;
-            for (int RegionCount = 0; RegionCount < MaxRegionCount; RegionCount++)
-            {
-                entity* PathEnd = CreatePathForRegion(World, P, &Arena, DisallowedEdges, RegionIndex);
-                if (!PathEnd)
-                {
-                    break;
-                }
-                
-                tile_position End = PathEnd->TilePosition;
-                
-                if (!TileIsOnEdge(End))
-                {
-                    break;
-                }
-                
-                DisallowedEdges[0] = GetOppositeEdgeType(GetTileEdgeType(End));
-                tile_position NewP = GetOppositeTileFromEdge(End);
-                
-                u64 EndRegionIndex = GetWorldRegionForTilePosition(World, NewP);
-                if (EndRegionIndex == 0)
-                {
-                    break;
-                }
-                
-                entity* EndRegion = World->Entities + EndRegionIndex;
-                if (IsWater(EndRegion))
-                {
-                    break;
-                }
-                
-                if (RegionCount != MaxRegionCount - 1)
-                {
-                    Append(&Bridges, {.P0 = End, .P1 = NewP});
-                }
-                
-                P = NewP;
-            }
-        }
-    }
-    
-    
-    for (bridge Bridge : Bridges)
-    {
-        v2 P0 = TilePositionToWorldPosition(World, Bridge.P0);
-        v2 P1 = TilePositionToWorldPosition(World, Bridge.P1);
-        
-        entity BridgeEntity = {
-            .Type = Entity_Structure,
-            .P = V3(0.5f * (P0 + P1), 0.1f),
-            .Angle = VectorAngle(P1 - P0),
-            .Owner = 0,
-            .StructureType = Structure_ModularWood
-        };
-        
-        AddEntity(World, BridgeEntity);
-    }
-    */
     
 }
 
@@ -560,7 +465,7 @@ GetNearestFoliage(world* World, v3 P)
 }
 
 static u64
-GetWorldRegionIndex(world* World, v2 P)
+GetWorldHexIndex(world* World, v2 P)
 {
     u64 Result = 0;
     
@@ -568,7 +473,7 @@ GetWorldRegionIndex(world* World, v2 P)
     {
         entity* Entity = World->Entities + EntityIndex;
         
-        if (Entity->Type == Entity_WorldRegion && InRegion(Entity, P))
+        if (Entity->Type == Entity_WorldHex && InHex(Entity, P))
         {
             Result = EntityIndex;
             break;
@@ -622,24 +527,24 @@ GenerateFoliage(world* World, memory_arena* Arena)
     {
         v2 TestP = V2(World->X0 + Random() * World->Width, World->Y0 + Random() * World->Height);
         
-        u64 RegionIndex = GetWorldRegionIndex(World, TestP);
-        entity* Region = World->Entities + RegionIndex;
+        u64 HexIndex = GetWorldHexIndex(World, TestP);
+        entity* Hex = World->Entities + HexIndex;
         
-        if (RegionIndex && IsWater(Region))
+        if (HexIndex && IsWater(Hex))
         {
             v3 P = V3(TestP, 0);
-            foliage_type FoliageType = RandomFoliage(IsWater(Region));
+            foliage_type FoliageType = RandomFoliage(IsWater(Hex));
             f32 Size = GetDefaultSizeOf(FoliageType) * RandomBetween(0.5f, 1.5f);
-            f32 MinDistanceInsideRegion = 0.5f * Size;
+            f32 MinDistanceInsideHex = 0.5f * Size;
             nearest_foliage NearestFoliage = GetNearestFoliage(World, P);
             
             if ((!IsValid(NearestFoliage) || NearestFoliage.Distance >= Size + NearestFoliage.Foliage->Size) &&
-                DistanceInsideRegion(Region, P.XY) >= MinDistanceInsideRegion)
+                DistanceInsideHex(Hex, P.XY) >= MinDistanceInsideHex)
             {
                 entity Foliage = {.Type = Entity_Foliage};
                 Foliage.FoliageType = FoliageType;
                 Foliage.P = P;
-                Foliage.Parent = RegionIndex;
+                Foliage.Parent = HexIndex;
                 Foliage.Size = Size;
                 
                 AddEntity(World, Foliage);

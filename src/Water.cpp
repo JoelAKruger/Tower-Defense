@@ -8,10 +8,10 @@ static bool
 PointOnLand(world* World, v2 P)
 {
     bool Result = false;
-    for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
+    for (u64 HexIndex = 1; HexIndex < World->EntityCount; HexIndex++)
     {
-        entity* Region = World->Entities + RegionIndex;
-        if (Region->Type == Entity_WorldRegion && !IsWater(Region) && InRegion(Region, P))
+        entity* Hex = World->Entities + HexIndex;
+        if (Hex->Type == Entity_WorldHex && !IsWater(Hex) && InHex(Hex, P))
         {
             Result = true;
             break;

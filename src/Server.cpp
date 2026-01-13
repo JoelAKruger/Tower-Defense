@@ -123,7 +123,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
                 //TODO: Assert position, region, tower type are valid!
                 
                 Tower.P = Request->TowerP;
-                Tower.RegionIndex = Request->TowerRegionIndex;
+                Tower.HexIndex = Request->TowerHexIndex;
                 Tower.Health = 1.0f;
                 
                 Game->Towers[Game->TowerCount++] = Tower;
@@ -192,25 +192,25 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             
             Log("T = %f\n", Collision.T);
         } break;
-        case Request_UpgradeRegion:
+        case Request_UpgradeHex:
         {
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
             //TODO: Verify index is valid and entity type is correct
-            entity* Region = Game->World.Entities + Request->RegionIndex;
-            u64 MaxRegionLevel = 1;
+            entity* Hex = Game->World.Entities + Request->HexIndex;
+            u64 MaxHexLevel = 1;
             
-            if (Region->Level < MaxRegionLevel)
+            if (Hex->Level < MaxHexLevel)
             {
-                Region->Level++;
-                v3 NewP = Region->P + V3(0.0f, 0.0f, -0.01f);
+                Hex->Level++;
+                v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
                 
                 //Play animation
                 animation Animation = {
                     .Type = Animation_Entity,
-                    .P0 = Region->P,
+                    .P0 = Hex->P,
                     .P1 = NewP,
-                    .EntityIndex = Request->RegionIndex
+                    .EntityIndex = Request->HexIndex
                 };
                 
                 server_packet_message Packet = {
@@ -221,10 +221,10 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
                 
                 Append(&ServerPackets, Packet);
                 
-                v4 NewColor = GetPlayerColor(Region->Owner) - 0.2f * Region->Level * V4(1, 1, 1, 0);
+                v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
                 
-                Region->P = NewP;
-                Region->Color = NewColor;
+                Hex->P = NewP;
+                Hex->Color = NewColor;
                 *FlushWorld = true;
             }
         } break;
@@ -233,14 +233,14 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
             //TODO: Verify index is valid and entity type is correct
-            entity* Region = Game->World.Entities + Request->RegionIndex;
-            Assert(Region->Owner == SenderIndex);
+            entity* Hex = Game->World.Entities + Request->HexIndex;
+            Assert(Hex->Owner == SenderIndex);
             
             //Add farm
             entity Farm = {
                 .Type = Entity_Farm,
                 .Owner = (int)SenderIndex,
-                .Parent = (int)Request->RegionIndex
+                .Parent = (int)Request->HexIndex
             };
             u64 EntityIndex = AddEntity(&Game->World, Farm);
             
@@ -267,12 +267,12 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
             //TODO: Verify index is valid and entity type is correct
-            entity* Region = Game->World.Entities + Request->RegionIndex;
-            Assert(Region->Owner == SenderIndex);
+            entity* Hex = Game->World.Entities + Request->HexIndex;
+            Assert(Hex->Owner == SenderIndex);
             entity Wall = {
                 .Type = Entity_Fence,
                 .Owner = (int)SenderIndex,
-                .Parent = (int)Request->RegionIndex
+                .Parent = (int)Request->HexIndex
             };
             
             AddEntity(&Game->World, Wall);

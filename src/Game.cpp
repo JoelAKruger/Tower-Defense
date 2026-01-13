@@ -142,15 +142,15 @@ GetModel(defense_assets* Assets, entity* Entity, bool LowPoly)
     model_handle Handle = 0;
     switch (Entity->Type)
     {
-        case Entity_WorldRegion: 
+        case Entity_WorldHex: 
         {
             if (LowPoly)
             {
-                Handle = Assets->WorldRegionLowPoly;
+                Handle = Assets->WorldHexLowPoly;
             }
             else
             {
-                Handle = Assets->WorldRegion; 
+                Handle = Assets->WorldHex; 
             }
         } break;
         case Entity_Foliage: 
@@ -421,7 +421,7 @@ SetMode(game_state* GameState, game_mode NewMode)
 static v3
 GetTowerP(game_state* Game, tower* Tower)
 {
-    f32 TowerZ = Game->GlobalState.World.Entities[Tower->RegionIndex].P.Z;
+    f32 TowerZ = Game->GlobalState.World.Entities[Tower->HexIndex].P.Z;
     v3 Result = V3(Tower->P, TowerZ);
     return Result;
 }
@@ -430,7 +430,7 @@ static void
 RunTowerEditor(game_state* Game, u32 TowerIndex, game_input* Input, memory_arena* Arena)
 {
     tower* Tower = Game->GlobalState.Towers + TowerIndex;
-    f32 TowerZ = Game->GlobalState.World.Entities[Tower->RegionIndex].P.Z;
+    f32 TowerZ = Game->GlobalState.World.Entities[Tower->HexIndex].P.Z;
     
     //Draw new target
     if (Game->TowerEditMode == TowerEdit_SetTarget)
@@ -686,8 +686,8 @@ RunLobby(game_state* GameState, game_assets* Assets, defense_assets* GameAssets,
 struct cursor_target
 {
     v3 WorldP;
-    u64 HoveringRegionIndex;
-    entity* HoveringRegion;
+    u64 HoveringHexIndex;
+    entity* HoveringHex;
 };
 
 static m4x4
@@ -697,7 +697,7 @@ GetModelTransformOfEntity(game_state* Game, u64 EntityIndex)
     entity* Entity = Game->GlobalState.World.Entities + EntityIndex;
     switch (Entity->Type)
     {
-        case Entity_WorldRegion:
+        case Entity_WorldHex:
         {
             v3 P = GetEntityP(Game, EntityIndex);
             Result= ScaleTransform(Entity->Size) * TranslateTransform(P);
@@ -724,12 +724,12 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
     
     v3 RayDirection = CursorP - Game->CameraP;
     
-    for (u64 RegionIndex = 1; RegionIndex < World->EntityCount; RegionIndex++)
+    for (u64 HexIndex = 1; HexIndex < World->EntityCount; HexIndex++)
     {
-        entity* Entity = World->Entities + RegionIndex;
-        if (Entity->Type == Entity_WorldRegion && DistanceSq(CursorP.XY, Entity->P.XY) < Square(MaxDistance))
+        entity* Entity = World->Entities + HexIndex;
+        if (Entity->Type == Entity_WorldHex && DistanceSq(CursorP.XY, Entity->P.XY) < Square(MaxDistance))
         {
-            m4x4 Transform = GetModelTransformOfEntity(Game, RegionIndex);
+            m4x4 Transform = GetModelTransformOfEntity(Game, HexIndex);
             model_handle Model = GetModel(GameAssets, Entity, Model_LowPoly);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
@@ -737,8 +737,8 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
             {
                 NearestCollision = Collision;
                 Result.WorldP = Collision.P;
-                Result.HoveringRegionIndex = RegionIndex;
-                Result.HoveringRegion = Entity;
+                Result.HoveringHexIndex = HexIndex;
+                Result.HoveringHex = Entity;
             }
         }
     }
@@ -856,12 +856,12 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     {
         TimeBlock("GetCursorTarget");
         cursor_target Cursor = GetCursorTarget(GameState, Assets, AssetHandles, Input);
-        v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringRegionIndex);
-        if (Cursor.HoveringRegion && Cursor.WorldP.Z < CursorEntityP.Z + 0.015f)
+        v3 CursorEntityP = GetEntityP(GameState, Cursor.HoveringHexIndex);
+        if (Cursor.HoveringHex && Cursor.WorldP.Z < CursorEntityP.Z + 0.015f)
         {
             GameState->HoveringWorldP = Cursor.WorldP;
-            GameState->HoveringRegionIndex = Cursor.HoveringRegionIndex;
-            GameState->HoveringRegion = Cursor.HoveringRegion;
+            GameState->HoveringHexIndex = Cursor.HoveringHexIndex;
+            GameState->HoveringHex = Cursor.HoveringHex;
         }
         
     }
@@ -899,7 +899,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         {
             if (Input->ButtonDown & Button_LMouse)
             {
-                nearest_tower NearestTower = NearestTowerTo(GameState->HoveringWorldP.XY, &GameState->GlobalState, GameState->HoveringRegionIndex);
+                nearest_tower NearestTower = NearestTowerTo(GameState->HoveringWorldP.XY, &GameState->GlobalState, GameState->HoveringHexIndex);
                 if (NearestTower.Distance < TowerRadius)
                 {
                     SetMode(GameState, Mode_EditTower);
@@ -912,13 +912,13 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         case Mode_Place:
         {
             //TODO: This might crash
-            v3 P = GameState->HoveringRegion->P;
+            v3 P = GameState->HoveringHex->P;
             
-            bool Placeable = (GameState->HoveringRegion &&
-                              !IsWater(GameState->HoveringRegion) &&
-                              GameState->HoveringRegion->Owner == GameState->MyClientID /* && 
-                              DistanceInsideRegion(GameState->HoveringRegion, P) > TowerRadius &&*/
-                              /*NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringRegionIndex).Distance > 2.0f * TowerRadius*/);
+            bool Placeable = (GameState->HoveringHex &&
+                              !IsWater(GameState->HoveringHex) &&
+                              GameState->HoveringHex->Owner == GameState->MyClientID /* && 
+                              DistanceInsideHex(GameState->HoveringHex, P) > TowerRadius &&*/
+                              /*NearestTowerTo(P, &GameState->GlobalState, GameState->HoveringHexIndex).Distance > 2.0f * TowerRadius*/);
             
             GameState->TowerPlaceIndicatorP = LinearInterpolate(GameState->TowerPlaceIndicatorP, P, 40.0f * SecondsPerFrame);
             
@@ -926,10 +926,10 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             
             if (Placeable)
             {
-                v4 RegionColor = GameState->HoveringRegion->Color;
+                v4 HexColor = GameState->HoveringHex->Color;
                 
                 f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)GameState->Time);
-                Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
+                Color = t * HexColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
             }
             
             Color = V4(0.7f * Color.RGB, 1.0f);
@@ -945,7 +945,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 
                 //TODO: This needs to be changed
                 Request.TowerP = P.XY;
-                Request.TowerRegionIndex = GameState->HoveringRegionIndex;
+                Request.TowerHexIndex = GameState->HoveringHexIndex;
                 Request.TowerType = Type;
                 
                 SendPacket(&Request);
@@ -961,15 +961,15 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         case Mode_CellUpgrade:
         {
             //TODO: Fix this
-            bool Upgradeable = (GameState->HoveringRegion &&
-                                !IsWater(GameState->HoveringRegion) &&
-                                GameState->HoveringRegion->Owner == GameState->MyClientID);
+            bool Upgradeable = (GameState->HoveringHex &&
+                                !IsWater(GameState->HoveringHex) &&
+                                GameState->HoveringHex->Owner == GameState->MyClientID);
             
             if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
-                player_request Request = {.Type = Request_UpgradeRegion};
+                player_request Request = {.Type = Request_UpgradeHex};
                 
-                Request.RegionIndex = GameState->HoveringRegionIndex;
+                Request.HexIndex = GameState->HoveringHexIndex;
                 
                 SendPacket(&Request);
             }
@@ -978,15 +978,15 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         case Mode_BuildFarm:
         {
             //TODO: Check the farm doesn't already exist
-            bool Buildable = (GameState->HoveringRegion &&
-                              !IsWater(GameState->HoveringRegion) &&
-                              GameState->HoveringRegion->Owner == GameState->MyClientID);
+            bool Buildable = (GameState->HoveringHex &&
+                              !IsWater(GameState->HoveringHex) &&
+                              GameState->HoveringHex->Owner == GameState->MyClientID);
             
             if (Buildable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
                 player_request Request = {.Type = Request_BuildFarm};
                 
-                Request.RegionIndex = GameState->HoveringRegionIndex;
+                Request.HexIndex = GameState->HoveringHexIndex;
                 
                 SendPacket(&Request);
             }
@@ -995,15 +995,15 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         case Mode_WallUpgrade:
         {
             //TODO: Check the farm doesn't already exist
-            bool Upgradeable = (GameState->HoveringRegion &&
-                                !IsWater(GameState->HoveringRegion) &&
-                                GameState->HoveringRegion->Owner == GameState->MyClientID);
+            bool Upgradeable = (GameState->HoveringHex &&
+                                !IsWater(GameState->HoveringHex) &&
+                                GameState->HoveringHex->Owner == GameState->MyClientID);
             
             if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
                 player_request Request = {.Type = Request_UpgradeWall};
                 
-                Request.RegionIndex = GameState->HoveringRegionIndex;
+                Request.HexIndex = GameState->HoveringHexIndex;
                 
                 SendPacket(&Request);
             }
@@ -1023,13 +1023,13 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         GameState->Mode == Mode_EditTower ||
         GameState->Mode == Mode_WallUpgrade)
     {
-        if (GameState->HoveringRegion)
+        if (GameState->HoveringHex)
         {
-            GameState->RegionOutlineTargetP = GetEntityP(GameState, GameState->HoveringRegionIndex);
+            GameState->HexOutlineTargetP = GetEntityP(GameState, GameState->HoveringHexIndex);
         }
     }
     
-    GameState->RegionOutlineP = LinearInterpolate(GameState->RegionOutlineP, GameState->RegionOutlineTargetP, 0.95f);
+    GameState->HexOutlineP = LinearInterpolate(GameState->HexOutlineP, GameState->HexOutlineTargetP, 0.95f);
     
     RenderWorld(&RenderGroup, GameState, Assets, AssetHandles);
     
@@ -1049,7 +1049,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         for (u32 TowerIndex = 0; TowerIndex < GameState->GlobalState.TowerCount; TowerIndex++)
         {
             tower* Tower = GameState->GlobalState.Towers + TowerIndex;
-            f32 TowerBaseZ = GameState->GlobalState.World.Entities[Tower->RegionIndex].P.Z;
+            f32 TowerBaseZ = GameState->GlobalState.World.Entities[Tower->HexIndex].P.Z;
             
             v3 DrawP = V3(Tower->P, TowerBaseZ) + V3(0.0f, 0.0f, -0.07f);
             v2 ScreenP = WorldToScreen(GameState, DrawP);
@@ -1065,22 +1065,22 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         }
     }
     
-    Log("%d\n", GameState->HoveringRegion);
-    if (GameState->HoveringRegion)
+    Log("%d\n", GameState->HoveringHex);
+    if (GameState->HoveringHex)
     {
-        string RegionText = {};
-        if (IsWater(GameState->HoveringRegion))
+        string HexText = {};
+        if (IsWater(GameState->HoveringHex))
         {
-            RegionText = String("Ocean");
+            HexText = String("Ocean");
         }
         else
         {
-            RegionText = ArenaPrint(Allocator.Transient, "Region %d: Owned by Player %d (Level %d)", 
-                                    GameState->HoveringRegionIndex, GameState->HoveringRegion->Owner, GameState->HoveringRegion->Level + 1);
+            HexText = ArenaPrint(Allocator.Transient, "Hex %d: Owned by Player %d (Level %d)", 
+                                 GameState->HoveringHexIndex, GameState->HoveringHex->Owner, GameState->HoveringHex->Level + 1);
         }
         
-        f32 Width = GUIStringWidth(RegionText, 0.1f);
-        GUI_DrawText(Assets->Font, RegionText, V2(-0.5f * Width, 0.9f));
+        f32 Width = GUIStringWidth(HexText, 0.1f);
+        GUI_DrawText(Assets->Font, HexText, V2(-0.5f * Width, 0.9f));
     }
     
     //Draw crosshair

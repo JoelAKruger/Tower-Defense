@@ -1,0 +1,24 @@
+-----Low priority-----
+Fix anti aliasing
+Settings menu
+Screen space ambient occlusion
+Separate engine and game
+Night time graphics
+Fog of war
+Animation when building objects
+Chat system
+
+-----Medium priority-----
+Tower aiming
+When placing turret, automatically aim at nearest enemy tower
+
+
+Win Condition: Own the whole upgraded world. There are two levels of tower tile.
+You will have to choose between upgrading or defending. Both will cost you. What could be the consequence of not defending a tile?
+UPGRADED TILES EARN YOU MORE RESOURCES
+so like 1 resource / non-upgraded tile; 2 or 3 resources / upgraded tile
+
+You can build defences (a fence), remove bridges, stuff like that
+
+Each region: upgrade defences (fence), attack (taller sniper tower), or farm
+Build / destroy bridges?

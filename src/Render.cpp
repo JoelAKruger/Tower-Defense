@@ -41,14 +41,12 @@ DrawSkybox(render_group* RenderGroup, defense_assets* Assets)
 }
 
 static void
-DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets* GameAssets, game_state* Game)
+DrawHexOutline(render_group* RenderGroup, defense_assets* GameAssets, game_state* Game, v3 P)
 {
-    v3 P = Game->RegionOutlineP;
-    
     f32 Z = P.Z - 0.001f;
-    m4x4 Transform = ScaleTransform(0.9f * Game->GlobalState.World.RegionSize) * TranslateTransform(V3(P.XY, Z));
+    m4x4 Transform = ScaleTransform(0.9f * Game->GlobalState.World.HexSize) * TranslateTransform(V3(P.XY, Z));
     
-    PushVertexBuffer(RenderGroup, GameAssets->RegionOutline, Transform);
+    PushVertexBuffer(RenderGroup, GameAssets->HexOutline, Transform);
     PushDoesNotCastShadow(RenderGroup);
     PushShader(RenderGroup, Shader_Color);
 }
@@ -85,19 +83,19 @@ DrawTowers(render_group* RenderGroup, game_state* Game, defense_assets* Assets)
     for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
         tower* Tower = Game->GlobalState.Towers + TowerIndex;
-        entity* Region = Game->GlobalState.World.Entities + Tower->RegionIndex;
-        v3 RegionP = GetEntityP(Game, Tower->RegionIndex);
+        entity* Hex = Game->GlobalState.World.Entities + Tower->HexIndex;
+        v3 HexP = GetEntityP(Game, Tower->HexIndex);
         
-        v4 RegionColor = Region->Color;
+        v4 HexColor = Hex->Color;
         
-        v4 Color = V4(0.7f * RegionColor.RGB, RegionColor.A);
+        v4 Color = V4(0.7f * HexColor.RGB, HexColor.A);
         if (Game->SelectedTower && TowerIndex == Game->SelectedTowerIndex)
         {
             f32 t = 0.5f + 0.25f * sinf(6.0f * (f32)Game->Time);
-            Color = t * RegionColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
+            Color = t * HexColor + (1.0f - t) * V4(1.0f, 1.0f, 1.0f, 1.0f);
         }
         
-        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, RegionP.Z), Color, Tower->Rotation);
+        DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, HexP.Z), Color, Tower->Rotation);
     }
 }
 
@@ -150,10 +148,10 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
 }
 
 static void
-DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
+DrawDirt(render_group* RenderGroup, game_state* Game, u64 HexIndex)
 {
 #if 0
-    v3 P = GetEntityP(Game, RegionIndex);
+    v3 P = GetEntityP(Game, HexIndex);
     v4 Color = {}; //V4(0.5f * V3(0.44f, 0.31f, 0.22f), 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
     f32 Z = P.Z - 0.001f;
@@ -163,9 +161,8 @@ DrawDirt(render_group* RenderGroup, game_state* Game, u64 RegionIndex)
     
     for (int TriangleIndex = 0; TriangleIndex < 6; TriangleIndex++)
     {
-        v2 VertexA = GetLocalRegionVertex(Game, RegionIndex, TriangleIndex);
-        v2 VertexB = GetLocalRegionVertex(Game, RegionIndex, TriangleIndex - 1);
-        
+        v2 VertexA = GetLocalHexVertex(Game, HexIndex, TriangleIndex);
+        v2 VertexB = GetLocalHexVertex(Game, HexIndex, TriangleIndex - 1);
         
         Vertices[TriangleIndex * 3 + 0] = {P, Normal, Color};
         Vertices[TriangleIndex * 3 + 1] = {V3(VertexB, Z), Normal, Color};
@@ -225,23 +222,23 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             entity* Entity = World->Entities + EntityIndex;
             switch (Entity->Type)
             {
-                case Entity_WorldRegion:
+                case Entity_WorldHex:
                 {
                     v3 P = GetEntityP(Game, EntityIndex);
                     m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
-                    span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldRegion, Transform);
+                    span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldHex, Transform);
                     Commands[0]->Color = Entity->Color;
                     Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
-                    Commands = PushModelNew(RenderGroup, GameAssets->WorldRegionSkirt, Transform);
+                    Commands = PushModelNew(RenderGroup, GameAssets->WorldHexSkirt, Transform);
                     Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
                 } break;
                 case Entity_Foliage:
                 {
                     Assert(Entity->Parent);
                     
-                    v3 RegionP = GetEntityP(Game, Entity->Parent);
+                    v3 HexP = GetEntityP(Game, Entity->Parent);
                     
-                    m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, RegionP.Z + Entity->P.Z);
+                    m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(Entity->P.X, Entity->P.Y, HexP.Z + Entity->P.Z);
                     model_handle Model = GetModel(GameAssets, Entity);
                     PushModelNew(RenderGroup, Model, Transform);
                 } break;
@@ -249,7 +246,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 {
                     Assert(Entity->Parent);
                     
-                    v3 RegionP = GetEntityP(Game, Entity->Parent);
+                    v3 HexP = GetEntityP(Game, Entity->Parent);
                     v3 FarmP = GetEntityP(Game, EntityIndex);
                     
                     DrawDirt(RenderGroup, Game, Entity->Parent);
@@ -257,7 +254,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     
                     for (v2 Offset : Offsets)
                     {
-                        v3 P = RegionP + FarmP + V3(World->Entities[Entity->Parent].Size * Offset, 0.0f);
+                        v3 P = HexP + FarmP + V3(World->Entities[Entity->Parent].Size * Offset, 0.0f);
                         
                         m4x4 Transform = ScaleTransform(0.01f) * TranslateTransform(P);
                         PushModelNew(RenderGroup, GameAssets->Grass, Transform);
@@ -275,9 +272,9 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 case Entity_Fence:
                 {
                     model_handle Model = GetModel(GameAssets, Entity);
-                    v3 RegionP = GetEntityP(Game, Entity->Parent);
+                    v3 HexP = GetEntityP(Game, Entity->Parent);
                     
-                    span<v2> Vertices = GetHexagonVertexPositions(RegionP.XY, 0.89f * World->RegionSize, Assets->Allocator.Transient);
+                    span<v2> Vertices = GetHexagonVertexPositions(HexP.XY, 0.89f * World->HexSize, Assets->Allocator.Transient);
                     
                     for (u64 VertexIndex = 0; VertexIndex < Vertices.Count; VertexIndex++)
                     {
@@ -286,9 +283,9 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                         
                         f32 Angle = VectorAngle(A - B);
                         
-                        v3 P = V3(A, RegionP.Z);
+                        v3 P = V3(A, HexP.Z);
                         
-                        m4x4 Transform = RotateTransform(-Angle - 0.01f) * ScaleTransform(0.9f * World->RegionSize) * TranslateTransform(P);
+                        m4x4 Transform = RotateTransform(-Angle - 0.01f) * ScaleTransform(0.9f * World->HexSize) * TranslateTransform(P);
                         PushTexturedModel(RenderGroup, Model, Transform);
                     }
                     
@@ -300,9 +297,11 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     }
     
     {
-        TimeBlock("DrawRegionOutline");
-        DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
+        TimeBlock("DrawHexOutline");
+        v3 HexP = Game->HexOutlineP;
+        DrawHexOutline(RenderGroup, GameAssets, Game, HexP);
     }
+    
     {
         TimeBlock("DrawTowers");
         DrawTowers(RenderGroup, Game, GameAssets);
