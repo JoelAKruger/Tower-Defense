@@ -37,6 +37,13 @@ Connect(string CustomAddress = {})
     CreateThread(0, 0, (LPTHREAD_START_ROUTINE)ClientNetworkThread, (LPVOID)Data, 0, 0);
 }
 
+static entity*
+GetEntity(world* World, entity_handle Entity)
+{
+    Assert(Entity.Index < World->EntityCount);
+    return World->Entities + Entity.Index;
+}
+
 static v3 
 GetEntityP(game_state* Game, u64 EntityIndex)
 {
@@ -1030,6 +1037,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     }
     
     GameState->HexOutlineP = LinearInterpolate(GameState->HexOutlineP, GameState->HexOutlineTargetP, 0.95f);
+    
     
     RenderWorld(&RenderGroup, GameState, Assets, AssetHandles);
     

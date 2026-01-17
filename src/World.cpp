@@ -41,6 +41,48 @@ GetHexNeighbours(world* World, entity* Hex, memory_arena* Arena)
     return ToSpan(Result);
 }
 
+//TODO: Optimise this
+static span<entity_handle>
+GetHexNeighbourHandles(world* World, entity* Hex, memory_arena* Arena)
+{
+    Assert(Hex->Type == Entity_WorldHex);
+    
+    v2i TargetGridPositions[6] = {};
+    
+    if (Hex->GridP.Y % 2 == 1)
+    {
+        TargetGridPositions[0] = {Hex->GridP.X + 1, Hex->GridP.Y + 1};
+        TargetGridPositions[1] = {Hex->GridP.X + 1, Hex->GridP.Y};
+        TargetGridPositions[2] = {Hex->GridP.X + 1, Hex->GridP.Y - 1};
+        TargetGridPositions[3] = {Hex->GridP.X, Hex->GridP.Y - 1};
+        TargetGridPositions[4] = {Hex->GridP.X - 1, Hex->GridP.Y};
+        TargetGridPositions[5] = {Hex->GridP.X, Hex->GridP.Y + 1};
+    }
+    else
+    {
+        TargetGridPositions[0] = {Hex->GridP.X, Hex->GridP.Y + 1};
+        TargetGridPositions[1] = {Hex->GridP.X + 1, Hex->GridP.Y};
+        TargetGridPositions[2] = {Hex->GridP.X, Hex->GridP.Y - 1};
+        TargetGridPositions[3] = {Hex->GridP.X - 1, Hex->GridP.Y - 1};
+        TargetGridPositions[4] = {Hex->GridP.X - 1, Hex->GridP.Y};
+        TargetGridPositions[5] = {Hex->GridP.X - 1, Hex->GridP.Y + 1};
+    }
+    
+    span<entity_handle> Result = AllocSpan(Arena, entity_handle, 6);
+    
+    for (u64 EntityIndex = 0; EntityIndex < World->EntityCount; EntityIndex++)
+    {
+        entity* Entity = World->Entities + EntityIndex;
+        if (Entity->Type == Entity_WorldHex && Contains(Entity->GridP, TargetGridPositions, ArrayCount(TargetGridPositions)))
+        {
+            int Index = IndexOf(Entity->GridP, TargetGridPositions);
+            Result[Index] = {(i32)EntityIndex};
+        }
+    }
+    
+    return Result;
+}
+
 static bool
 HexesAreNeighbours(entity* A, entity* B)
 {
@@ -48,6 +90,95 @@ HexesAreNeighbours(entity* A, entity* B)
     Assert(A->Size == B->Size);
     
     return (Length(A->P - B->P) < 2.5f * A->Size);
+}
+
+static bool
+AreApproxEqual(v2 A, v2 B, f32 Tolerance)
+{
+    return (Distance(A, B) <= Tolerance);
+}
+
+static span<span<v2>>
+GetRegionEdges(world* World, world_region* Region, memory_arena* Arena)
+{
+    Assert(Arena->Type == TRANSIENT);
+    
+    dynamic_array<line_segment> Lines = {.Arena = Arena};
+    
+    //Step 1. Get all edges
+    for (u64 HexIndex = 0; HexIndex < Region->HexCount; HexIndex++)
+    {
+        entity* Hex = GetEntity(World, Region->Hexes[HexIndex]);
+        span<entity_handle> Neighbours = GetHexNeighbourHandles(World, Hex, Arena);
+        
+        for (int NeighbourIndex = 0; NeighbourIndex < Neighbours.Count; NeighbourIndex++)
+        {
+            entity_handle Neighbour = Neighbours[NeighbourIndex];
+            
+            if (!Contains(Neighbour, Region->Hexes, Region->HexCount))
+            {
+                line_segment Line = {
+                    GetHexVertex(Hex, NeighbourIndex),
+                    GetHexVertex(Hex, NeighbourIndex + 1)
+                };
+                Append(&Lines, Line);
+            }
+        }
+    }
+    
+    //Step 2. Construct Areas
+    f32 Tolerance = 0.02f;
+    
+    u64 Iter = 0;
+    
+    dynamic_array<span<v2>> Result = {.Arena = Arena};
+    
+    while (Lines.Count > 0)
+    {
+        v2 Start = Lines[0].Start;
+        v2 Current = Lines[0].End;
+        RemoveAt(0, &Lines);
+        u64 CurrentIndex = 0;
+        dynamic_array<v2> Vertices = {.Arena = Arena};
+        Append(&Vertices, Start);
+        Append(&Vertices, Current);
+        
+        while (!AreApproxEqual(Start, Current, Tolerance))
+        {
+            for (u64 LineIndex = 0; LineIndex < Lines.Count; LineIndex++)
+            {
+                line_segment Line = Lines[LineIndex];
+                
+                if (AreApproxEqual(Current, Line.Start, Tolerance))
+                {
+                    Append(&Vertices, Line.End);
+                    Current = Line.End;
+                    CurrentIndex = LineIndex;
+                    
+                    RemoveAt(LineIndex, &Lines);
+                    LineIndex--;
+                    break;
+                }
+                else if (AreApproxEqual(Current, Line.End, Tolerance))
+                {
+                    Append(&Vertices, Line.Start);
+                    Current = Line.Start;
+                    CurrentIndex = LineIndex;
+                    
+                    RemoveAt(LineIndex, &Lines);
+                    LineIndex--;
+                    break;
+                }
+            }
+        }
+        
+        Append(&Result, ToSpan(Vertices));
+        Clear(&Vertices);
+        
+        Iter++;
+    }
+    
+    return ToSpan(Result);
 }
 
 /*
@@ -250,6 +381,8 @@ SetColor(tri* Tri, v4 Color)
 
 void GenerateFoliage(world* World, memory_arena* Arena);
 
+
+//TODO: Should return entity_handle
 static u64 
 AddEntity(world* World, entity Entity)
 {
@@ -323,12 +456,12 @@ NearestRegionTo(v2 P, world* World)
 }
 
 static void
-CreateRegionCenters(world* World)
+CreateRegionCenters(world* World, int Max = 100)
 {
     f32 MinDistance = 0.2f;
     int Count = 0;
     
-    while (Count < 1000 && World->RegionCount < ArrayCount(World->Regions))
+    while (Count < Max && World->RegionCount < ArrayCount(World->Regions))
     {
         v2 MinP = GridPositionToHexPosition(World, 7, 7);
         v2 MaxP = GridPositionToHexPosition(World, World->Cols - 7, World->Rows - 5);
@@ -344,6 +477,8 @@ CreateRegionCenters(world* World)
     }
 }
 
+
+
 static void
 CreateWorld(world* World, u64 PlayerCount)
 {
@@ -357,12 +492,12 @@ CreateWorld(world* World, u64 PlayerCount)
     static u32 Seed = 2001;
     Seed++;
     
-    /*
-    v4 Colors[4] = {
-        V4(0.4f, 0.8f, 0.35f, 1.0f),
-        V4(0.3f, 0.4f, 0.7f, 1.0f)
-    };
-*/
+    
+    //v4 Colors[4] = {
+    //V4(0.4f, 0.8f, 0.35f, 1.0f),
+    //V4(0.3f, 0.4f, 0.7f, 1.0f)
+    //};
+    
     
     World->X0 = -1.0f;
     World->Y0 = -1.0f;
@@ -382,6 +517,7 @@ CreateWorld(world* World, u64 PlayerCount)
         {
             entity Hex = {.Type = Entity_WorldHex};
             
+            Hex.GridP = {X, Y};
             Hex.Size = 0.97f * World->HexSize / 0.866f;
             Hex.P.XY = GridPositionToHexPosition(World, X, Y);
             
@@ -420,15 +556,128 @@ CreateWorld(world* World, u64 PlayerCount)
                 }
             }
             
-            Hex.Region = NearestRegionTo(Hex.P.XY, World).Region;
+            if (!HexIsWater)
+            {
+                Hex.Region = NearestRegionTo(Hex.P.XY, World).Region;
+            }
             
             u64 HexIndex = AddEntity(World, Hex);
+            
+            if (!HexIsWater)
+            {
+                world_region* Region = World->Regions + Hex.Region;
+                Region->Hexes[Region->HexCount++] = {(i32)HexIndex};
+                Assert(Region->HexCount < ArrayCount(Region->Hexes));
+            }
         };
     }
     
     GenerateFoliage(World, &Arena);
     
 }
+
+
+
+/*
+static void
+CreateWorld(world* World, u64 PlayerCount)
+{
+    *World = {};
+    AddEntity(World, {});
+    
+    memory_arena Arena = Win32CreateMemoryArena(Megabytes(1), TRANSIENT);
+    
+    Assert(PlayerCount <= 4);
+    
+    static u32 Seed = 2001;
+    Seed++;
+    
+    World->X0 = -1.0f;
+    World->Y0 = -1.0f;
+    World->Width  = 2.0f;
+    World->Height = 2.0f;
+    
+    World->Rows = 20;
+    World->Cols = 20;
+    
+    World->HexSize = 0.5f * World->Height / World->Rows;
+    
+    CreateRegionCenters(World, 1);
+    
+    v2i Land[] = {
+        {7, 7},
+        {8, 7},
+        {8, 8},
+        {9, 9},
+        {9, 10}
+    };
+    
+    for (int Y = 0; Y < World->Rows; Y++)
+    {
+        for (int X = 0; X < World->Cols; X++)
+        {
+            entity Hex = {.Type = Entity_WorldHex};
+            
+            Hex.GridP = {X, Y};
+            Hex.Size = 0.97f * World->HexSize / 0.866f;
+            Hex.P.XY = GridPositionToHexPosition(World, X, Y);
+            
+            bool Special = Contains(v2i{X, Y}, Land, ArrayCount(Land));
+            
+            f32 HexHeight = Special ? 1.0f : 0.4f;
+            
+            bool GenerateFoliage = false;
+            bool HexIsWater = (HexHeight < 0.5f);
+            if (HexIsWater)
+            {
+                Hex.Owner = -1;
+                Hex.Color = GetWaterColor(HexHeight);
+                Hex.P.Z = 0.25f * (1.0f - HexHeight);
+                
+                //Prevent z-fighting with water
+                if (Hex.P.Z < 0.13f)
+                {
+                    Hex.P.Z = 0.13f;
+                }
+            }
+            else
+            {
+                bool HexIsFoliage = Random() > 0.5f;
+                Hex.P.Z = 0.1f;
+                
+                if (HexIsFoliage)
+                {
+                    GenerateFoliage = true;
+                    Hex.Owner = -1;
+                    Hex.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
+                }
+                else
+                {
+                    Hex.Owner = RandomBetween(0, PlayerCount - 1);
+                    Hex.Color = GetPlayerColor(Hex.Owner);
+                }
+            }
+            
+            if (!HexIsWater)
+            {
+                Hex.Region = NearestRegionTo(Hex.P.XY, World).Region;
+            }
+            
+            u64 HexIndex = AddEntity(World, Hex);
+            
+            if (!HexIsWater)
+            {
+                world_region* Region = World->Regions + Hex.Region;
+                Region->Hexes[Region->HexCount++] = {(i32)HexIndex};
+                Assert(Region->HexCount < ArrayCount(Region->Hexes));
+            }
+        };
+    }
+    
+    GenerateFoliage(World, &Arena);
+    
+}
+*/
 
 struct nearest_foliage
 {

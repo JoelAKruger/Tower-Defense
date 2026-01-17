@@ -63,6 +63,7 @@ struct entity
     foliage_type FoliageType;
     structure_type StructureType;
     i8 Level;
+    v2i GridP;
 };
 
 struct world_region
@@ -345,7 +346,9 @@ struct defense_assets
     
     vertex_buffer_handle GUIWholeScreen;
     
-    model_handle HexOutline;
+    vertex_buffer_handle HexOutline;
+    
+    dynamic_array<vertex_buffer_handle> Region;
 };
 
 struct map_file_header
@@ -390,6 +393,7 @@ void InitialiseServerState(global_game_state* Game);
 
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
+entity* GetEntity(world* World, entity_handle Entity);
 v3 GetEntityP(game_state* Game, u64 EntityIndex);
 
 model_handle GetModel(defense_assets* Assets, entity* Entity, bool LowPoly = false);

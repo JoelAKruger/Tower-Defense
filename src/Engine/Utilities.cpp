@@ -308,9 +308,17 @@ void Append(dynamic_array<type>* Array, type NewElement)
 template <typename type>
 void Clear(dynamic_array<type>* Array)
 {
-    Array->Memory = 0;
     Array->Count = 0;
-    Array->Capacity = 0;
+}
+
+template <typename type>
+void RemoveAt(u32 Index, dynamic_array<type>* Array)
+{
+    for (u64 I = Index; I < Array->Count - 1; I++)
+    {
+        Array->Memory[I] = Array->Memory[I + 1];
+    }
+    Array->Count--;
 }
 
 template <typename type>
@@ -438,7 +446,7 @@ Lock(mutex* Mutex)
 static void
 Unlock(mutex* Mutex)
 {
-    Mutex->Value = 0;
+    _InterlockedExchange(&Mutex->Value, 0);
 }
 
 template <typename type>
@@ -510,7 +518,7 @@ struct resource_table
     
     handle_type GetOrAllocateHandleWithTag(char* Tag)
     {
-        for (u64 I = 0; I < Count; I++)
+        for (u64 I = 1; I < Count; I++)
         {
             if (Trackers[I].Allocated && (strcmp(Trackers[I].Tag, Tag) == 0))
             {
@@ -520,9 +528,9 @@ struct resource_table
         return AllocHandle(Tag);
     }
     
-    handle_type AllocHandle(char* Tag, char* File = 0, int Line = 0)
+    handle_type AllocHandle(char* Tag = 0, char* File = 0, int Line = 0)
     {
-        for (u64 I = 0; I < Count; I++)
+        for (u64 I = 1; I < Count; I++)
         {
             if (!Trackers[I].Allocated)
             {
@@ -543,7 +551,17 @@ struct resource_table
     
     type& Allocate(char* Description = 0, char* File = 0, int Line = 0)
     {
-        handle_type Handle = AllocateIndex(Description, File, Line);
+        handle_type Handle = AllocHandle(Description, File, Line);
         return Array[Handle];
+    }
+    
+    void Unallocate(handle_type Handle, char* File = 0, int Line = 0)
+    {
+        Trackers[Handle.Index].Allocated = false;
+        Trackers[Handle.Index].File = File;
+        Trackers[Handle.Index].Line = Line;
+        Trackers[Handle.Index].Tag = "";
+        
+        Array[Handle.Index] = {};
     }
 };

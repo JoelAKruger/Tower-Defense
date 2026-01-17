@@ -37,7 +37,6 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Assets->MeshCount = 1;
     Assets->ModelCount = 1;
     Assets->FontCount = 1;
-    Assets->VertexBufferCount = 1;
     
     LoadShaders(Assets);
     
@@ -181,6 +180,8 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     
     Assets->Materials[Assets->MaterialCount++] = DirtMaterial;
     Assert(Assets->MaterialCount < ArrayCount(Assets->Materials));
+    
+    Handles->Region = {.Arena = Allocator.Permanent};
 }
 
 static defense_assets
@@ -350,6 +351,62 @@ GetHexagonVertexPositions(v2 P, f32 Radius, memory_arena* Arena)
     return Result;
 }
 
+static vertex_buffer_handle
+CreateOutlineMesh(game_assets* Assets, span<v2> InputVertices, f32 BorderThickness, v4 Color)
+{
+    v3 Normal = V3(0.0f, 0.0f, -1.0f);
+    
+    u64 VertexCount = 6 * InputVertices.Count + 2;
+    vertex* Vertices = AllocArray(Assets->Allocator.Transient, vertex, VertexCount);
+    
+    for (int VertexIndex = 0; VertexIndex < InputVertices.Count; VertexIndex++)
+    {
+        v2 Vertex = InputVertices[VertexIndex];
+        v2 PrevVertex = InputVertices[Mod(VertexIndex - 1, InputVertices.Count)];
+        v2 NextVertex = InputVertices[Mod(VertexIndex + 1, InputVertices.Count)];
+        
+        v2 PerpA = UnitV(Perp(Vertex - PrevVertex));
+        v2 PerpB = UnitV(Perp(NextVertex - Vertex));
+        v2 Mid = UnitV(PerpA + PerpB);
+        
+        f32 SinAngle = Det(M2x2(UnitV(Vertex - PrevVertex), UnitV(NextVertex - Vertex)));
+        
+        f32 HalfBorderThickness = 0.5 * BorderThickness;
+        
+        //If concave
+        if (SinAngle < 0.0f)
+        {
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, 0), Normal, Color};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, 0), Normal, Color};
+        }
+        else
+        {
+            Vertices[VertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, 0), Normal, Color};
+            Vertices[VertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[VertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, 0), Normal, Color};
+            Vertices[VertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+        }
+        
+        if (VertexIndex == 0)
+        {
+            Vertices[VertexCount - 2] = Vertices[0];
+            Vertices[VertexCount - 1] = Vertices[1];
+        }
+    }
+    
+    vertex_buffer_handle Result = CreateVertexBuffer(Assets, Vertices, VertexCount * sizeof(vertex), 
+                                                     D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex));
+    
+    return Result;
+}
+
+//TODO: Use above function
 static vertex_buffer_handle
 CreateHexOutlineMesh(game_assets* Assets)
 {

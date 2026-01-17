@@ -1,3 +1,4 @@
+
 static texture_handle
 LoadTexture(char* Path)
 {
@@ -40,10 +41,16 @@ LoadFont(game_assets* Assets, char* Path, f32 Size)
 static vertex_buffer_handle
 CreateVertexBuffer(game_assets* Assets, void* Data, u64 Bytes, int Topology, u64 Stride)
 {
-    vertex_buffer_handle Result = Assets->VertexBufferCount++;
-    Assert(Assets->VertexBufferCount <= ArrayCount(Assets->VertexBuffers));
+    vertex_buffer_handle Result = Assets->VertexBuffers.AllocHandle();
     Assets->VertexBuffers[Result] = PlatformCreateVertexBuffer(Data, Bytes, Topology, Stride);
     return Result;
+}
+
+static void
+FreeVertexBuffer(game_assets* Assets, vertex_buffer_handle Handle)
+{
+    FreeVertexBuffer(Assets->VertexBuffers[Handle]);
+    Assets->VertexBuffers.Unallocate(Handle);
 }
 
 static span<triangle>

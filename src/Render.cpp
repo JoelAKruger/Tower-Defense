@@ -202,6 +202,34 @@ GetGrassRandomOffsets()
     return {.Memory = Offsets, .Count = ArrayCount(Offsets)};
 }
 
+void DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets* Handles, game_state* Game)
+{
+    //Draw region outline
+    if (Game->HoveringHex && !IsWater(Game->HoveringHex))
+    {
+        span<span<v2>> Edges = GetRegionEdges(&Game->GlobalState.World, Game->GlobalState.World.Regions + Game->HoveringHex->Region, RenderGroup->Arena);
+        
+        for (vertex_buffer_handle Handle : Handles->Region)
+        {
+            FreeVertexBuffer(Assets, Handle);
+        }
+        Clear(&Handles->Region);
+        
+        for (span<v2> RegionPart : Edges)
+        {
+            vertex_buffer_handle VertexBuffer = CreateOutlineMesh(Assets, RegionPart, 0.01f, V4(1.1f, 1.1f, 1.1f, 0.2f));
+            Append(&Handles->Region, VertexBuffer);
+        }
+        
+        for (vertex_buffer_handle Handle : Handles->Region)
+        {
+            PushVertexBuffer(RenderGroup, Handle, TranslateTransform(0.0f, 0.0f, 0.1f));
+            PushShader(RenderGroup, Shader_Color);
+        }
+    }
+    
+}
+
 //TODO: This should ideally only take a defense assets
 static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets* Assets, defense_assets* GameAssets)
 {
@@ -305,6 +333,9 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     {
         TimeBlock("DrawTowers");
         DrawTowers(RenderGroup, Game, GameAssets);
+    }
+    {
+        DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
     }
     
     //Make constants

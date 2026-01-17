@@ -90,7 +90,7 @@ VS_Output_Default MyVertexShader(VS_Input input)
 	output.pos_world = world_pos.xyz / world_pos.w;
 	output.pos_light_space = mul(world_pos, world_to_light);
 	output.pos_clip = pos_clip;
-	output.color = input.color + color + float4(Albedo, 1);
+	output.color = input.color + color + float4(Albedo, 0);
 	output.normal = normalize((float3)mul(float4(input.normal, 0.0f), model_to_world));
 	output.uv = input.uv;
 
@@ -121,7 +121,7 @@ float4 PixelShader_Color(VS_Output_Default input) : SV_TARGET
 	float pixel_depth = input.pos_light_space.z / input.pos_light_space.w;	
 	float shadow = (1.0f - shadow_remove) * GetShadowValueBetter(shadow_uv, pixel_depth, input.normal);
 
-	return float4(input.color.rgb * (1.0f - 0.25 * shadow), 1.0f);
+	return float4(input.color.rgb * (1.0f - 0.25 * shadow), input.color.a);
 }
 
 float trowbridge_reitz_normal_distribution(float n_dot_h, float roughness)

@@ -203,6 +203,11 @@ bool operator==(v2 A, v2 B)
 	return A.X == B.X && A.Y == B.Y;
 }
 
+bool operator==(v2i A, v2i B)
+{
+	return A.X == B.X && A.Y == B.Y;
+}
+
 inline v2 V2FromInt(int X, int Y)
 {
 	v2 Res = { (float)X, (float)Y };

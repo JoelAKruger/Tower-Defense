@@ -167,6 +167,12 @@ struct render_output_handle
     operator bool() { return Index != 0; }
 };
 
+struct vertex_buffer_handle
+{
+    u64 Index;
+    operator bool() { return Index != 0; }
+};
+
 template <typename type>
 bool operator==(type A, type B)
 {
@@ -378,7 +384,7 @@ struct triangle
 typedef u64 mesh_handle;
 typedef u64 model_handle;
 typedef u64 font_handle;
-typedef u64 vertex_buffer_handle;
+
 typedef u64 material_handle;
 
 struct cube_map
@@ -490,8 +496,7 @@ struct game_assets
     font_asset Fonts[8];
     int FontCount;
     
-    renderer_vertex_buffer VertexBuffers[128];
-    int VertexBufferCount;
+    resource_table<renderer_vertex_buffer, vertex_buffer_handle, 128> VertexBuffers;
     
     texture_handle ButtonTextureHandle;
 };

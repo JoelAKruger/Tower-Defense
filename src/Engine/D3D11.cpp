@@ -802,7 +802,7 @@ static void
 SetFrameBufferAsOutput()
 {
     //TODO: Fix this
-    SetOutput({0});
+    SetOutput({1});
 }
 
 static void
