@@ -69,7 +69,6 @@ struct entity
 struct world_region
 {
     v2 Center;
-    entity_handle Hexes[32];
     int HexCount;
 };
 

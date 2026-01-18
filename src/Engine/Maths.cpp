@@ -726,8 +726,37 @@ operator*(v4 V, m4x4 M)
     return Result;
 }
 
-int Mod(int A, int B) 
+static int 
+Mod(int A, int B) 
 {
     int R = A % B;
     return (R < 0) ? R + B : R;
+}
+
+static f32
+Map(f32 Value, f32 From0, f32 From1, f32 To0, f32 To1)
+{
+    f32 Result = 0;
+    if ((From0 < From1 && Value < From0))
+    {
+        Result = To0;
+    }
+    else if ((From0 > From1 && Value > From0))
+    {
+        Result = To0;
+    }
+    else if ((From0 < From1 && Value > From1))
+    {
+        Result = To1;
+    }
+    else if ((From0 > From1 && Value < From1))
+    {
+        Result = To1;
+    }
+    else
+    {
+        f32 t = (Value - From0) / (From1 - From0); 
+        Result = To0 + t * (To1 - To0);
+    }
+    return Result;
 }

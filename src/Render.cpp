@@ -202,12 +202,15 @@ GetGrassRandomOffsets()
     return {.Memory = Offsets, .Count = ArrayCount(Offsets)};
 }
 
+//TODO: This need not be computed on each frame
 void DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets* Handles, game_state* Game)
 {
+    f32 Opacity = Map(Game->CameraP.Z, -0.2f, -1.0f, 0.0f, 0.5f);
+    
     //Draw region outline
     if (Game->HoveringHex && !IsWater(Game->HoveringHex))
     {
-        span<span<v2>> Edges = GetRegionEdges(&Game->GlobalState.World, Game->GlobalState.World.Regions + Game->HoveringHex->Region, RenderGroup->Arena);
+        span<span<v2>> Edges = GetRegionEdges(&Game->GlobalState.World, Game->HoveringHex->Region, RenderGroup->Arena);
         
         for (vertex_buffer_handle Handle : Handles->Region)
         {
@@ -217,7 +220,7 @@ void DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_a
         
         for (span<v2> RegionPart : Edges)
         {
-            vertex_buffer_handle VertexBuffer = CreateOutlineMesh(Assets, RegionPart, 0.01f, V4(1.1f, 1.1f, 1.1f, 0.2f));
+            vertex_buffer_handle VertexBuffer = CreateOutlineMesh(Assets, RegionPart, 0.01f, V4(1.0f, 1.0f, 1.0f, Opacity));
             Append(&Handles->Region, VertexBuffer);
         }
         
@@ -225,6 +228,7 @@ void DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_a
         {
             PushVertexBuffer(RenderGroup, Handle, TranslateTransform(0.0f, 0.0f, 0.1f));
             PushShader(RenderGroup, Shader_Color);
+            PushNoShadows(RenderGroup);
         }
     }
     
@@ -334,9 +338,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         TimeBlock("DrawTowers");
         DrawTowers(RenderGroup, Game, GameAssets);
     }
-    {
-        DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
-    }
     
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;
@@ -394,6 +395,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.ClipPlane = {};
     
     DrawWater(RenderGroup, Game->WaterZ);
+    DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
     
     //Set reflection and refraction textures
     ClearOutput(GameAssets->Output1);

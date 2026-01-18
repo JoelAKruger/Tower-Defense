@@ -99,29 +99,33 @@ AreApproxEqual(v2 A, v2 B, f32 Tolerance)
 }
 
 static span<span<v2>>
-GetRegionEdges(world* World, world_region* Region, memory_arena* Arena)
+GetRegionEdges(world* World, i32 Region, memory_arena* Arena)
 {
     Assert(Arena->Type == TRANSIENT);
+    Assert(Region > 0);
     
     dynamic_array<line_segment> Lines = {.Arena = Arena};
     
     //Step 1. Get all edges
-    for (u64 HexIndex = 0; HexIndex < Region->HexCount; HexIndex++)
+    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
-        entity* Hex = GetEntity(World, Region->Hexes[HexIndex]);
-        span<entity_handle> Neighbours = GetHexNeighbourHandles(World, Hex, Arena);
-        
-        for (int NeighbourIndex = 0; NeighbourIndex < Neighbours.Count; NeighbourIndex++)
+        entity* Hex = World->Entities + EntityIndex;
+        if (Hex->Type == Entity_WorldHex && Hex->Region == Region)
         {
-            entity_handle Neighbour = Neighbours[NeighbourIndex];
+            span<entity_handle> Neighbours = GetHexNeighbourHandles(World, Hex, Arena);
             
-            if (!Contains(Neighbour, Region->Hexes, Region->HexCount))
+            for (int NeighbourIndex = 0; NeighbourIndex < Neighbours.Count; NeighbourIndex++)
             {
-                line_segment Line = {
-                    GetHexVertex(Hex, NeighbourIndex),
-                    GetHexVertex(Hex, NeighbourIndex + 1)
-                };
-                Append(&Lines, Line);
+                entity* Neighbour = GetEntity(World, Neighbours[NeighbourIndex]);
+                
+                if (Neighbour->Region != Region)
+                {
+                    line_segment Line = {
+                        GetHexVertex(Hex, NeighbourIndex),
+                        GetHexVertex(Hex, NeighbourIndex + 1)
+                    };
+                    Append(&Lines, Line);
+                }
             }
         }
     }
@@ -442,7 +446,7 @@ NearestRegionTo(v2 P, world* World)
         .Region = -1
     };
     
-    for (int I = 0; I < World->RegionCount; I++)
+    for (int I = 1; I < World->RegionCount; I++)
     {
         f32 Dist = Distance(P, World->Regions[I].Center);
         if (Dist < Result.Distance)
@@ -460,6 +464,8 @@ CreateRegionCenters(world* World, int Max = 100)
 {
     f32 MinDistance = 0.2f;
     int Count = 0;
+    
+    World->RegionCount = 1;
     
     while (Count < Max && World->RegionCount < ArrayCount(World->Regions))
     {
@@ -562,13 +568,6 @@ CreateWorld(world* World, u64 PlayerCount)
             }
             
             u64 HexIndex = AddEntity(World, Hex);
-            
-            if (!HexIsWater)
-            {
-                world_region* Region = World->Regions + Hex.Region;
-                Region->Hexes[Region->HexCount++] = {(i32)HexIndex};
-                Assert(Region->HexCount < ArrayCount(Region->Hexes));
-            }
         };
     }
     
