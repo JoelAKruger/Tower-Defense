@@ -205,7 +205,7 @@ GetGrassRandomOffsets()
 //TODO: This need not be computed on each frame
 void DrawRegionOutline(render_group* RenderGroup, game_assets* Assets, defense_assets* Handles, game_state* Game)
 {
-    f32 Opacity = Map(Game->CameraP.Z, -0.2f, -1.0f, 0.0f, 0.5f);
+    f32 Opacity = Map(Game->CameraP.Z, -0.2f, -1.6f, 0.0f, 1.0f);
     
     //Draw region outline
     if (Game->HoveringHex && !IsWater(Game->HoveringHex))

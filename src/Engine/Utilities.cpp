@@ -312,6 +312,14 @@ void Clear(dynamic_array<type>* Array)
 }
 
 template <typename type>
+void Reset(dynamic_array<type>* Array)
+{
+    Array->Memory = 0;
+    Array->Capacity = 0;
+    Array->Count = 0;
+}
+
+template <typename type>
 void RemoveAt(u32 Index, dynamic_array<type>* Array)
 {
     for (u64 I = Index; I < Array->Count - 1; I++)

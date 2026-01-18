@@ -82,16 +82,13 @@ ClientNetworkThread(client_network_thread_data* Data)
         
         u8* Buffer = Alloc(&Client->ReceivedPacketArena, Bytes);
         
-        Unlock(&Client->Mutex);
-        
         //Receive data
         int BytesReceived = recv(Client->Socket, (char*) Buffer, Bytes, MSG_WAITALL);
         
         Assert(BytesReceived == Bytes);
         
         //Add packet to the array
-        Lock(&Client->Mutex);
-        
+        Log("Packet: Data = %x, Length = %lu\n", Buffer, Bytes);
         packet Packet = {.Data = Buffer, .Length = (u64) Bytes};
         Append(&Client->ReceivedPackets, Packet);
         
@@ -120,7 +117,7 @@ PollClientConnection(memory_arena* Arena)
             Log("Client received packet\n");
         }
         
-        Clear(&Client->ReceivedPackets);
+        Reset(&Client->ReceivedPackets);
         
         ResetArena(&Client->ReceivedPacketArena);
         
