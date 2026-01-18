@@ -258,7 +258,7 @@ span<packet> PollServerConnection(memory_arena* Arena)
             Log("Copying data\n");
         }
         
-        Clear(&Server->ReceivedPackets);
+        Reset(&Server->ReceivedPackets);
         
         ResetArena(&Server->ReceivedPacketArena);
         
