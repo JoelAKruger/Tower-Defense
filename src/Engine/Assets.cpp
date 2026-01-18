@@ -217,6 +217,10 @@ LoadObjects(game_assets* Assets, char* Path)
         else if (Consume(&Reader, "s ")) //Smooth shading (ignored)
         {
         }
+
+        else if (Consume(&Reader, "l "))
+        {
+        }
         
         else if (Consume(&Reader, "usemtl ")) //Material name -> New mesh?
         {

@@ -39,7 +39,7 @@ struct entity_handle
     i32 Index;
 };
 
-enum entity_type : u32
+enum entity_type : u8
 {
     Entity_Null,
     Entity_WorldHex,
@@ -49,21 +49,31 @@ enum entity_type : u32
     Entity_Fence
 };
 
+enum hex_type : u8
+{
+    Hex_Empty,
+    Hex_Settlement,
+    Hex_UnitStack
+};
+
 struct entity
 {
     entity_type Type;
-    //u32 ModelHandle;
-    f32 Size;
+    
+    hex_type HexType;
     v3 P; //Can be overriden locally
-    f32 Angle;
     i32 Owner;
-    i32 Parent;
     i32 Region;
     v4 Color;
-    foliage_type FoliageType;
-    structure_type StructureType;
     i8 Level;
     v2i GridP;
+    
+    //Wanting to get rid of:
+    foliage_type FoliageType;
+    structure_type StructureType;
+    f32 Angle;
+    i32 Parent;
+    f32 Size;
 };
 
 struct world_region
@@ -342,6 +352,8 @@ struct defense_assets
     model_handle PinkFlower, Bush, RibbonPlant, Grass, Rock, Paving;
     model_handle ModularWood, House, House07;
     model_handle Castle, Turret, Mine, Tower, Fence05;
+    
+    model_handle Settlement1, Settlement2;
     
     vertex_buffer_handle GUIWholeScreen;
     

@@ -483,7 +483,40 @@ CreateRegionCenters(world* World, int Max = 100)
     }
 }
 
-
+static entity*
+GetRandomLandHex(world* World)
+{
+    entity* Result = 0;
+    
+    u64 LandHexCount = 0;
+    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
+    {
+        entity* Entity = World->Entities + EntityIndex;
+        if (Entity->Type == Entity_WorldHex && !IsWater(Entity))
+        {
+            LandHexCount++;
+        }
+    }
+    
+    u64 Index = RandomBetween(0, LandHexCount - 1);
+    
+    u64 Count = 0;
+    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
+    {
+        entity* Entity = World->Entities + EntityIndex;
+        if (Entity->Type == Entity_WorldHex && !IsWater(Entity))
+        {
+            if (Count == Index)
+            {
+                Result = Entity;
+                break;
+            }
+            Count++;
+        }
+    }
+    
+    return Result;
+}
 
 static void
 CreateWorld(world* World, u64 PlayerCount)
@@ -546,20 +579,11 @@ CreateWorld(world* World, u64 PlayerCount)
             }
             else
             {
-                bool HexIsFoliage = Random() > 0.5f;
                 Hex.P.Z = 0.1f;
                 
-                if (HexIsFoliage)
-                {
-                    GenerateFoliage = true;
-                    Hex.Owner = -1;
-                    Hex.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
-                }
-                else
-                {
-                    Hex.Owner = RandomBetween(0, PlayerCount - 1);
-                    Hex.Color = GetPlayerColor(Hex.Owner);
-                }
+                GenerateFoliage = true;
+                Hex.Owner = -1;
+                Hex.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
             }
             
             if (!HexIsWater)
@@ -570,6 +594,15 @@ CreateWorld(world* World, u64 PlayerCount)
             u64 HexIndex = AddEntity(World, Hex);
         };
     }
+    
+    //Give players their starting tile
+    for (u64 PlayerIndex = 0; PlayerIndex < PlayerCount; PlayerIndex++)
+    {
+        entity* StartingHex = GetRandomLandHex(World);
+        StartingHex->Owner = PlayerIndex;
+        StartingHex->Color = GetPlayerColor(StartingHex->Owner);
+    }
+    
     
     GenerateFoliage(World, &Arena);
     

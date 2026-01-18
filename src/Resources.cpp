@@ -101,6 +101,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     LoadObjects(Assets, "assets/models/tower.obj");
     LoadObjects(Assets, "assets/models/house_07.obj");
     LoadObjects(Assets, "assets/models/fence_05.obj");
+    LoadObjects(Assets, "assets/models/Settlements.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -147,6 +148,8 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->Tower = GetModelHandle(Assets, "Tower");
     Handles->House07 = GetModelHandle(Assets, "House_07");
     Handles->Fence05 = GetModelHandle(Assets, "Fence_05");
+    Handles->Settlement1 = GetModelHandle(Assets, "Settlement_Level1");
+    Handles->Settlement2 = GetModelHandle(Assets, "Settlement_Level2");
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},

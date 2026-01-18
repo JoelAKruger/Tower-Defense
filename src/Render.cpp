@@ -263,6 +263,17 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
                     Commands = PushModelNew(RenderGroup, GameAssets->WorldHexSkirt, Transform);
                     Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
+                    
+                    if (Entity->Owner == 0)
+                    {
+                        model_handle Model = {};
+                        switch (Entity->Level)
+                        {
+                            case 1: Model = GameAssets->Settlement1; break;
+                            case 2: Model = GameAssets->Settlement2; break;
+                        }
+                        PushTexturedModel(RenderGroup, Model, ScaleTransform(Entity->Size) * TranslateTransform(P));
+                    }
                 } break;
                 case Entity_Foliage:
                 {

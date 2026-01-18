@@ -198,7 +198,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             
             //TODO: Verify index is valid and entity type is correct
             entity* Hex = Game->World.Entities + Request->HexIndex;
-            u64 MaxHexLevel = 1;
+            u64 MaxHexLevel = 2;
             
             if (Hex->Level < MaxHexLevel)
             {
