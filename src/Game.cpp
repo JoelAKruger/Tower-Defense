@@ -612,7 +612,7 @@ GetPlayer(game_state* Game)
 }
 
 static void
-DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
+DoMyTurnMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
 {
     Assert(Arena->Type == TRANSIENT);
     
@@ -625,6 +625,7 @@ DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
     Panel.Text(ArenaPrint(Arena, "%u", Player->Credits));
     Panel.NextRow();
     
+    /*
     if (Panel.Button("Castle"))
     {
         SetMode(Game, Mode_Place);
@@ -643,7 +644,13 @@ DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
         Game->PlacementType = Tower_Mine;
     }
     Panel.NextRow();
-    if (Panel.Button("Upgrade Cell"))
+*/
+    if (Panel.Button("Attack"))
+    {
+        SetMode(Game, Mode_Attack);
+    }
+    Panel.NextRow();
+    if (Panel.Button("Reinforce"))
     {
         SetMode(Game, Mode_CellUpgrade);
     }
@@ -652,11 +659,13 @@ DoTowerMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
     {
         SetMode(Game, Mode_WallUpgrade);
     }
+    /*
     Panel.NextRow();
     if (Panel.Button("Build Farm"))
     {
         SetMode(Game, Mode_BuildFarm);
     }
+*/
     Panel.NextRow();
     Panel.NextRow();
     if (Panel.Button("End Turn"))
@@ -756,6 +765,8 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
 static void
 RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles, f32 SecondsPerFrame, game_input* Input, allocator Allocator)
 {
+    string UserMessage = {};
+    
     //Update modes based on server state
     if ((GameState->GlobalState.PlayerTurnIndex == GameState->MyClientID) &&
         (GameState->Mode == Mode_Waiting))
@@ -791,7 +802,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     {
         //Top down perspective
         case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
-        case Mode_BuildFarm: case Mode_WallUpgrade:
+        case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack:
         {
             f32 WorldZForDragging = 0.1f;
             SetCursorState(true);
@@ -899,6 +910,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     f32 TowerRadius = 0.03f;
     
+    GameState->HexOutlineColor = V4(1.15f, 1.15f, 1.15f, 1.0f);
+    
     //Select tower
     switch (GameState->Mode)
     {
@@ -970,7 +983,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             //TODO: Fix this
             bool Upgradeable = (GameState->HoveringHex &&
                                 !IsWater(GameState->HoveringHex) &&
-                                GameState->HoveringHex->Owner == GameState->MyClientID);
+                                GameState->HoveringHex->Owner == GameState->MyClientID &&
+                                GetPlayer(GameState)->Credits > 0);
             
             if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
@@ -1016,11 +1030,67 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             }
         } break;
         
-        //Other cases may be handled below with GUI
-        default: ;
+        case Mode_Attack:
+        {
+            if (GameState->HoveringHex)
+            {
+                bool NeighbourIsPlayer = false;
+                span<entity*> Neighbours = GetHexNeighbours(&GameState->GlobalState.World, 
+                                                            GameState->HoveringHex, Allocator.Transient);
+                for (entity* Neighbour : Neighbours)
+                {
+                    if (Neighbour->Owner == GameState->MyClientID)
+                    {
+                        NeighbourIsPlayer = true;
+                        break;
+                    }
+                }
+                
+                bool HexIsMine = (GameState->HoveringHex->Owner == GameState->MyClientID);
+                bool EnoughCredits = GetPlayer(GameState)->Credits >= 1;
+                
+                bool Attackable = NeighbourIsPlayer && !HexIsMine && EnoughCredits;
+                if (Attackable)
+                {
+                    v3 Color = GetPlayerColor(GameState->MyClientID).RGB;
+                    GameState->HexOutlineColor = V4(1.5f * Color, 1.0f);
+                }
+                else
+                {
+                    GameState->HexOutlineColor = V4(0.5f, 0.5f, 0.5f, 1.0f);
+                    
+                    if (!EnoughCredits)
+                    {
+                        UserMessage = String("Cannot attack: insufficient credits");
+                    }
+                    else if (HexIsMine)
+                    {
+                        UserMessage = String("Cannot attack: tile is already owned");
+                    }
+                    else if (!NeighbourIsPlayer)
+                    {
+                        UserMessage = String("Cannot attack: tile is not close enough");
+                    }
+                }
+                
+                if (Attackable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+                {
+                    player_request Request = {
+                        .Type = Request_Attack,
+                        .HexIndex = GameState->HoveringHexIndex
+                    };
+                    SendPacket(&Request);
+                }
+                
+            } break;
+            
+            //Other cases may be handled below with GUI
+            default: ;
+        }
     }
     
     //Move region outline
+    //TODO: What is this for again?
     if (GameState->Mode == Mode_Waiting ||
         GameState->Mode == Mode_MyTurn ||
         GameState->Mode == Mode_TowerPOV ||
@@ -1028,7 +1098,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         GameState->Mode == Mode_BuildFarm ||
         GameState->Mode == Mode_Place ||
         GameState->Mode == Mode_EditTower ||
-        GameState->Mode == Mode_WallUpgrade)
+        GameState->Mode == Mode_WallUpgrade ||
+        GameState->Mode == Mode_Attack)
     {
         if (GameState->HoveringHex)
         {
@@ -1073,23 +1144,29 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         }
     }
     
-    Log("%d\n", GameState->HoveringHex);
+    //Log("%d\n", GameState->HoveringHex);
     if (GameState->HoveringHex)
     {
         string HexText = {};
         if (IsWater(GameState->HoveringHex))
         {
-            HexText = String("Ocean");
+            HexText = ArenaPrint(Allocator.Transient, "Ocean %d: Owned by Player %d (Level %d)", 
+                                 GameState->HoveringHexIndex, GameState->HoveringHex->Owner, GameState->HoveringHex->Level);
         }
         else
         {
             HexText = ArenaPrint(Allocator.Transient, "Hex %d: Owned by Player %d (Level %d)", 
-                                 GameState->HoveringHexIndex, GameState->HoveringHex->Owner, GameState->HoveringHex->Level + 1);
+                                 GameState->HoveringHexIndex, GameState->HoveringHex->Owner, GameState->HoveringHex->Level);
         }
         
         f32 Width = GUIStringWidth(HexText, 0.1f);
         GUI_DrawText(Assets->Font, HexText, V2(-0.5f * Width, 0.9f));
     }
+    
+    
+    f32 Width = GUIStringWidth(UserMessage, 0.1f);
+    GUI_DrawText(Assets->Font, UserMessage, V2(-0.5f * Width, 0.7f));
+    
     
     //Draw crosshair
     if (GameState->Mode == Mode_TowerPOV)
@@ -1104,7 +1181,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     //TODO: Create a proper layout system
     if (GameState->Mode == Mode_MyTurn)
     {
-        DoTowerMenu(GameState, AssetHandles, Allocator.Transient);
+        DoMyTurnMenu(GameState, AssetHandles, Allocator.Transient);
     }
     
     if (GameState->Mode == Mode_EditTower)
@@ -1122,6 +1199,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     DrawGUIString(TimeString, V2(-0.95f, -0.75f));
     
     DrawGUIString(ArenaPrint(Allocator.Transient, "Hovering over: %d", HoveringEntityIndex), V2(-0.95f, -0.55f));
+    
+    //Log("%d Credits", GetPlayer(GameState)->Credits);
 }
 
 static void

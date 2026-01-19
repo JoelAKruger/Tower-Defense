@@ -47,6 +47,7 @@ DrawHexOutline(render_group* RenderGroup, defense_assets* GameAssets, game_state
     m4x4 Transform = ScaleTransform(0.9f * Game->GlobalState.World.HexSize) * TranslateTransform(V3(P.XY, Z));
     
     PushVertexBuffer(RenderGroup, GameAssets->HexOutline, Transform);
+    PushColor(RenderGroup, Game->HexOutlineColor);
     PushDoesNotCastShadow(RenderGroup);
     PushShader(RenderGroup, Shader_Color);
 }
@@ -281,9 +282,15 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     Commands = PushModelNew(RenderGroup, GameAssets->WorldHexSkirt, Transform);
                     Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
                     
-                    if (Entity->Owner == 0)
+                    model_handle Model = {};
+                    
+                    if (IsWater(Entity) && Entity->Level > 0)
                     {
-                        model_handle Model = {};
+                        Model = GameAssets->Boat;
+                        PushTexturedModel(RenderGroup, Model, ScaleTransform(3.0f * Entity->Size) * TranslateTransform(V3(P.XY, Game->WaterZ)));
+                    }
+                    else
+                    {
                         switch (Entity->Level)
                         {
                             case 1: Model = GameAssets->Settlement1; break;

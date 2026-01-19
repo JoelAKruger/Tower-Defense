@@ -19,7 +19,7 @@ InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
     *Player = {};
     
     Player->Initialised = true;
-    Player->Credits = 100;
+    Player->Credits = 1;
     
     //Send player initialisation message
     server_packet_message Message = {.Channel = Channel_Message};
@@ -62,6 +62,16 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
 {
     player* Player = Game->Players + Game->PlayerTurnIndex;
     
+    for (u64 EntityIndex = 1; EntityIndex < Game->World.EntityCount; EntityIndex++)
+    {
+        entity* Entity = Game->World.Entities + EntityIndex;
+        if (Entity->Type == Entity_WorldHex &&
+            Entity->Owner == Game->PlayerTurnIndex)
+        {
+            Player->Credits += Entity->Level;
+        }
+    }
+    
     for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
     {
         tower* Tower = Game->Towers + TowerIndex;
@@ -92,6 +102,8 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
 static span<server_packet_message>
 ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets* GameAssets, u32 SenderIndex, player_request* Request, memory_arena* Arena, bool* FlushWorld)
 {
+    Assert(SenderIndex <= Game->PlayerCount);
+    player* Player = Game->Players + SenderIndex;
     dynamic_array<server_packet_message> ServerPackets = {.Arena = Arena};
     
     Log("Server: Request!\n");
@@ -199,38 +211,43 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             //TODO: Verify index is valid and entity type is correct
             entity* Hex = Game->World.Entities + Request->HexIndex;
             u64 MaxHexLevel = 5;
+            int Cost = 1;
             
-            if (Hex->Level < MaxHexLevel)
+            if (Player->Credits >= Cost)
             {
-                Hex->Level++;
-                
-                /*
-                                v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
-                                
-                                //Play animation
-                                
-                                animation Animation = {
-                                    .Type = Animation_Entity,
-                                    .P0 = Hex->P,
-                                    .P1 = NewP,
-                                    .EntityIndex = Request->HexIndex
-                                };
-                                
-                                server_packet_message Packet = {
-                                    .Channel = Channel_Message,
-                                    .Type = Message_PlayAnimation,
-                                    .Animation = Animation
-                                };
-                                
-                                Append(&ServerPackets, Packet);
-                                
-                                v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
-                                
-                                Hex->P = NewP;
-                                Hex->Color = NewColor;
-                                */
-                
-                *FlushWorld = true;
+                if (Hex->Level < MaxHexLevel)
+                {
+                    Hex->Level++;
+                    Player->Credits -= Cost;
+                    
+                    /*
+                                    v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
+                                    
+                                    //Play animation
+                                    
+                                    animation Animation = {
+                                        .Type = Animation_Entity,
+                                        .P0 = Hex->P,
+                                        .P1 = NewP,
+                                        .EntityIndex = Request->HexIndex
+                                    };
+                                    
+                                    server_packet_message Packet = {
+                                        .Channel = Channel_Message,
+                                        .Type = Message_PlayAnimation,
+                                        .Animation = Animation
+                                    };
+                                    
+                                    Append(&ServerPackets, Packet);
+                                    
+                                    v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
+                                    
+                                    Hex->P = NewP;
+                                    Hex->Color = NewColor;
+                                    */
+                    
+                    *FlushWorld = true;
+                }
             }
         } break;
         case Request_BuildFarm:
@@ -282,6 +299,36 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             
             AddEntity(&Game->World, Wall);
             *FlushWorld = true;
+        } break;
+        case Request_Attack:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            
+            int Cost = 1;
+            
+            if (Player->Credits >= Cost)
+            {
+                Player->Credits -= Cost;
+                
+                //TODO: Check this is valid
+                entity* Defender = Game->World.Entities + Request->HexIndex;
+                
+                span<entity*> Neighbours = GetHexNeighbours(&Game->World, Defender, Arena);
+                dynamic_array<entity*> Attackers = {.Arena = Arena};
+                
+                for (entity* Neighbour : Neighbours)
+                {
+                    if (Neighbour->Owner == SenderIndex)
+                    {
+                        Append(&Attackers, Neighbour);
+                    }
+                }
+                
+                DoAttack(Game->PlayerTurnIndex, ToSpan(Attackers), Defender);
+                
+                *FlushWorld = true;
+            }
+            
         } break;
         default:
         {

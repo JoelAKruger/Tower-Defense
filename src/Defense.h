@@ -117,7 +117,8 @@ enum game_mode
     Mode_TowerPOV,
     Mode_CellUpgrade,
     Mode_BuildFarm,
-    Mode_WallUpgrade
+    Mode_WallUpgrade,
+    Mode_Attack
 };
 
 enum tower_type
@@ -184,6 +185,7 @@ enum player_request_type
     Request_UpgradeHex,
     Request_BuildFarm,
     Request_UpgradeWall,
+    Request_Attack
 };
 
 struct player_request
@@ -203,7 +205,7 @@ struct player_request
     v3 P;
     v3 Direction;
     
-    //Type == UpgradeRegion
+    //Type == UpgradeRegion, Type == Attack
     u32 HexIndex;
 };
 
@@ -296,7 +298,7 @@ struct game_state
     
     v3 HexOutlineP;
     v3 HexOutlineTargetP;
-    f32 HexOutlineAlpha;
+    v4 HexOutlineColor;
     
     //Placing tower
     v3 TowerPlaceIndicatorP;
@@ -319,7 +321,6 @@ struct game_state
     
     //These are constants
     f32 ApproxTowerZ;
-    v4 Colors[4];
     
     //
     v3 SkyColor;
@@ -354,6 +355,7 @@ struct defense_assets
     model_handle Castle, Turret, Mine, Tower, Fence05;
     
     model_handle Settlement1, Settlement2, Settlement3, Settlement4, Settlement5;
+    model_handle Boat;
     
     vertex_buffer_handle GUIWholeScreen;
     

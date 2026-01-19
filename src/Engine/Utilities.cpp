@@ -573,3 +573,11 @@ struct resource_table
         Array[Handle.Index] = {};
     }
 };
+
+template <typename type>
+type GetRandomFrom(span<type> Span)
+{
+    Assert(Span.Count > 0);
+    u64 Index = RandomBetween(0, Span.Count - 1);
+    return Span[Index];
+}

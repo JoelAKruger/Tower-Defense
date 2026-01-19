@@ -103,6 +103,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     LoadObjects(Assets, "assets/models/house_07.obj");
     LoadObjects(Assets, "assets/models/fence_05.obj");
     LoadObjects(Assets, "assets/models/Settlements.obj");
+    LoadObjects(Assets, "assets/models/boat.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -154,6 +155,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->Settlement3 = GetModelHandle(Assets, "Settlement_Level3");
     Handles->Settlement4 = GetModelHandle(Assets, "Settlement_Level4");
     Handles->Settlement5 = GetModelHandle(Assets, "Settlement_Level5");
+    Handles->Boat = GetModelHandle(Assets, "Boat");
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
@@ -419,7 +421,6 @@ CreateHexOutlineMesh(game_assets* Assets)
 {
     span<v2> HexagonVertices = GetHexagonVertexPositions(V2(0, 0), 1.0f, Assets->Allocator.Transient);
     
-    v4 Color = V4(1.1f, 1.1f, 1.1f, 1.0f); 
     v3 Normal = V3(0.0f, 0.0f, -1.0f);
     
     u64 VertexCount = 6 * 6 + 2;
@@ -442,21 +443,21 @@ CreateHexOutlineMesh(game_assets* Assets)
         //If concave
         if (SinAngle < 0.0f)
         {
-            Vertices[HexagonVertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, 0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, 0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * PerpA, 0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * PerpB, 0), Normal};
         }
         else
         {
-            Vertices[HexagonVertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, 0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, 0), Normal, Color};
-            Vertices[HexagonVertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal, Color};
+            Vertices[HexagonVertexIndex * 6 + 0] = {V3(Vertex - HalfBorderThickness * PerpA, 0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 1] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 2] = {V3(Vertex - HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 3] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 4] = {V3(Vertex - HalfBorderThickness * PerpB, 0), Normal};
+            Vertices[HexagonVertexIndex * 6 + 5] = {V3(Vertex + HalfBorderThickness * Mid,   0), Normal};
         }
         
         if (HexagonVertexIndex == 0)

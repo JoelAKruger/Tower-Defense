@@ -350,12 +350,12 @@ GetWorldHeight(v2 P, u32 Seed)
 }
 
 static v4
-GetWaterColor(f32 Height)
+GetWaterColor(f32 Z)
 {
+    f32 Height = 1.0f - 4 * Z;
     v3 WaterColor = V3(0.17f, 0.23f, 0.46f);
     v3 Color = WaterColor + 2.0f * (Height - 0.4f) * WaterColor;
     return V4(Color, 1.0f);
-    //return V4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 /*
@@ -400,8 +400,13 @@ AddEntity(world* World, entity Entity)
 }
 
 static v4
-GetPlayerColor(u64 PlayerIndex)
+GetPlayerColor(i32 PlayerIndex)
 {
+    if (PlayerIndex == -1)
+    {
+        return V4(0.5f, 0.5f, 0.5f, 1.0f);
+    }
+    
     v4 Colors[4] = {
         V4(0.40f, 0.79f, 0.39f, 1.0f),
         V4(0.70f, 0.41f, 0.74f, 1.0f),
@@ -531,7 +536,7 @@ CreateWorld(world* World, u64 PlayerCount)
     static u32 Seed = 2001;
     Seed++;
     
-    random_series RNG = {Seed};
+    random_series RNG = BeginRandom(Seed);
     
     
     //v4 Colors[4] = {
@@ -570,8 +575,8 @@ CreateWorld(world* World, u64 PlayerCount)
             if (HexIsWater)
             {
                 Hex.Owner = -1;
-                Hex.Color = GetWaterColor(HexHeight);
                 Hex.P.Z = 0.25f * (1.0f - HexHeight);
+                Hex.Color = GetWaterColor(Hex.P.Z);
                 
                 //Prevent z-fighting with water
                 if (Hex.P.Z < 0.13f)
@@ -585,7 +590,7 @@ CreateWorld(world* World, u64 PlayerCount)
                 
                 GenerateFoliage = true;
                 Hex.Owner = -1;
-                Hex.Color = V4(0.5f, 0.5f, 0.5f, 1.0f);
+                Hex.Color = GetPlayerColor(Hex.Owner);
             }
             
             if (!HexIsWater)
@@ -600,9 +605,17 @@ CreateWorld(world* World, u64 PlayerCount)
     //Give players their starting tile
     for (u64 PlayerIndex = 0; PlayerIndex < PlayerCount; PlayerIndex++)
     {
-        entity* StartingHex = GetRandomLandHex(World, &RNG);
-        StartingHex->Owner = PlayerIndex;
-        StartingHex->Color = GetPlayerColor(StartingHex->Owner);
+        while (true)
+        {
+            entity* StartingHex = GetRandomLandHex(World, &RNG);
+            if (StartingHex->Owner == -1)
+            {
+                StartingHex->Owner = PlayerIndex;
+                StartingHex->Color = GetPlayerColor(StartingHex->Owner);
+                StartingHex->Level = 1;
+                break;
+            }
+        }
     }
     
     
@@ -832,6 +845,101 @@ GenerateFoliage(world* World, memory_arena* Arena)
                 
                 AddEntity(World, Foliage);
                 Index++;
+            }
+        }
+    }
+}
+
+static void
+DoAttack(u64 AttackerPlayerIndex, span<entity*> Attackers, entity* Defender)
+{
+    f32 SuccessfulAttackProbabilities[6] = {
+        0.5f,
+        0.6f,
+        0.7f,
+        0.8f,
+        0.9f,
+        1.0f
+    };
+    Assert(Attackers.Count < ArrayCount(SuccessfulAttackProbabilities));
+    
+    f32 SuccessProbability = SuccessfulAttackProbabilities[Attackers.Count - 1];
+    
+    if (Defender->Owner == -1)
+    {
+        SuccessProbability = 1.0f;
+    }
+    
+    int TotalAttackPower = 0;
+    for (entity* Attacker : Attackers)
+    {
+        TotalAttackPower += Attacker->Level;
+    }
+    
+    int TotalDefendPower = Defender->Level;
+    
+    int AttackPower = TotalAttackPower;
+    int DefendPower = TotalDefendPower;
+    
+    while (AttackPower > 0 && DefendPower > 0)
+    {
+        entity* Attacker = GetRandomFrom(Attackers);
+        
+        if (Attacker->Level > 0)
+        {
+            if (Random() < SuccessProbability)
+            {
+                Defender->Level--;
+                DefendPower--;
+            }
+            else
+            {
+                Attacker->Level--;
+                AttackPower--;
+            }
+        }
+    }
+    
+    if (AttackPower == 0) //Defender won
+    {
+        
+    }
+    else //Attacker won
+    {
+        //Subtract level from attacker with highest level
+        int HighestLevel = 1;
+        for (entity* Attacker : Attackers)
+        {
+            HighestLevel = Max(HighestLevel, Attacker->Level);
+        }
+        
+        while (true)
+        {
+            entity* Attacker = GetRandomFrom(Attackers);
+            if (Attacker->Level == HighestLevel)
+            {
+                Attacker->Level--;
+                break;
+            }
+        }
+        
+        Defender->Owner = AttackerPlayerIndex;
+        Defender->Color = GetPlayerColor(Defender->Owner); //TODO: Is this good?
+        Defender->Level = 1;
+    }
+    
+    for (entity* Attacker : Attackers)
+    {
+        if (Attacker->Level <= 0)
+        {
+            Attacker->Owner = -1;
+            if (IsWater(Attacker))
+            {
+                Attacker->Color = GetWaterColor(Attacker->P.Z);
+            }
+            else
+            {
+                Attacker->Color = GetPlayerColor(-1);
             }
         }
     }
