@@ -1054,6 +1054,20 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 {
                     v3 Color = GetPlayerColor(GameState->MyClientID).RGB;
                     GameState->HexOutlineColor = V4(1.5f * Color, 1.0f);
+                    
+                    //Draw arrows
+                    for (entity* Neighbour : Neighbours)
+                    {
+                        if (Neighbour->Owner == GameState->MyClientID)
+                        {
+                            //TODO: Maybe use GetEntityP() ?
+                            v3 P = V3(0.4f * Neighbour->P.XY + 0.6f * GameState->HoveringHex->P.XY, 0.1f);
+                            f32 Angle = VectorAngle(GameState->HoveringHex->P.XY - Neighbour->P.XY);
+                            PushModelNew(&RenderGroup, AssetHandles->Arrow, RotateTransform(0.5f * Pi - Angle) * ScaleTransform(0.009f) * TranslateTransform(P));
+                            PushNoShadows(&RenderGroup);
+                            PushColor(&RenderGroup, V4(2,2,2,1));
+                        }
+                    }
                 }
                 else
                 {

@@ -63,7 +63,7 @@ struct entity
     hex_type HexType;
     v3 P; //Can be overriden locally
     i32 Owner;
-    i32 Region;
+    i32 Region; //TODO: Change to u32
     v4 Color;
     i8 Level;
     v2i GridP;
@@ -356,6 +356,7 @@ struct defense_assets
     
     model_handle Settlement1, Settlement2, Settlement3, Settlement4, Settlement5;
     model_handle Boat;
+    model_handle Arrow;
     
     vertex_buffer_handle GUIWholeScreen;
     

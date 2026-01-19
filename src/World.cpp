@@ -596,6 +596,7 @@ CreateWorld(world* World, u64 PlayerCount)
             if (!HexIsWater)
             {
                 Hex.Region = NearestRegionTo(Hex.P.XY, World).Region;
+                World->Regions[Hex.Region].HexCount++;
             }
             
             u64 HexIndex = AddEntity(World, Hex);

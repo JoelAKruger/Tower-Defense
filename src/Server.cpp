@@ -60,7 +60,10 @@ DoExplosion(global_game_state* Game, v2 P, f32 Radius)
 static void
 PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* MessageQueue)
 {
-    player* Player = Game->Players + Game->PlayerTurnIndex;
+    player* Player = Game->Players + Game->PlayerTurnIndex;\
+    
+    //Check if player owns the whole region
+    int RegionHexesOwned[ArrayCount(Game->World.Regions)] = {};
     
     for (u64 EntityIndex = 1; EntityIndex < Game->World.EntityCount; EntityIndex++)
     {
@@ -68,7 +71,21 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
         if (Entity->Type == Entity_WorldHex &&
             Entity->Owner == Game->PlayerTurnIndex)
         {
-            Player->Credits += Entity->Level;
+            Player->Credits++; // Entity->Level;
+            
+            if (Entity->Region > 0)
+            {
+                RegionHexesOwned[Entity->Region]++;
+            }
+        }
+    }
+    
+    for (int RegionIndex = 1; RegionIndex < Game->World.RegionCount; RegionIndex++)
+    {
+        if (RegionHexesOwned[RegionIndex] == Game->World.Regions[RegionIndex].HexCount)
+        {
+            //Region is owned
+            Player->Credits += Game->World.Regions[RegionIndex].HexCount;
         }
     }
     

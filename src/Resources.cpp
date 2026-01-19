@@ -104,6 +104,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     LoadObjects(Assets, "assets/models/fence_05.obj");
     LoadObjects(Assets, "assets/models/Settlements.obj");
     LoadObjects(Assets, "assets/models/boat.obj");
+    LoadObjects(Assets, "assets/models/arrow.obj");
     
     SetModelLocalTransform(Assets, "2FPinkPlant_Plane.084", TranslateTransform(-5.872f, 0.0f, -23.1f) * 
                            ModelRotateTransform() * ScaleTransform(1.0f));
@@ -156,6 +157,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->Settlement4 = GetModelHandle(Assets, "Settlement_Level4");
     Handles->Settlement5 = GetModelHandle(Assets, "Settlement_Level5");
     Handles->Boat = GetModelHandle(Assets, "Boat");
+    Handles->Arrow = GetModelHandle(Assets, "Plane");
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},
