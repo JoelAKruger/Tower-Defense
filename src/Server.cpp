@@ -198,33 +198,38 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             
             //TODO: Verify index is valid and entity type is correct
             entity* Hex = Game->World.Entities + Request->HexIndex;
-            u64 MaxHexLevel = 2;
+            u64 MaxHexLevel = 5;
             
             if (Hex->Level < MaxHexLevel)
             {
                 Hex->Level++;
-                v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
                 
-                //Play animation
-                animation Animation = {
-                    .Type = Animation_Entity,
-                    .P0 = Hex->P,
-                    .P1 = NewP,
-                    .EntityIndex = Request->HexIndex
-                };
+                /*
+                                v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
+                                
+                                //Play animation
+                                
+                                animation Animation = {
+                                    .Type = Animation_Entity,
+                                    .P0 = Hex->P,
+                                    .P1 = NewP,
+                                    .EntityIndex = Request->HexIndex
+                                };
+                                
+                                server_packet_message Packet = {
+                                    .Channel = Channel_Message,
+                                    .Type = Message_PlayAnimation,
+                                    .Animation = Animation
+                                };
+                                
+                                Append(&ServerPackets, Packet);
+                                
+                                v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
+                                
+                                Hex->P = NewP;
+                                Hex->Color = NewColor;
+                                */
                 
-                server_packet_message Packet = {
-                    .Channel = Channel_Message,
-                    .Type = Message_PlayAnimation,
-                    .Animation = Animation
-                };
-                
-                Append(&ServerPackets, Packet);
-                
-                v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
-                
-                Hex->P = NewP;
-                Hex->Color = NewColor;
                 *FlushWorld = true;
             }
         } break;

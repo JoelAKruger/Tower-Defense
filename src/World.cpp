@@ -484,7 +484,7 @@ CreateRegionCenters(world* World, int Max = 100)
 }
 
 static entity*
-GetRandomLandHex(world* World)
+GetRandomLandHex(world* World, random_series* RNG)
 {
     entity* Result = 0;
     
@@ -498,7 +498,7 @@ GetRandomLandHex(world* World)
         }
     }
     
-    u64 Index = RandomBetween(0, LandHexCount - 1);
+    u64 Index = RandomBetween(0, LandHexCount - 1, RNG);
     
     u64 Count = 0;
     for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
@@ -530,6 +530,8 @@ CreateWorld(world* World, u64 PlayerCount)
     
     static u32 Seed = 2001;
     Seed++;
+    
+    random_series RNG = {Seed};
     
     
     //v4 Colors[4] = {
@@ -598,7 +600,7 @@ CreateWorld(world* World, u64 PlayerCount)
     //Give players their starting tile
     for (u64 PlayerIndex = 0; PlayerIndex < PlayerCount; PlayerIndex++)
     {
-        entity* StartingHex = GetRandomLandHex(World);
+        entity* StartingHex = GetRandomLandHex(World, &RNG);
         StartingHex->Owner = PlayerIndex;
         StartingHex->Color = GetPlayerColor(StartingHex->Owner);
     }

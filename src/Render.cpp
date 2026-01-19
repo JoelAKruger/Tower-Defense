@@ -106,6 +106,7 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     
     m4x4 LightViewTransform = ViewTransform(LightP, LightP + LightDirection);
     
+    /*
     f32 MinWorldZ = -0.4f;
     f32 MaxWorldZ = 0.2f;
     
@@ -118,6 +119,18 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
         ScreenToWorld(Game, V2(-1, 1), MaxWorldZ),
         ScreenToWorld(Game, V2(1, -1), MaxWorldZ),
         ScreenToWorld(Game, V2(1, 1), MaxWorldZ),
+    };
+
+*/
+    
+    f32 WorldZ = 0.2f;
+    f32 X = 1.0f;
+    
+    v3 WorldPositions[] = {
+        ScreenToWorld(Game, V2(-X, -X), WorldZ),
+        ScreenToWorld(Game, V2(-X, X), WorldZ),
+        ScreenToWorld(Game, V2(X, -X), WorldZ),
+        ScreenToWorld(Game, V2(X, X), WorldZ),
     };
     
     f32 Right = FLT_MIN;
@@ -141,6 +154,10 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
         Bottom = Min(LightP.Y, Bottom);
         Near = Min(LightP.Z, Near);
     }
+    
+    Left = 0.5f * (Left + Right);
+    Bottom = 0.5f * (Bottom + Top);
+    
     
     m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(Left, Right, Bottom, Top, Near, Far);
     
@@ -271,6 +288,9 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                         {
                             case 1: Model = GameAssets->Settlement1; break;
                             case 2: Model = GameAssets->Settlement2; break;
+                            case 3: Model = GameAssets->Settlement3; break;
+                            case 4: Model = GameAssets->Settlement4; break;
+                            case 5: Model = GameAssets->Settlement5; break;
                         }
                         PushTexturedModel(RenderGroup, Model, ScaleTransform(Entity->Size) * TranslateTransform(P));
                     }

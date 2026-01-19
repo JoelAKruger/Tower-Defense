@@ -28,6 +28,7 @@ LoadSkybox(defense_assets* Handles)
     }
 }
 
+//TODO: Clean up this
 static void
 LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
 {
@@ -150,6 +151,9 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->Fence05 = GetModelHandle(Assets, "Fence_05");
     Handles->Settlement1 = GetModelHandle(Assets, "Settlement_Level1");
     Handles->Settlement2 = GetModelHandle(Assets, "Settlement_Level2");
+    Handles->Settlement3 = GetModelHandle(Assets, "Settlement_Level3");
+    Handles->Settlement4 = GetModelHandle(Assets, "Settlement_Level4");
+    Handles->Settlement5 = GetModelHandle(Assets, "Settlement_Level5");
     
     gui_vertex Vertices[6] = {
         {V2(-1, -1), {}, V2(0, 1)},

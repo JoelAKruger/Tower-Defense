@@ -381,9 +381,10 @@ struct random_series
     u32 Value;
 };
 
-static void Next(random_series* Series)
+static void
+Next(random_series* RNG)
 {
-    Series->Value = (16843009 * Series->Value + 826366247);
+    RNG->Value = (16843009 * RNG->Value + 826366247);
 }
 
 static random_series
@@ -395,11 +396,18 @@ BeginRandom(u32 Seed)
     return Series;
 }
 
-inline float Random(random_series* Series)
+static inline f32 
+Random(random_series* Series)
 {
-    f32 Result = (float)Series->Value / (float)UINT32_MAX;
+    f32 Result = (float)(u16)Series->Value / (float)UINT16_MAX;
     Next(Series);
     return Result;
+}
+
+static inline f32
+RandomBetween(f32 Min, f32 Max, random_series* RNG)
+{
+	return Min + Random(RNG) * (Max - Min);
 }
 
 static inline f32 

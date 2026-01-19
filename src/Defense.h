@@ -353,7 +353,7 @@ struct defense_assets
     model_handle ModularWood, House, House07;
     model_handle Castle, Turret, Mine, Tower, Fence05;
     
-    model_handle Settlement1, Settlement2;
+    model_handle Settlement1, Settlement2, Settlement3, Settlement4, Settlement5;
     
     vertex_buffer_handle GUIWholeScreen;
     
