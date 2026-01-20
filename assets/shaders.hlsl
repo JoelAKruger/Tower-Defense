@@ -1,9 +1,14 @@
 struct VS_Input
 {
+	//Per vertex
     float3 pos    : POS;
 	float3 normal : NORMAL;
     float4 color  : COL;
 	float2 uv     : UV;
+
+	//Per instance
+	float4x4 model_to_world : WORLD;
+	float4 instance_color : ICOL;
 };
 
 struct VS_Output_Default
@@ -17,6 +22,31 @@ struct VS_Output_Default
 	float2 uv : UV;
 };
 
+cbuffer Constants : register(b5)
+{
+	float4x4 world_to_clip;
+	float4x4 world_to_light;
+	float time;
+
+	float4 clip_plane;
+	float3 camera_pos;
+	float3 light_direction;
+	float3 light_color;
+
+	float3 albedo;
+	float roughness;
+	float metallic;
+	float occlusion;
+	float3 fresnel_color;
+
+	float3 wind_direction;
+	float wind_strength;
+
+	float shadow_intensity;
+	float shadow_remove;
+};
+
+/*
 cbuffer Constants : register(b5)
 {
 	float4x4 world_to_clip;
@@ -42,6 +72,7 @@ cbuffer Constants : register(b5)
 	float shadow_intensity;
 	float shadow_remove;
 };
+*/
 
 float GetShadowValue(float2 shadow_uv, float pixel_depth);
 float GetShadowValueBetter(float2 shadow_uv, float pixel_depth, float3 normal);
@@ -75,7 +106,7 @@ float nvidia_wind_function(float t)
 // Normal shaders
 VS_Output_Default MyVertexShader(VS_Input input) 
 {
-	float4 world_pos = mul(float4(input.pos, 1.0f), model_to_world);
+	float4 world_pos = mul(float4(input.pos, 1.0f), input.model_to_world);
 	world_pos = world_pos / world_pos.w;
 
 	float height = 0.1f * (0.1f - world_pos.z);
@@ -90,8 +121,8 @@ VS_Output_Default MyVertexShader(VS_Input input)
 	output.pos_world = world_pos.xyz / world_pos.w;
 	output.pos_light_space = mul(world_pos, world_to_light);
 	output.pos_clip = pos_clip;
-	output.color = input.color + color + float4(Albedo, 0);
-	output.normal = normalize((float3)mul(float4(input.normal, 0.0f), model_to_world));
+	output.color = input.color + input.instance_color + float4(albedo, 0);
+	output.normal = normalize((float3)mul(float4(input.normal, 0.0f), input.model_to_world));
 	output.uv = input.uv;
 
 	return output;
@@ -100,7 +131,7 @@ VS_Output_Default MyVertexShader(VS_Input input)
 //Only depth
 float4 VertexShader_OnlyDepth(VS_Input input) : SV_POSITION
 {
-	float4 world_pos = mul(float4(input.pos, 1.0f), model_to_world);
+	float4 world_pos = mul(float4(input.pos, 1.0f), input.model_to_world);
 	float4 pos_clip = mul(world_pos, world_to_clip);
 	return pos_clip;
 }
@@ -163,16 +194,16 @@ float3 brdf_unity(float3 albedo, float3 world_pos, float3 light_dir, float3 norm
 	float h_dot_v = max(dot(half_vec, view_vec), 0.0f);
 	float n_dot_v = max(dot(normal, view_vec), 0.0f);
 
-	float3 f0 = lerp(float3(0.04f, 0.04f, 0.04f), FresnelColor * albedo, Metallic);
+	float3 f0 = lerp(float3(0.04f, 0.04f, 0.04f), fresnel_color * albedo, metallic);
 
-	float d = trowbridge_reitz_normal_distribution(n_dot_h, Roughness);
-	float3 f = fresnel(f0, n_dot_v, Roughness);
-	float g = schlick_beckmann_geometry_attenuation_function(n_dot_v, Roughness) * schlick_beckmann_geometry_attenuation_function(n_dot_l, Roughness);
+	float d = trowbridge_reitz_normal_distribution(n_dot_h, roughness);
+	float3 f = fresnel(f0, n_dot_v, roughness);
+	float g = schlick_beckmann_geometry_attenuation_function(n_dot_v, roughness) * schlick_beckmann_geometry_attenuation_function(n_dot_l, roughness);
 
 	float lambert_direct = max(dot(normal, light_vec), 0.0f);
-	float3 direct_radiance = light_color * Occlusion;
+	float3 direct_radiance = light_color * occlusion;
 
-	float3 diffuse_direct_term = lambert_diffuse(albedo) * (1.0f - f) * (1.0f - Metallic) * albedo;
+	float3 diffuse_direct_term = lambert_diffuse(albedo) * (1.0f - f) * (1.0f - metallic) * albedo;
 	float3 specular_direct_term = g * d * f / (4.0f * n_dot_v * n_dot_l + 0.00001f);
 
 	float3 brdf_direct_output  = (diffuse_direct_term + specular_direct_term) * lambert_direct * direct_radiance;
@@ -186,7 +217,7 @@ float4 PixelShader_PBR(VS_Output_Default input) : SV_TARGET
 	{
 		discard;
 	}
-
+	
 	float2 shadow_uv;
 	shadow_uv.x = 0.5f + (input.pos_light_space.x / input.pos_light_space.w * 0.5f);
 	shadow_uv.y = 0.5f - (input.pos_light_space.y / input.pos_light_space.w * 0.5f);
@@ -385,7 +416,7 @@ float4 PixelShader_Texture(VS_Output_Default input) : SV_Target
 		discard;
 	}
 
-	float4 sample = color * default_texture.Sample(default_sampler, input.uv);
+	float4 sample = input.color * default_texture.Sample(default_sampler, input.uv);
 	if (sample.a == 0.0f)
 	{
 		discard;

@@ -906,7 +906,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     GameState->LightP = -1.0f * GameState->LightDirection;
     
     f32 WaterFrequency = 0.2f;
-    GameState->WaterZ = 0.125f + 0.002f * sinf(WaterFrequency * 2 * Pi * GameState->Time);
+    GameState->WaterZ = 0.125f; // + 0.002f * sinf(WaterFrequency * 2 * Pi * GameState->Time);
     
     f32 TowerRadius = 0.03f;
     

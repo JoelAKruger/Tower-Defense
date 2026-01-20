@@ -9,7 +9,9 @@ struct renderer_shader
 {
     ID3D11VertexShader* VertexShader;
     ID3D11PixelShader* PixelShader;
-    ID3D11InputLayout* InputLayout;
+    
+    ID3D11InputLayout* VertexDataLayout;
+    ID3D11InputLayout* InstanceDataLayout;
 };
 typedef renderer_shader d3d11_shader;
 

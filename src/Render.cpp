@@ -261,7 +261,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     shader_constants Constants = {};
     
     DrawSkybox(RenderGroup, GameAssets);
-    DrawOceanFloor(RenderGroup, 0.35f);
+    //DrawOceanFloor(RenderGroup, 0.35f);
     
     //TODO: These should use GetModelTransformOfEntity()
     {

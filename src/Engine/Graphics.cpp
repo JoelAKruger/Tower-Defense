@@ -443,6 +443,135 @@ GUIStringWidth(string String, f32 FontSize)
     return Result;
 }
 
+static bool
+RenderBatchIsCompatible(render_batch* Batch, render_command* Command, shader ShaderOverride)
+{
+    bool Result = (Batch->Shader == ShaderOverride &&
+                   (Batch->VertexBuffer == Command->VertexBuffer || (Batch->VertexData != 0 && Batch->VertexData == Command->VertexData)) &&
+                   Batch->Texture == Command->Texture &&
+                   Batch->Material == Command->Material &&
+                   Batch->DisableDepthTest == Command->DisableDepthTest &&
+                   Batch->EnableWind == Command->EnableWind &&
+                   Batch->NoShadows == Command->NoShadows);
+    return Result;
+}
+
+static span<render_batch>
+CreateRenderBatches(render_group* Group, render_draw_type Type, memory_arena* Arena)
+{
+    dynamic_array<render_batch> Result = {.Arena = Arena};
+    
+    for (u64 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
+    {
+        render_command* Command = Group->Commands + CommandIndex;
+        
+        if ((Type & Draw_Shadow) && Command->DoesNotCastShadow)
+        {
+            continue;
+        }
+        
+        shader ShaderOverride = (Type & Draw_OnlyDepth) ? Shader_OnlyDepth : Command->Shader;
+        
+        bool Added = false;
+        for (u64 BatchIndex = 0; BatchIndex < Result.Count; BatchIndex++)
+        {
+            render_batch* Batch = Result + BatchIndex;
+            if (RenderBatchIsCompatible(Batch, Command, ShaderOverride))
+            {
+                shader_instance_data InstanceData = {
+                    .ModelToWorldTransform = Command->ModelTransform,
+                    .Color = Command->Color
+                };
+                Append(&Batch->Instances, InstanceData);
+                Added = true;
+            }
+        }
+        
+        if (!Added)
+        {
+            render_batch Batch = {
+                .Shader = ShaderOverride,
+                .Instances = {.Arena = Arena},
+                .VertexBuffer = Command->VertexBuffer,
+                .VertexData = Command->VertexData,
+                .VertexDataStride = Command->VertexDataStride,
+                .VertexDataBytes = Command->VertexDataBytes,
+                .Topology = Command->Topology,
+                .Texture = Command->Texture,
+                .Material = Command->Material,
+                .DisableDepthTest = Command->DisableDepthTest,
+                .EnableWind = Command->EnableWind,
+                .NoShadows = Command->NoShadows
+            };
+            
+            shader_instance_data InstanceData = {
+                .ModelToWorldTransform = Command->ModelTransform,
+                .Color = Command->Color
+            };
+            
+            Append(&Batch.Instances, InstanceData);
+            Append(&Result, Batch);
+        }
+    }
+    
+    return ToSpan(Result);
+}
+
+
+static void 
+DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type)
+{
+    span<render_batch> Batches = CreateRenderBatches(Group, Type, Group->Arena);
+    
+    for (render_batch& Batch : Batches)
+    {
+        SetShader(Batch.Shader);
+        SetTexture(Batch.Texture);
+        SetDepthTest(!Batch.DisableDepthTest);
+        
+        material* Material = Batch.Material;
+        if (!Material)
+        {
+            material* DefaultMaterial = Group->Assets->Materials + 0;
+            Material = DefaultMaterial;
+        }
+        
+        Constants.Albedo = Material->DiffuseColor;
+        Constants.Roughness = (1000.0f - Material->SpecularFocus) / 1000.0f;
+        Constants.Metallic = Material->SpecularFocus / 1000.0f;
+        Constants.Occlusion = 1.0f;
+        Constants.FresnelColor = Material->SpecularColor;
+        
+        //TODO: Definitely not optimal
+        //TODO: Get rid of this
+        if (Batch.EnableWind)
+        {
+            Constants.WindDirection = UnitV(V3(1, 1, 0));
+            Constants.WindStrength = 1.0f;
+        }
+        else
+        {
+            Constants.WindDirection = {};
+            Constants.WindStrength = {};
+        }
+        
+        Constants.ShadowRemove = Batch.NoShadows ? 1.0f : 0.0f;
+        
+        SetGraphicsShaderConstants(Constants);
+        
+        if (Batch.VertexBuffer)
+        {
+            DrawVertexBuffer(Group->Assets->VertexBuffers[Batch.VertexBuffer], ToSpan(Batch.Instances));
+        }
+        
+        else
+        {
+            DrawVertices((f32*)Batch.VertexData, Batch.VertexDataBytes, (D3D11_PRIMITIVE_TOPOLOGY)Batch.Topology, Batch.VertexDataStride, ToSpan(Batch.Instances));
+        }
+    }
+}
+
+/*
 static void 
 DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type)
 {
@@ -453,6 +582,8 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
     SetDepthTest(DepthTestIsEnabled);
     SetShader({});
     SetTexture({});
+    
+    shader_instance_data InstanceData = {};
     
     for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
     {
@@ -471,8 +602,13 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
             Shader = Shader_OnlyDepth;
         }
         
-        Constants.ModelToWorldTransform = Command->ModelTransform;
-        Constants.Color = Command->Color;
+        InstanceData.ModelToWorldTransform = Command->ModelTransform;
+        InstanceData.Color = Command->Color;
+        
+        if (CurrentShader == Shader_Water)
+        {
+            int x = 3;
+        }
         
         if (CurrentShader != Shader)
         {
@@ -526,14 +662,17 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
         
         if (Command->VertexBuffer)
         {
-            DrawVertexBuffer(Group->Assets->VertexBuffers[Command->VertexBuffer]);
+            DrawVertexBuffer(Group->Assets->VertexBuffers[Command->VertexBuffer], InstanceData);
         }
+        
         else
         {
-            DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride);
+            DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride, InstanceData);
         }
     }
 }
+
+*/
 
 static m4x4
 IdentityTransform()

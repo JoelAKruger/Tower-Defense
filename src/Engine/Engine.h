@@ -223,13 +223,16 @@ enum blend_mode
     BlendMode_Blend
 };
 
+struct shader_instance_data
+{
+    m4x4 ModelToWorldTransform;
+    v4 Color;
+};
+
 struct shader_constants
 {
     m4x4 WorldToClipTransform; 
-    m4x4 ModelToWorldTransform;
     m4x4 WorldToLightTransform;
-    v4 Color;
-    
     f32 Time;
     f32 Pad0[3];
     
@@ -284,8 +287,8 @@ void SetGUIShaderConstant(m4x4 Transform);
 //Rendering
 renderer_vertex_buffer PlatformCreateVertexBuffer(void* Data, u64 Bytes, int Topology, u64 Stride);
 void FreeVertexBuffer(renderer_vertex_buffer VertexBuffer);
-void DrawVertices(f32* VertexData, u32 VertexDataBytes, int Topology, u32 Stride);
-void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer);
+void DrawVertices(f32* VertexData, u32 VertexDataBytes, int Topology, u32 Stride, shader_instance_data InstanceData);
+//void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer);
 void SetBlendMode(blend_mode Mode);
 void SetFrontCullMode(bool Value);
 
@@ -399,8 +402,8 @@ struct render_command
     void* VertexData;
     u32 VertexDataStride;
     u32 VertexDataBytes;
-    
     D3D11_PRIMITIVE_TOPOLOGY Topology;
+    
     shader Shader;
     vertex_buffer_handle VertexBuffer;
     texture_handle Texture;
@@ -409,6 +412,25 @@ struct render_command
     material* Material;
     bool DisableDepthTest;
     bool DoesNotCastShadow;
+    bool EnableWind;
+    bool NoShadows;
+};
+
+struct render_batch
+{
+    shader Shader;
+    dynamic_array<shader_instance_data> Instances;
+    
+    vertex_buffer_handle VertexBuffer;
+    
+    //TODO: Get rid of this
+    void* VertexData;
+    u32 VertexDataStride, VertexDataBytes;
+    int Topology;
+    
+    texture_handle Texture;
+    material* Material;
+    bool DisableDepthTest;
     bool EnableWind;
     bool NoShadows;
 };
