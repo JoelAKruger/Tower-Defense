@@ -19,7 +19,6 @@ GetHexVertex(entity* Hex, i32 Index)
     return Result;
 }
 
-// Unused
 static span<entity*>
 GetHexNeighbours(world* World, entity* Hex, memory_arena* Arena)
 {

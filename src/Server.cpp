@@ -69,7 +69,8 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
     {
         entity* Entity = Game->World.Entities + EntityIndex;
         if (Entity->Type == Entity_WorldHex &&
-            Entity->Owner == Game->PlayerTurnIndex)
+            Entity->Owner == Game->PlayerTurnIndex &&
+            !IsWater(Entity))
         {
             Player->Credits++; // Entity->Level;
             

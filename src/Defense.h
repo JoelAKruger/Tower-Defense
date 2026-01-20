@@ -357,6 +357,7 @@ struct defense_assets
     model_handle Settlement1, Settlement2, Settlement3, Settlement4, Settlement5;
     model_handle Boat;
     model_handle Arrow;
+    model_handle Question;
     
     vertex_buffer_handle GUIWholeScreen;
     

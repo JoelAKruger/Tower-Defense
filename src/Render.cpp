@@ -274,13 +274,48 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
             {
                 case Entity_WorldHex:
                 {
+                    bool Hidden = true;
+                    
+                    if (IsWater(Entity) || Entity->Owner == Game->MyClientID)
+                    {
+                        Hidden = false;
+                    }
+                    
+                    //Optimisation: only check neighbours if we don't know if it's shown
+                    if (Hidden)
+                    {
+                        span<entity*> Neighbours = GetHexNeighbours(World, Entity, RenderGroup->Arena);
+                        
+                        for (entity* Neighbour : Neighbours)
+                        {
+                            if (Neighbour->Owner == Game->MyClientID)
+                            {
+                                Hidden = false;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    v4 Color = Hidden ? V4(1,1,1,1) : Entity->Color;
+                    
+                    //Draw hex
                     v3 P = GetEntityP(Game, EntityIndex);
                     m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
                     span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldHex, Transform);
-                    Commands[0]->Color = Entity->Color;
+                    Commands[0]->Color = Color;
+                    
+                    //Draw skirt
                     Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
                     Commands = PushModelNew(RenderGroup, GameAssets->WorldHexSkirt, Transform);
                     Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
+                    
+                    //Draw question mark
+                    if (Hidden)
+                    {
+                        Transform = ScaleTransform(0.5f * Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, -0.001f));
+                        PushModelNew(RenderGroup, GameAssets->Question, Transform);
+                        PushNoShadows(RenderGroup);
+                    }
                     
                     model_handle Model = {};
                     
