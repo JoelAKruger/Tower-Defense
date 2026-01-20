@@ -225,7 +225,11 @@ d3d11_shader CreateShader(wchar_t* Path,
     //Create Vertex Shader
     ID3DBlob* VertexShaderBlob;
     ID3DBlob* CompileErrorsBlob;
-    HRESULT HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, VertexShaderEntry, "vs_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &VertexShaderBlob, &CompileErrorsBlob);
+    UINT Flags = 0;
+#ifdef DEBUG
+    Flags |= D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+    HRESULT HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, VertexShaderEntry, "vs_5_0", Flags, 0, &VertexShaderBlob, &CompileErrorsBlob);
     
     if (FAILED(HResult))
     {
@@ -248,7 +252,11 @@ d3d11_shader CreateShader(wchar_t* Path,
     if (PixelShaderEntry)
     {
         ID3DBlob* PixelShaderBlob;
-        HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION, 0, &PixelShaderBlob, &CompileErrorsBlob);
+        UINT Flags = 0;
+#ifdef DEBUG
+        Flags |= D3DCOMPILE_DEBUG|D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+        HResult = D3DCompileFromFile(Path, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, PixelShaderEntry, "ps_5_0", Flags, 0, &PixelShaderBlob, &CompileErrorsBlob);
         
         if (FAILED(HResult))
         {
@@ -373,11 +381,6 @@ void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY
         return;
     }
     
-    for (shader_instance_data& Instance : Instances)
-    {
-        Instance.ModelToWorldTransform = Transpose(Instance.ModelToWorldTransform);
-    }
-    
     ID3D11Buffer* InstanceBuffer = CreateInstanceBuffer(Instances.Memory, Instances.Count * sizeof(shader_instance_data), 
                                                         sizeof(shader_instance_data));
     
@@ -410,11 +413,6 @@ void DrawVertices(f32* VertexData, u32 VertexDataBytes, D3D11_PRIMITIVE_TOPOLOGY
 
 void DrawVertexBuffer(renderer_vertex_buffer VertexBuffer, span<shader_instance_data> InstanceData)
 {
-    for (shader_instance_data& Instance : InstanceData)
-    {
-        Instance.ModelToWorldTransform = Transpose(Instance.ModelToWorldTransform);
-    }
-    
     ID3D11Buffer* InstanceBuffer = CreateInstanceBuffer(InstanceData.Memory, InstanceData.Count * sizeof(shader_instance_data), 
                                                         sizeof(shader_instance_data));
     if (VertexBuffer.Buffer)

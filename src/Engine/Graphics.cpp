@@ -41,6 +41,7 @@ Push(render_group* RenderGroup)
     Assert(RenderGroup->CommandCount < ArrayCount(RenderGroup->Commands));
     
     render_command* Result = RenderGroup->Commands + (RenderGroup->CommandCount++);
+    *Result = {};
     
     //Create default render command
     Result->ModelTransform = IdentityTransform();
@@ -124,6 +125,32 @@ void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0, v2 UV1)
 }
 
 //Deprecated
+static render_command*
+CreateRectRenderCommand(memory_arena* Arena, v3 P0, v3 P1, v3 Normal, v2 UV0, v2 UV1)
+{
+    render_command* Command = AllocStruct(Arena, render_command);
+    
+    vertex VertexData[4] = {
+        {V3(P0.X, P0.Y, P0.Z), Normal, {}, V2(UV0.X, UV0.Y)},
+        {V3(P0.X, P1.Y, P0.Z), Normal, {}, V2(UV0.X, UV1.Y)},
+        {V3(P1.X, P0.Y, P0.Z), Normal, {}, V2(UV1.X, UV0.Y)},
+        {V3(P1.X, P1.Y, P0.Z), Normal, {}, V2(UV1.X, UV1.Y)}
+    };
+    
+    //Get rid of this
+    u64 VertexDataBytes = sizeof(VertexData);
+    
+    Command->VertexData = CopyVertexData(Arena, VertexData, VertexDataBytes);
+    Command->VertexDataStride = sizeof(vertex);
+    Command->VertexDataBytes = VertexDataBytes;
+    
+    Command->Topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+    Command->Shader = Shader_Model;
+    Command->ModelTransform = IdentityTransform();
+    
+    return Command;
+}
+
 void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0, v2 UV1)
 {
     render_command* Command = GetNextEntry(RenderGroup);
@@ -444,9 +471,9 @@ GUIStringWidth(string String, f32 FontSize)
 }
 
 static bool
-RenderBatchIsCompatible(render_batch* Batch, render_command* Command, shader ShaderOverride)
+RenderBatchIsCompatible(render_batch* Batch, render_command* Command)
 {
-    bool Result = (Batch->Shader == ShaderOverride &&
+    bool Result = (Batch->Shader == Command->Shader &&
                    (Batch->VertexBuffer == Command->VertexBuffer || (Batch->VertexData != 0 && Batch->VertexData == Command->VertexData)) &&
                    Batch->Texture == Command->Texture &&
                    Batch->Material == Command->Material &&
@@ -457,7 +484,7 @@ RenderBatchIsCompatible(render_batch* Batch, render_command* Command, shader Sha
 }
 
 static span<render_batch>
-CreateRenderBatches(render_group* Group, render_draw_type Type, memory_arena* Arena)
+CreateRenderBatches(render_group* Group, memory_arena* Arena)
 {
     dynamic_array<render_batch> Result = {.Arena = Arena};
     
@@ -465,21 +492,14 @@ CreateRenderBatches(render_group* Group, render_draw_type Type, memory_arena* Ar
     {
         render_command* Command = Group->Commands + CommandIndex;
         
-        if ((Type & Draw_Shadow) && Command->DoesNotCastShadow)
-        {
-            continue;
-        }
-        
-        shader ShaderOverride = (Type & Draw_OnlyDepth) ? Shader_OnlyDepth : Command->Shader;
-        
         bool Added = false;
         for (u64 BatchIndex = 0; BatchIndex < Result.Count; BatchIndex++)
         {
             render_batch* Batch = Result + BatchIndex;
-            if (RenderBatchIsCompatible(Batch, Command, ShaderOverride))
+            if (RenderBatchIsCompatible(Batch, Command))
             {
                 shader_instance_data InstanceData = {
-                    .ModelToWorldTransform = Command->ModelTransform,
+                    .ModelToWorldTransform_Transposed = Transpose(Command->ModelTransform),
                     .Color = Command->Color
                 };
                 Append(&Batch->Instances, InstanceData);
@@ -490,7 +510,7 @@ CreateRenderBatches(render_group* Group, render_draw_type Type, memory_arena* Ar
         if (!Added)
         {
             render_batch Batch = {
-                .Shader = ShaderOverride,
+                .Shader = Command->Shader,
                 .Instances = {.Arena = Arena},
                 .VertexBuffer = Command->VertexBuffer,
                 .VertexData = Command->VertexData,
@@ -500,12 +520,13 @@ CreateRenderBatches(render_group* Group, render_draw_type Type, memory_arena* Ar
                 .Texture = Command->Texture,
                 .Material = Command->Material,
                 .DisableDepthTest = Command->DisableDepthTest,
+                .DoesNotCastShadow = Command->DoesNotCastShadow,
                 .EnableWind = Command->EnableWind,
                 .NoShadows = Command->NoShadows
             };
             
             shader_instance_data InstanceData = {
-                .ModelToWorldTransform = Command->ModelTransform,
+                .ModelToWorldTransform_Transposed = Transpose(Command->ModelTransform),
                 .Color = Command->Color
             };
             
@@ -518,21 +539,21 @@ CreateRenderBatches(render_group* Group, render_draw_type Type, memory_arena* Ar
 }
 
 
-static void 
-DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type)
+static void
+DrawRenderBatches(span<render_batch> Batches, shader_constants Constants, render_draw_type Type, game_assets* Assets)
 {
-    span<render_batch> Batches = CreateRenderBatches(Group, Type, Group->Arena);
-    
     for (render_batch& Batch : Batches)
     {
-        SetShader(Batch.Shader);
+        shader Shader = (Type & Draw_OnlyDepth) ? Shader_OnlyDepth : Batch.Shader;
+        
+        SetShader(Shader);
         SetTexture(Batch.Texture);
         SetDepthTest(!Batch.DisableDepthTest);
         
         material* Material = Batch.Material;
         if (!Material)
         {
-            material* DefaultMaterial = Group->Assets->Materials + 0;
+            material* DefaultMaterial = Assets->Materials + 0;
             Material = DefaultMaterial;
         }
         
@@ -561,7 +582,7 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
         
         if (Batch.VertexBuffer)
         {
-            DrawVertexBuffer(Group->Assets->VertexBuffers[Batch.VertexBuffer], ToSpan(Batch.Instances));
+            DrawVertexBuffer(Assets->VertexBuffers[Batch.VertexBuffer], ToSpan(Batch.Instances));
         }
         
         else
@@ -571,9 +592,9 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
     }
 }
 
-/*
+
 static void 
-DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_type Type)
+DrawRenderCommand(render_command* Command, shader_constants Constants, render_draw_type Type, game_assets* Assets)
 {
     bool DepthTestIsEnabled = true;
     shader CurrentShader = Shader_Null;
@@ -585,94 +606,88 @@ DrawRenderGroup(render_group* Group, shader_constants Constants, render_draw_typ
     
     shader_instance_data InstanceData = {};
     
-    for (u32 CommandIndex = 0; CommandIndex < Group->CommandCount; CommandIndex++)
+    if ((Type & Draw_Shadow) && Command->DoesNotCastShadow)
     {
-        render_command* Command = Group->Commands + CommandIndex;
-        
-        if ((Type & Draw_Shadow) && Command->DoesNotCastShadow)
-        {
-            continue;
-        }
-        
-        shader Shader = Command->Shader;
-        
-        //Override shader if only position is needed
-        if (Type & Draw_OnlyDepth)
-        {
-            Shader = Shader_OnlyDepth;
-        }
-        
-        InstanceData.ModelToWorldTransform = Command->ModelTransform;
-        InstanceData.Color = Command->Color;
-        
-        if (CurrentShader == Shader_Water)
-        {
-            int x = 3;
-        }
-        
-        if (CurrentShader != Shader)
-        {
-            SetShader(Shader);
-            CurrentShader = Shader;
-        }
-        
-        if (Command->Texture && (Command->Texture != CurrentTexture))
-        {
-            SetTexture(Command->Texture);
-            CurrentTexture = Command->Texture;
-        }
-        
-        bool EnableDepthTest = !Command->DisableDepthTest;
-        
-        if (DepthTestIsEnabled != EnableDepthTest)
-        {
-            SetDepthTest(EnableDepthTest);
-            DepthTestIsEnabled = EnableDepthTest;
-        }
-        
-        material* Material = Command->Material;
-        if (!Material)
-        {
-            material* DefaultMaterial = Group->Assets->Materials + 0;
-            Material = DefaultMaterial;
-        }
-        
-        Constants.Albedo = Material->DiffuseColor;
-        Constants.Roughness = (1000.0f - Material->SpecularFocus) / 1000.0f;
-        Constants.Metallic = Material->SpecularFocus / 1000.0f;
-        Constants.Occlusion = 1.0f;
-        Constants.FresnelColor = Material->SpecularColor;
-        
-        //TODO: Definitely not optimal
-        //TODO: Get rid of this
-        if (Command->EnableWind)
-        {
-            Constants.WindDirection = UnitV(V3(1, 1, 0));
-            Constants.WindStrength = 1.0f;
-        }
-        else
-        {
-            Constants.WindDirection = {};
-            Constants.WindStrength = {};
-        }
-        
-        Constants.ShadowRemove = Command->NoShadows ? 1.0f : 0.0f;
-        
-        SetGraphicsShaderConstants(Constants);
-        
-        if (Command->VertexBuffer)
-        {
-            DrawVertexBuffer(Group->Assets->VertexBuffers[Command->VertexBuffer], InstanceData);
-        }
-        
-        else
-        {
-            DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride, InstanceData);
-        }
+        return;
+    }
+    
+    shader Shader = Command->Shader;
+    
+    //Override shader if only position is needed
+    if (Type & Draw_OnlyDepth)
+    {
+        Shader = Shader_OnlyDepth;
+    }
+    
+    InstanceData.ModelToWorldTransform_Transposed = Transpose(Command->ModelTransform);
+    InstanceData.Color = Command->Color;
+    
+    if (CurrentShader == Shader_Water)
+    {
+        int x = 3;
+    }
+    
+    if (CurrentShader != Shader)
+    {
+        SetShader(Shader);
+        CurrentShader = Shader;
+    }
+    
+    if (Command->Texture && (Command->Texture != CurrentTexture))
+    {
+        SetTexture(Command->Texture);
+        CurrentTexture = Command->Texture;
+    }
+    
+    bool EnableDepthTest = !Command->DisableDepthTest;
+    
+    if (DepthTestIsEnabled != EnableDepthTest)
+    {
+        SetDepthTest(EnableDepthTest);
+        DepthTestIsEnabled = EnableDepthTest;
+    }
+    
+    material* Material = Command->Material;
+    if (!Material)
+    {
+        material* DefaultMaterial = Assets->Materials + 0;
+        Material = DefaultMaterial;
+    }
+    
+    Constants.Albedo = Material->DiffuseColor;
+    Constants.Roughness = (1000.0f - Material->SpecularFocus) / 1000.0f;
+    Constants.Metallic = Material->SpecularFocus / 1000.0f;
+    Constants.Occlusion = 1.0f;
+    Constants.FresnelColor = Material->SpecularColor;
+    
+    //TODO: Definitely not optimal
+    //TODO: Get rid of this
+    if (Command->EnableWind)
+    {
+        Constants.WindDirection = UnitV(V3(1, 1, 0));
+        Constants.WindStrength = 1.0f;
+    }
+    else
+    {
+        Constants.WindDirection = {};
+        Constants.WindStrength = {};
+    }
+    
+    Constants.ShadowRemove = Command->NoShadows ? 1.0f : 0.0f;
+    
+    SetGraphicsShaderConstants(Constants);
+    
+    if (Command->VertexBuffer)
+    {
+        span<shader_instance_data> Instance = {&InstanceData, 1};
+        DrawVertexBuffer(Assets->VertexBuffers[Command->VertexBuffer], Instance);
+    }
+    
+    else
+    {
+        DrawVertices((f32*)Command->VertexData, Command->VertexDataBytes, Command->Topology, Command->VertexDataStride, InstanceData);
     }
 }
-
-*/
 
 static m4x4
 IdentityTransform()

@@ -225,7 +225,7 @@ enum blend_mode
 
 struct shader_instance_data
 {
-    m4x4 ModelToWorldTransform;
+    m4x4 ModelToWorldTransform_Transposed;
     v4 Color;
 };
 
@@ -431,6 +431,7 @@ struct render_batch
     texture_handle Texture;
     material* Material;
     bool DisableDepthTest;
+    bool DoesNotCastShadow;
     bool EnableWind;
     bool NoShadows;
 };
@@ -541,6 +542,8 @@ render_command* GetNextEntry(render_group* RenderGroup);
 render_command* GetLastEntry(render_group* RenderGroup);
 
 void PushRect(render_group* RenderGroup, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
+render_command* CreateRectRenderCommand(memory_arena* Arena, v3 P0, v3 P1, v3 Normal, 
+                                        v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushRectBetter(render_group* RenderGroup, v3 P0, v3 P1, v3 Normal, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 render_command* PushTexturedRect(render_group* RenderGroup, texture_handle Texture, v3 P0, v3 P1, v2 UV0 = {0.0f, 0.0f}, v2 UV1 = {1.0f, 1.0f});
 void PushTexturedRect(render_group* RenderGroup, texture Texture, v3 P0, v3 P1, v3 P2, v3 P3, v2 UV0, v2 UV1, v2 UV2, v2 UV3);

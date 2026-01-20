@@ -412,6 +412,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
         DrawTowers(RenderGroup, Game, GameAssets);
     }
     
+    span<render_batch> RenderBatches = CreateRenderBatches(RenderGroup, RenderGroup->Arena);
+    
     //Make constants
     m4x4 WorldTransform = Game->WorldTransform;
     m4x4 LightTransform = MakeLightTransform(Game, Game->LightP, Game->LightDirection);
@@ -432,7 +434,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     UnsetShadowMap();
     ClearOutput(GameAssets->ShadowMap);
     SetOutput(GameAssets->ShadowMap);
-    DrawRenderGroup(RenderGroup, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow));
+    DrawRenderBatches(RenderBatches, Constants, (render_draw_type)(Draw_OnlyDepth|Draw_Shadow), Assets);
     SetFrontCullMode(false);
     SetOutput({});
     SetShadowMap(GameAssets->ShadowMap);
@@ -440,8 +442,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.WorldToClipTransform = WorldTransform;
     
     //Draw reflection texture
-    
-    
     v3 ReflectionDirection = Game->CameraDirection;
     ReflectionDirection.Z *= -1.0f;
     v3 ReflectionCameraP = Game->CameraP;
@@ -454,7 +454,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.WorldToClipTransform = ReflectionWorldTransform;
     ClearOutput(GameAssets->WaterReflection);
     SetOutput(GameAssets->WaterReflection);
-    DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
+    DrawRenderBatches(RenderBatches, Constants, Draw_Regular, Assets);
     
     //Refraction texture
     //The clip plane could probably be removed but having it might mean a few less calculations of the pixel shader
@@ -462,13 +462,12 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     Constants.WorldToClipTransform = WorldTransform;
     ClearOutput(GameAssets->WaterRefraction);
     SetOutput(GameAssets->WaterRefraction);
-    DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
+    DrawRenderBatches(RenderBatches, Constants, Draw_Regular, Assets);
     
     //Draw normal world
     Constants.ClipPlane = {};
     
-    DrawWater(RenderGroup, Game->WaterZ);
-    DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
+    //TODO: Where are these drawn?
     
     //Set reflection and refraction textures
     ClearOutput(GameAssets->Output1);
@@ -485,7 +484,15 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
     SetTexture(GameAssets->ModelTextures.Normal, 9);
     SetTexture(GameAssets->ModelTextures.Specular, 10);
     
-    DrawRenderGroup(RenderGroup, Constants, Draw_Regular);
+    DrawRenderBatches(RenderBatches, Constants, Draw_Regular, Assets);
+    
+    //Reset render group then draw transparent objects
+    RenderGroup->CommandCount = 0;
+    
+    DrawWater(RenderGroup, Game->WaterZ);
+    DrawRegionOutline(RenderGroup, Assets, GameAssets, Game);
+    RenderBatches = CreateRenderBatches(RenderGroup, RenderGroup->Arena);
+    DrawRenderBatches(RenderBatches, Constants, Draw_Regular, Assets);
     
     UnsetShadowMap();
     UnsetTexture(2);
