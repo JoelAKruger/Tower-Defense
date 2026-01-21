@@ -80,6 +80,7 @@ GetNextEntry(render_group* RenderGroup)
     Assert(RenderGroup->CommandCount < ArrayCount(RenderGroup->Commands));
     
     render_command* Result = RenderGroup->Commands + (RenderGroup->CommandCount++);
+    *Result = {};
     return Result;
 }
 

@@ -319,22 +319,25 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     
                     model_handle Model = {};
                     
-                    if (IsWater(Entity) && Entity->Level > 0)
+                    if (!Hidden)
                     {
-                        Model = GameAssets->Boat;
-                        PushTexturedModel(RenderGroup, Model, ScaleTransform(3.0f * Entity->Size) * TranslateTransform(V3(P.XY, Game->WaterZ)));
-                    }
-                    else
-                    {
-                        switch (Entity->Level)
+                        if (IsWater(Entity) && Entity->Level > 0)
                         {
-                            case 1: Model = GameAssets->Settlement1; break;
-                            case 2: Model = GameAssets->Settlement2; break;
-                            case 3: Model = GameAssets->Settlement3; break;
-                            case 4: Model = GameAssets->Settlement4; break;
-                            case 5: Model = GameAssets->Settlement5; break;
+                            Model = GameAssets->Boat;
+                            PushTexturedModel(RenderGroup, Model, ScaleTransform(3.0f * Entity->Size) * TranslateTransform(V3(P.XY, Game->WaterZ)));
                         }
-                        PushTexturedModel(RenderGroup, Model, ScaleTransform(Entity->Size) * TranslateTransform(P));
+                        else
+                        {
+                            switch (Entity->Level)
+                            {
+                                case 1: Model = GameAssets->Settlement1; break;
+                                case 2: Model = GameAssets->Settlement2; break;
+                                case 3: Model = GameAssets->Settlement3; break;
+                                case 4: Model = GameAssets->Settlement4; break;
+                                case 5: Model = GameAssets->Settlement5; break;
+                            }
+                            PushTexturedModel(RenderGroup, Model, ScaleTransform(Entity->Size) * TranslateTransform(P));
+                        }
                     }
                 } break;
                 case Entity_Foliage:
@@ -393,7 +396,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                         m4x4 Transform = RotateTransform(-Angle - 0.01f) * ScaleTransform(0.9f * World->HexSize) * TranslateTransform(P);
                         PushTexturedModel(RenderGroup, Model, Transform);
                     }
-                    
                     
                 } break;
                 default: Assert(0);
