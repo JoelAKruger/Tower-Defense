@@ -81,6 +81,7 @@ DrawTower(render_group* RenderGroup, game_state* Game, defense_assets* Assets, t
 static void
 DrawTowers(render_group* RenderGroup, game_state* Game, defense_assets* Assets)
 {
+    /*
     for (u32 TowerIndex = 0; TowerIndex < Game->GlobalState.TowerCount; TowerIndex++)
     {
         tower* Tower = Game->GlobalState.Towers + TowerIndex;
@@ -98,6 +99,7 @@ DrawTowers(render_group* RenderGroup, game_state* Game, defense_assets* Assets)
         
         DrawTower(RenderGroup, Game, Assets, Tower->Type, V3(Tower->P, HexP.Z), Color, Tower->Rotation);
     }
+*/
 }
 
 static m4x4
@@ -107,7 +109,6 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
     
     m4x4 LightViewTransform = ViewTransform(LightP, LightP + LightDirection);
     
-    /*
     f32 MinWorldZ = -0.4f;
     f32 MaxWorldZ = 0.2f;
     
@@ -120,18 +121,6 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
         ScreenToWorld(Game, V2(-1, 1), MaxWorldZ),
         ScreenToWorld(Game, V2(1, -1), MaxWorldZ),
         ScreenToWorld(Game, V2(1, 1), MaxWorldZ),
-    };
-
-*/
-    
-    f32 WorldZ = 0.2f;
-    f32 X = 1.0f;
-    
-    v3 WorldPositions[] = {
-        ScreenToWorld(Game, V2(-X, -X), WorldZ),
-        ScreenToWorld(Game, V2(-X, X), WorldZ),
-        ScreenToWorld(Game, V2(X, -X), WorldZ),
-        ScreenToWorld(Game, V2(X, X), WorldZ),
     };
     
     f32 Right = FLT_MIN;
@@ -281,8 +270,9 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                         Hidden = false;
                     }
                     
-                    //Optimisation: only check neighbours if we don't know if it's shown
-                    if (Hidden)
+                    bool InDarkness = World->Darkness && (World->DarknessPlayer != Game->MyClientID);
+                    
+                    if (Hidden && !InDarkness)
                     {
                         span<entity*> Neighbours = GetHexNeighbours(World, Entity, RenderGroup->Arena);
                         
@@ -299,7 +289,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     v4 Color = Hidden ? V4(1,1,1,1) : Entity->Color;
                     
                     //Draw hex
-                    v3 P = GetEntityP(Game, EntityIndex);
+                    v3 P = GetEntityP(Game, (entity_handle) {(i32)EntityIndex});
                     m4x4 Transform = ScaleTransform(Entity->Size) * TranslateTransform(P);
                     span<render_command*> Commands = PushModelNew(RenderGroup, GameAssets->WorldHex, Transform);
                     Commands[0]->Color = Color;
@@ -355,7 +345,7 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     Assert(Entity->Parent);
                     
                     v3 HexP = GetEntityP(Game, Entity->Parent);
-                    v3 FarmP = GetEntityP(Game, EntityIndex);
+                    v3 FarmP = GetEntityP(Game, (entity_handle){(i32)EntityIndex});
                     
                     DrawDirt(RenderGroup, Game, Entity->Parent);
                     span<v2> Offsets = GetGrassRandomOffsets();

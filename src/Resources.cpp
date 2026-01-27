@@ -195,6 +195,7 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Assert(Assets->MaterialCount < ArrayCount(Assets->Materials));
     
     Handles->Region = {.Arena = Allocator.Permanent};
+    Handles->AttackHexes = {.Arena = Allocator.Permanent};
 }
 
 static defense_assets

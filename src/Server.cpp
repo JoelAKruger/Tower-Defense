@@ -227,7 +227,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
             //TODO: Verify index is valid and entity type is correct
-            entity* Hex = Game->World.Entities + Request->HexIndex;
+            entity* Hex = Game->World.Entities + Request->Hex.Index;
             u64 MaxHexLevel = 5;
             int Cost = 1;
             
@@ -273,14 +273,14 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
             //TODO: Verify index is valid and entity type is correct
-            entity* Hex = Game->World.Entities + Request->HexIndex;
+            entity* Hex = Game->World.Entities + Request->Hex.Index;
             Assert(Hex->Owner == SenderIndex);
             
             //Add farm
             entity Farm = {
                 .Type = Entity_Farm,
                 .Owner = (int)SenderIndex,
-                .Parent = (int)Request->HexIndex
+                .Parent = Request->Hex
             };
             u64 EntityIndex = AddEntity(&Game->World, Farm);
             
@@ -307,12 +307,12 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
             //TODO: Verify index is valid and entity type is correct
-            entity* Hex = Game->World.Entities + Request->HexIndex;
+            entity* Hex = Game->World.Entities + Request->Hex.Index;
             Assert(Hex->Owner == SenderIndex);
             entity Wall = {
                 .Type = Entity_Fence,
                 .Owner = (int)SenderIndex,
-                .Parent = (int)Request->HexIndex
+                .Parent = Request->Hex
             };
             
             AddEntity(&Game->World, Wall);
@@ -329,7 +329,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
                 Player->Credits -= Cost;
                 
                 //TODO: Check this is valid
-                entity* Defender = Game->World.Entities + Request->HexIndex;
+                entity* Defender = Game->World.Entities + Request->Hex.Index;
                 
                 span<entity*> Neighbours = GetHexNeighbours(&Game->World, Defender, Arena);
                 dynamic_array<entity*> Attackers = {.Arena = Arena};
@@ -346,7 +346,14 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
                 
                 *FlushWorld = true;
             }
+        } break;
+        case Request_Darkness:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
             
+            Game->World.Darkness = true;
+            Game->World.DarknessPlayer = SenderIndex;
+            *FlushWorld = true;
         } break;
         default:
         {

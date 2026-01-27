@@ -306,6 +306,15 @@ void Append(dynamic_array<type>* Array, type NewElement)
 }
 
 template <typename type>
+void Append(dynamic_array<type>* Array, span<type> Elements)
+{
+    for (type Element : Elements)
+    {
+        Append(Array, Element);
+    }
+}
+
+template <typename type>
 void Clear(dynamic_array<type>* Array)
 {
     Array->Count = 0;

@@ -46,20 +46,20 @@ GetEntity(world* World, entity_handle Entity)
 }
 
 static v3 
-GetEntityP(game_state* Game, u64 EntityIndex)
+GetEntityP(game_state* Game, entity_handle EntityHandle)
 {
-    Assert(EntityIndex < ArrayCount(Game->GlobalState.World.Entities));
+    Assert(EntityHandle.Index < ArrayCount(Game->GlobalState.World.Entities));
     
     v3 P = {};
     
-    local_entity_info LocalInfo = Game->LocalEntityInfo[EntityIndex];
+    local_entity_info LocalInfo = Game->LocalEntityInfo[EntityHandle.Index];
     if (LocalInfo.IsValid)
     {
         P = LocalInfo.P;
     }
     else
     {
-        entity* Entity = Game->GlobalState.World.Entities + EntityIndex;
+        entity* Entity = Game->GlobalState.World.Entities + EntityHandle.Index;
         P = Entity->P;
     }
     
@@ -660,6 +660,17 @@ DoMyTurnMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
     {
         SetMode(Game, Mode_WallUpgrade);
     }
+    Panel.NextRow();
+    if (Panel.Button("Darkness"))
+    {
+        player_request Request = {.Type = Request_Darkness};
+        SendPacket(&Request);
+    }
+    Panel.NextRow();
+    if (Panel.Button("Launch Strike"))
+    {
+        SetMode(Game, Mode_LaunchStrike);
+    }
     /*
     Panel.NextRow();
     if (Panel.Button("Build Farm"))
@@ -703,20 +714,20 @@ RunLobby(game_state* GameState, game_assets* Assets, defense_assets* GameAssets,
 struct cursor_target
 {
     v3 WorldP;
-    u64 HoveringHexIndex;
+    entity_handle HoveringHexIndex;
     entity* HoveringHex;
 };
 
 static m4x4
-GetModelTransformOfEntity(game_state* Game, u64 EntityIndex)
+GetModelTransformOfEntity(game_state* Game, entity_handle EntityHandle)
 {
     m4x4 Result = {};
-    entity* Entity = Game->GlobalState.World.Entities + EntityIndex;
+    entity* Entity = Game->GlobalState.World.Entities + EntityHandle.Index;
     switch (Entity->Type)
     {
         case Entity_WorldHex:
         {
-            v3 P = GetEntityP(Game, EntityIndex);
+            v3 P = GetEntityP(Game, EntityHandle);
             Result= ScaleTransform(Entity->Size) * TranslateTransform(P);
         } break;
         default: Assert(0);
@@ -746,7 +757,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
         entity* Entity = World->Entities + HexIndex;
         if (Entity->Type == Entity_WorldHex && DistanceSq(CursorP.XY, Entity->P.XY) < Square(MaxDistance))
         {
-            m4x4 Transform = GetModelTransformOfEntity(Game, HexIndex);
+            m4x4 Transform = GetModelTransformOfEntity(Game, (entity_handle){(i32)HexIndex});
             model_handle Model = GetModel(GameAssets, Entity, Model_LowPoly);
             ray_collision Collision = RayModelIntersection(Assets, Model, Transform, Game->CameraP, RayDirection);
             
@@ -754,7 +765,7 @@ GetCursorTarget(game_state* Game, game_assets* Assets, defense_assets* GameAsset
             {
                 NearestCollision = Collision;
                 Result.WorldP = Collision.P;
-                Result.HoveringHexIndex = HexIndex;
+                Result.HoveringHexIndex = (entity_handle){(i32)HexIndex};
                 Result.HoveringHex = Entity;
             }
         }
@@ -785,12 +796,15 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     {
         if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_Waiting)
         {
-            
+            //Will go to settings
         }
         else
         {
             //TODO: This is wrong, it should check whose turn it is
             SetMode(GameState, Mode_MyTurn);
+            
+            //Clear key down to not open settings
+            Input->ButtonDown &= (~Button_Escape);
         }
     }
     
@@ -811,7 +825,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     {
         //Top down perspective
         case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
-        case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack:
+        case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack: case Mode_LaunchStrike:
         {
             f32 WorldZForDragging = 0.1f;
             SetCursorState(true);
@@ -905,7 +919,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     int CurrentMinute = (int)(60.0f * (Time - (int)Time));
     
     GameState->SkyColor = 1.0f *V3(1,1,1); // + 2.0f * GetSkyColor(CurrentHour, CurrentMinute);
-    GameState->ShadowIntensity = GetShadowIntensity(CurrentHour, CurrentMinute);
+    GameState->ShadowIntensity = 1.0f; //GetShadowIntensity(CurrentHour, CurrentMinute);
     f32 t = (CurrentHour * 60 + CurrentMinute) / (24.0f * 60.0f);
     
     //GameState->LightP = V3(4.0f * sinf(t * 2 * Pi), -1.0f, 4.0f * cosf(t * 2 * Pi));
@@ -974,7 +988,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 
                 //TODO: This needs to be changed
                 Request.TowerP = P.XY;
-                Request.TowerHexIndex = GameState->HoveringHexIndex;
+                Request.TowerHexIndex = (u32)GameState->HoveringHexIndex.Index;
                 Request.TowerType = Type;
                 
                 SendPacket(&Request);
@@ -999,7 +1013,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             {
                 player_request Request = {.Type = Request_UpgradeHex};
                 
-                Request.HexIndex = GameState->HoveringHexIndex;
+                Request.Hex = GameState->HoveringHexIndex;
                 
                 SendPacket(&Request);
             }
@@ -1016,7 +1030,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             {
                 player_request Request = {.Type = Request_BuildFarm};
                 
-                Request.HexIndex = GameState->HoveringHexIndex;
+                Request.Hex = GameState->HoveringHexIndex;
                 
                 SendPacket(&Request);
             }
@@ -1033,7 +1047,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             {
                 player_request Request = {.Type = Request_UpgradeWall};
                 
-                Request.HexIndex = GameState->HoveringHexIndex;
+                Request.Hex = GameState->HoveringHexIndex;
                 
                 SendPacket(&Request);
             }
@@ -1100,11 +1114,43 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 {
                     player_request Request = {
                         .Type = Request_Attack,
-                        .HexIndex = GameState->HoveringHexIndex
+                        .Hex = GameState->HoveringHexIndex
                     };
                     SendPacket(&Request);
                 }
                 
+            } break;
+            
+            case Mode_LaunchStrike:
+            {
+                if (GameState->HoveringHex)
+                {
+                    span<entity_handle> Neighbours = GetHexNeighbourHandles(&GameState->GlobalState.World, 
+                                                                            GameState->HoveringHex, Allocator.Transient);
+                    
+                    dynamic_array<entity_handle> Hexes = {.Arena = Allocator.Transient};
+                    Append(&Hexes, Neighbours);
+                    Append(&Hexes, GameState->HoveringHexIndex);
+                    
+                    span<span<v2>> Edges = GetEdgesOfHexGroup(&GameState->GlobalState.World, 
+                                                              ToSpan(Hexes), Allocator.Transient);
+                    
+                    for (vertex_buffer_handle VertexBuffer : AssetHandles->AttackHexes)
+                    {
+                        FreeVertexBuffer(Assets, VertexBuffer);
+                    }
+                    Clear(&AssetHandles->AttackHexes);
+                    
+                    for (span<v2> Edge : Edges)
+                    {
+                        Append(&AssetHandles->AttackHexes, CreateOutlineMesh(Assets, Edge, 0.01f, V4(1,1,1,1)));
+                    }
+                    
+                    for (vertex_buffer_handle VertexBuffer : AssetHandles->AttackHexes)
+                    {
+                        PushVertexBuffer(&RenderGroup, VertexBuffer, TranslateTransform(0.0f, 0.0f, 0.1f));
+                    }
+                }
             } break;
             
             //Other cases may be handled below with GUI

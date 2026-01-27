@@ -34,9 +34,15 @@ enum structure_type : u8
     Structure_House
 };
 
+//TODO: Why is this an i32?
 struct entity_handle
 {
     i32 Index;
+    
+    operator bool()
+    {
+        return (Index > 0);
+    }
 };
 
 enum entity_type : u8
@@ -72,7 +78,7 @@ struct entity
     foliage_type FoliageType;
     structure_type StructureType;
     f32 Angle;
-    i32 Parent;
+    entity_handle Parent;
     f32 Size;
 };
 
@@ -96,6 +102,9 @@ struct world
     
     world_region Regions[16];
     int RegionCount;
+    
+    bool Darkness;
+    int DarknessPlayer;
 };
 
 struct editor
@@ -118,7 +127,8 @@ enum game_mode
     Mode_CellUpgrade,
     Mode_BuildFarm,
     Mode_WallUpgrade,
-    Mode_Attack
+    Mode_Attack,
+    Mode_LaunchStrike
 };
 
 enum tower_type
@@ -185,7 +195,8 @@ enum player_request_type
     Request_UpgradeHex,
     Request_BuildFarm,
     Request_UpgradeWall,
-    Request_Attack
+    Request_Attack,
+    Request_Darkness
 };
 
 struct player_request
@@ -206,7 +217,7 @@ struct player_request
     v3 Direction;
     
     //Type == UpgradeRegion, Type == Attack
-    u32 HexIndex;
+    entity_handle Hex;
 };
 
 enum animation_type : u32
@@ -294,7 +305,7 @@ struct game_state
     //
     v3 HoveringWorldP;
     entity* HoveringHex;
-    u32 HoveringHexIndex;
+    entity_handle HoveringHexIndex;
     
     v3 HexOutlineP;
     v3 HexOutlineTargetP;
@@ -364,6 +375,7 @@ struct defense_assets
     vertex_buffer_handle HexOutline;
     
     dynamic_array<vertex_buffer_handle> Region;
+    dynamic_array<vertex_buffer_handle> AttackHexes;
 };
 
 struct map_file_header
@@ -418,7 +430,7 @@ void InitialiseServerState(global_game_state* Game);
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
 entity* GetEntity(world* World, entity_handle Entity);
-v3 GetEntityP(game_state* Game, u64 EntityIndex);
+v3 GetEntityP(game_state* Game, entity_handle Entity);
 
 model_handle GetModel(defense_assets* Assets, entity* Entity, bool LowPoly = false);
 enum

@@ -98,26 +98,21 @@ AreApproxEqual(v2 A, v2 B, f32 Tolerance)
 }
 
 static span<span<v2>>
-GetRegionEdges(world* World, i32 Region, memory_arena* Arena)
+GetEdgesOfHexGroup(world* World, span<entity_handle> Hexes, memory_arena* Arena)
 {
-    Assert(Arena->Type == TRANSIENT);
-    Assert(Region > 0);
-    
     dynamic_array<line_segment> Lines = {.Arena = Arena};
     
     //Step 1. Get all edges
-    for (u64 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
+    for (u32 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
     {
         entity* Hex = World->Entities + EntityIndex;
-        if (Hex->Type == Entity_WorldHex && Hex->Region == Region)
+        if (Hex->Type == Entity_WorldHex && Contains((entity_handle){(i32)EntityIndex}, Hexes))
         {
             span<entity_handle> Neighbours = GetHexNeighbourHandles(World, Hex, Arena);
             
             for (int NeighbourIndex = 0; NeighbourIndex < Neighbours.Count; NeighbourIndex++)
             {
-                entity* Neighbour = GetEntity(World, Neighbours[NeighbourIndex]);
-                
-                if (Neighbour->Region != Region)
+                if (!Neighbours[NeighbourIndex] || !Contains(Neighbours[NeighbourIndex], Hexes))
                 {
                     line_segment Line = {
                         GetHexVertex(Hex, NeighbourIndex),
@@ -182,6 +177,28 @@ GetRegionEdges(world* World, i32 Region, memory_arena* Arena)
     }
     
     return ToSpan(Result);
+}
+
+static span<span<v2>>
+GetRegionEdges(world* World, i32 Region, memory_arena* Arena)
+{
+    Assert(Arena->Type == TRANSIENT);
+    Assert(Region > 0);
+    
+    dynamic_array<entity_handle> Hexes = {.Arena = Arena};
+    
+    for (u32 EntityIndex = 1; EntityIndex < World->EntityCount; EntityIndex++)
+    {
+        entity* Hex = World->Entities + EntityIndex;
+        if (Hex->Type == Entity_WorldHex && Hex->Region == Region)
+        {
+            Append(&Hexes, (entity_handle){(i32)EntityIndex});
+        }
+    }
+    
+    span<span<v2>> Result = GetEdgesOfHexGroup(World, ToSpan(Hexes), Arena);
+    
+    return Result;
 }
 
 /*
@@ -301,7 +318,7 @@ struct nearest_tower
 };
 
 static nearest_tower
-NearestTowerTo(v2 P, global_game_state* Game, u32 HexIndex)
+NearestTowerTo(v2 P, global_game_state* Game, entity_handle Hex)
 {
     f32 NearestDistanceSq = 10000.0f;
     tower* Nearest = 0;
@@ -309,7 +326,7 @@ NearestTowerTo(v2 P, global_game_state* Game, u32 HexIndex)
     for (u32 TowerIndex = 0; TowerIndex < Game->TowerCount; TowerIndex++)
     {
         tower* Tower = Game->Towers + TowerIndex;
-        if (Tower->HexIndex == HexIndex)
+        if (Tower->HexIndex == Hex.Index)
         {
             f32 DistSq = LengthSq(Tower->P - P);
             if (DistSq < NearestDistanceSq)
@@ -840,13 +857,47 @@ GenerateFoliage(world* World, memory_arena* Arena)
                 entity Foliage = {.Type = Entity_Foliage};
                 Foliage.FoliageType = FoliageType;
                 Foliage.P = P;
-                Foliage.Parent = HexIndex;
+                Foliage.Parent = (entity_handle){(i32)HexIndex};
                 Foliage.Size = Size;
                 
                 AddEntity(World, Foliage);
                 Index++;
             }
         }
+    }
+}
+
+static void
+DoAirAttack(entity* Defender, int TotalAttackPower)
+{
+    f32 SuccessProbability = 0.6f;
+    
+    int TotalDefendPower = Defender->Level;
+    
+    int AttackPower = TotalAttackPower;
+    int DefendPower = TotalDefendPower;
+    
+    while (AttackPower > 0 && DefendPower > 0)
+    {
+        if (Random() < SuccessProbability)
+        {
+            Defender->Level--;
+            DefendPower--;
+        }
+        else
+        {
+            AttackPower--;
+        }
+    }
+    
+    if (AttackPower == 0) //Defender won
+    {
+    }
+    else //Attacker won
+    {
+        Defender->Owner = -1;
+        Defender->Color = GetPlayerColor(Defender->Owner); //TODO: Is this good?
+        Defender->Level = 0;
     }
 }
 
