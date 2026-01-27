@@ -8,6 +8,7 @@
 #include "Resources.cpp"
 #include "Water.cpp"
 #include "Render.cpp"
+#include "Settings.cpp"
 
 static void
 CreateServer()
@@ -782,7 +783,15 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     if (Input->ButtonDown & Button_Escape)
     {
-        SetMode(GameState, Mode_MyTurn);
+        if (GameState->Mode == Mode_MyTurn || GameState->Mode == Mode_Waiting)
+        {
+            
+        }
+        else
+        {
+            //TODO: This is wrong, it should check whose turn it is
+            SetMode(GameState, Mode_MyTurn);
+        }
     }
     
     if ((Input->Button & Button_LMouse) == 0)
@@ -1324,15 +1333,15 @@ static void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 Del
     
     app_state* App = *(app_state**)ApplicationData;
     
-#if DEVELOPER_MODE == 1
-    App->CurrentScreen = Screen_Game;
-#endif
-    
     defense_assets* AssetHandles = &App->AssetHandles;
     
     if (!Assets->Initialised)
     {
         LoadAssets(Assets, AssetHandles, Allocator);
+        
+#if DEVELOPER_MODE == 1
+        App->CurrentScreen = Screen_Game;
+#endif
     }
     
     switch (App->CurrentScreen)
@@ -1355,7 +1364,23 @@ static void UpdateAndRender(void** ApplicationData, game_assets* Assets, f32 Del
             }
             GameUpdateAndRender(App->GameState, Assets, AssetHandles, DeltaTime, Input, Allocator);
         } break;
-        
+        case Screen_Settings:
+        {
+            SettingsUpdateAndRender(&App->GameSettings, Input, Assets, DeltaTime, Allocator);
+        } break;
         default: Assert(0);
+    }
+    
+    if (Input->ButtonDown & Button_Escape)
+    {
+        if (App->CurrentScreen == Screen_Settings)
+        {
+            App->CurrentScreen = App->GameSettings.PreviousScreen;
+        }
+        else
+        {
+            App->GameSettings.PreviousScreen = App->CurrentScreen;
+            App->CurrentScreen = Screen_Settings;
+        }
     }
 }

@@ -384,7 +384,15 @@ enum app_screen
 {
     Screen_MainMenu,
     Screen_Game,
-    Screen_GameOver
+    Screen_GameOver,
+    Screen_Settings
+};
+
+struct game_settings
+{
+    app_screen PreviousScreen;
+    
+    
 };
 
 struct app_state
@@ -394,6 +402,7 @@ struct app_state
     app_screen CurrentScreen;
     
     game_state* GameState;
+    game_settings GameSettings;
 };
 
 struct ray_collision

@@ -471,6 +471,14 @@ GUIStringWidth(string String, f32 FontSize)
     return Result;
 }
 
+static void
+DrawGUIStringCentered(string String, v2 Position, v4 Color, f32 FontSize)
+{
+    v2 Size = {GUIStringWidth(String, FontSize), FontSize};
+    v2 P = Position - 0.5f * Size;
+    DrawGUIString(String, P, Color, FontSize);
+}
+
 static bool
 RenderBatchIsCompatible(render_batch* Batch, render_command* Command)
 {
