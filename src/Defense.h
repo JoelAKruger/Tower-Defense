@@ -66,7 +66,7 @@ struct entity
 {
     entity_type Type;
     
-    hex_type HexType;
+    //hex_type HexType;
     v3 P; //Can be overriden locally
     i32 Owner;
     i32 Region; //TODO: Change to u32
@@ -196,7 +196,8 @@ enum player_request_type
     Request_BuildFarm,
     Request_UpgradeWall,
     Request_Attack,
-    Request_Darkness
+    Request_Darkness,
+    Request_LaunchStrike
 };
 
 struct player_request

@@ -895,9 +895,18 @@ DoAirAttack(entity* Defender, int TotalAttackPower)
     }
     else //Attacker won
     {
+        //Update defender
         Defender->Owner = -1;
-        Defender->Color = GetPlayerColor(Defender->Owner); //TODO: Is this good?
         Defender->Level = 0;
+        
+        if (IsWater(Defender))
+        {
+            Defender->Color = GetWaterColor(Defender->P.Z);
+        }
+        else
+        {
+            Defender->Color = GetPlayerColor(-1);
+        }
     }
 }
 

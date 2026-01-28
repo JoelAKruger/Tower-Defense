@@ -41,7 +41,7 @@ Connect(string CustomAddress = {})
 static entity*
 GetEntity(world* World, entity_handle Entity)
 {
-    Assert(Entity.Index < World->EntityCount);
+    Assert(Entity.Index > 0 && Entity.Index < World->EntityCount);
     return World->Entities + Entity.Index;
 }
 
@@ -1125,6 +1125,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             {
                 if (GameState->HoveringHex)
                 {
+                    //Do visuals
                     span<entity_handle> Neighbours = GetHexNeighbourHandles(&GameState->GlobalState.World, 
                                                                             GameState->HoveringHex, Allocator.Transient);
                     
@@ -1150,6 +1151,16 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                     {
                         PushVertexBuffer(&RenderGroup, VertexBuffer, TranslateTransform(0.0f, 0.0f, 0.1f));
                     }
+                    
+                    // Send packet
+                    if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+                    {
+                        player_request Request = {
+                            .Type = Request_LaunchStrike,
+                            .Hex = GameState->HoveringHexIndex
+                        };
+                        SendPacket(&Request);
+                    }
                 }
             } break;
             
@@ -1168,7 +1179,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         GameState->Mode == Mode_Place ||
         GameState->Mode == Mode_EditTower ||
         GameState->Mode == Mode_WallUpgrade ||
-        GameState->Mode == Mode_Attack)
+        GameState->Mode == Mode_Attack || 
+        GameState->Mode == Mode_LaunchStrike)
     {
         if (GameState->HoveringHex)
         {
@@ -1267,7 +1279,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     string TimeString = ArenaPrint(Allocator.Transient, "Time %02d:%02d", CurrentHour, CurrentMinute);
     DrawGUIString(TimeString, V2(-0.95f, -0.75f));
     
-    DrawGUIString(ArenaPrint(Allocator.Transient, "Hovering over: %d", HoveringEntityIndex), V2(-0.95f, -0.55f));
+    DrawGUIString(ArenaPrint(Allocator.Transient, "Hovering over: %d", GameState->HoveringHexIndex), V2(-0.95f, -0.55f));
     
     //Log("%d Credits", GetPlayer(GameState)->Credits);
 }

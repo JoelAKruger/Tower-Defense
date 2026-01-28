@@ -355,6 +355,23 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Game->World.DarknessPlayer = SenderIndex;
             *FlushWorld = true;
         } break;
+        case Request_LaunchStrike:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            
+            entity* Center = Game->World.Entities + Request->Hex.Index;
+            span<entity*> Neighbours = GetHexNeighbours(&Game->World, Center, Arena);
+            
+            int AttackPower = 2;
+            
+            DoAirAttack(Center, AttackPower);
+            for (entity* Neighbour : Neighbours)
+            {
+                DoAirAttack(Neighbour, AttackPower);
+            }
+            
+            *FlushWorld = true;
+        } break;
         default:
         {
             Assert(0);

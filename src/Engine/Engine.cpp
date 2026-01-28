@@ -231,6 +231,11 @@ int WINAPI EngineMain(HINSTANCE Instance, LPWSTR CommandLine, int ShowCode)
                 DrawGUIString(Text, V2(X, Y), V4(0.75f, 0.75f, 0.75f, 1.0f));
                 Y -= 0.06f;
             }
+            
+            DrawGUIString(ArenaPrint(Allocator.Transient, "Transient %d kB / %d kB, Permanent %d kB / %d kB",
+                                     Allocator.Transient->Used / 1024, Allocator.Transient->Size / 1024,
+                                     Allocator.Permanent->Used / 1024, Allocator.Permanent->Size / 1024), 
+                          V2(0.0f, -0.9f));
         }
         
         {
