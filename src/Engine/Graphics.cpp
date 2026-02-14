@@ -228,10 +228,10 @@ PushTexturedRect(render_group* RenderGroup, texture_handle Texture, v3 P0, v3 P1
 }
 
 static void
-PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, u32 Stride, D3D11_PRIMITIVE_TOPOLOGY Topology, shader Shader)
+PushVertices(render_group* RenderGroup, void* Data, u32 Bytes, D3D11_PRIMITIVE_TOPOLOGY Topology, u32 Stride, shader Shader)
 {
     render_command* Command = GetNextEntry(RenderGroup);
-    Command->VertexData = Data;
+    Command->VertexData = CopyVertexData(RenderGroup->Arena, Data, Bytes);
     Command->VertexDataBytes = Bytes;
     Command->VertexDataStride = Stride;
     Command->Topology = Topology;

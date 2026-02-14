@@ -402,6 +402,7 @@ struct render_command
     void* VertexData;
     u32 VertexDataStride;
     u32 VertexDataBytes;
+    
     D3D11_PRIMITIVE_TOPOLOGY Topology;
     
     shader Shader;

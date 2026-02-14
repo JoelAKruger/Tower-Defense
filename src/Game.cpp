@@ -4,6 +4,7 @@
 #include "Defense.h"
 
 #include "World.cpp"
+#include "Card.cpp"
 #include "Server.cpp"
 #include "Resources.cpp"
 #include "Water.cpp"
@@ -1190,11 +1191,14 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     GameState->HexOutlineP = LinearInterpolate(GameState->HexOutlineP, GameState->HexOutlineTargetP, 0.95f);
     
+    RenderCards(&RenderGroup, GameState, Assets, AssetHandles);
     
     RenderWorld(&RenderGroup, GameState, Assets, AssetHandles);
     
     v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
     u64 HoveringEntityIndex = 0; //RayCast(GameState, Assets, GameAssets, GameState->CameraP, CursorWorldP - GameState->CameraP);
+    
+    
     
     //Draw GUI
     SetDepthTest(false);

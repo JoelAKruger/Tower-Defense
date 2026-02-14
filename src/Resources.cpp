@@ -196,6 +196,8 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     
     Handles->Region = {.Arena = Allocator.Permanent};
     Handles->AttackHexes = {.Arena = Allocator.Permanent};
+    
+    Handles->CardTexture = LoadTexture("assets/textures/card.png");
 }
 
 static defense_assets

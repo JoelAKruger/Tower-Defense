@@ -377,6 +377,8 @@ struct defense_assets
     
     dynamic_array<vertex_buffer_handle> Region;
     dynamic_array<vertex_buffer_handle> AttackHexes;
+    
+    texture_handle CardTexture;
 };
 
 struct map_file_header
