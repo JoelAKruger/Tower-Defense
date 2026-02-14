@@ -483,7 +483,7 @@ static bool
 RenderBatchIsCompatible(render_batch* Batch, render_command* Command)
 {
     bool Result = (Batch->Shader == Command->Shader &&
-                   (Batch->VertexBuffer == Command->VertexBuffer || (Batch->VertexData != 0 && Batch->VertexData == Command->VertexData)) &&
+                   ((Batch->VertexBuffer != 0 && Batch->VertexBuffer == Command->VertexBuffer) || (Batch->VertexData != 0 && Batch->VertexData == Command->VertexData)) &&
                    Batch->Texture == Command->Texture &&
                    Batch->Material == Command->Material &&
                    Batch->DisableDepthTest == Command->DisableDepthTest &&

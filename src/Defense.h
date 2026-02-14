@@ -157,6 +157,16 @@ enum tower_edit_mode
     TowerEdit_SetTarget
 };
 
+enum card_type
+{
+    Card_Null,
+};
+
+struct card
+{
+    card_type Type;
+};
+
 struct player
 {
     char Name[64];
@@ -165,6 +175,9 @@ struct player
     
     u32 Credits;
     bool Initialised;
+    
+    int CardCount;
+    card Cards[16];
 };
 
 struct global_game_state
