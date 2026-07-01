@@ -324,7 +324,8 @@ enum
     Button_Right    = (1 << 8),
     Button_Up       = (1 << 9),
     Button_Down     = (1 << 10),
-    Button_Escape   = (1 << 11)
+    Button_Escape   = (1 << 11),
+    Button_DebugCam = (1 << 12)
 };
 
 struct input_state

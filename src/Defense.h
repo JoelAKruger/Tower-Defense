@@ -128,7 +128,9 @@ enum game_mode
     Mode_BuildFarm,
     Mode_WallUpgrade,
     Mode_Attack,
-    Mode_LaunchStrike
+    Mode_LaunchStrike,
+    Mode_PlayCard,
+    Mode_ConfirmPlayCard
 };
 
 enum tower_type
@@ -290,10 +292,13 @@ struct game_state
     console* Console;
     editor Editor;
     
-    v3 CameraP;
+    v3 FakeCameraP; // Where we pretend the camera is
+    v3 CameraP;     // Where the camera actually is
     v3 CameraTargetP;
     v3 CameraDirection;
     v3 CameraTargetDirection;
+    
+    bool DebugCamera;
     
     int TopDownCameraZoomLevel;
     v3 TopDownCameraP;
@@ -302,6 +307,7 @@ struct game_state
     f32 TargetFOV;
     
     m4x4 WorldTransform;
+    m4x4 FakeWorldTransform;
     
     game_mode Mode;
     
@@ -341,8 +347,12 @@ struct game_state
     
     f64 Time;
     
+    //TODO: WTF is this???
     m4x4 CastleTransform;
     m4x4 TurretTransform;
+    
+    v2 LocalCardPositions[ ArrayCount(player::Cards) ]; // Card frame
+    i64 SelectedCardIndex;
     
     //These are constants
     f32 ApproxTowerZ;
@@ -419,8 +429,6 @@ enum app_screen
 struct game_settings
 {
     app_screen PreviousScreen;
-    
-    
 };
 
 struct app_state
@@ -445,8 +453,10 @@ void InitialiseServerState(global_game_state* Game);
 
 void CreateWaterFlowMap(world* World, game_assets* Assets, memory_arena* Arena);
 v3 ScreenToWorld(game_state* Game, v2 ScreenPos, f32 WorldZ = 0.0f);
+v3 ScreenToWorld(v3 CameraP, m4x4 InvWorldTransform, v2 ScreenPos /* Clip Space */ , f32 WorldZ = 0.0f);
 entity* GetEntity(world* World, entity_handle Entity);
 v3 GetEntityP(game_state* Game, entity_handle Entity);
+void SetMode(game_state* GameState, game_mode NewMode);
 
 model_handle GetModel(defense_assets* Assets, entity* Entity, bool LowPoly = false);
 enum

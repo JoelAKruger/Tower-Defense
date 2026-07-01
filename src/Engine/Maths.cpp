@@ -607,6 +607,17 @@ M4x4Identity()
 }
 
 static m4x4
+M4x4(v4 A, v4 B, v4 C, v4 D)
+{
+    m4x4 Result = {};
+    Result.Vectors[0] = A;
+    Result.Vectors[1] = B;
+    Result.Vectors[2] = C;
+    Result.Vectors[3] = D;
+    return Result;
+}
+
+static m4x4
 Inverse(m4x4 M)
 {
     m4x4 I = M4x4Identity();
@@ -766,5 +777,13 @@ Map(f32 Value, f32 From0, f32 From1, f32 To0, f32 To1)
         f32 t = (Value - From0) / (From1 - From0); 
         Result = To0 + t * (To1 - To0);
     }
+    return Result;
+}
+
+static v3
+RayPlaneIntersection(v4 Plane, v3 P, v3 Direction)
+{
+    f32 T = -(DotProduct(Plane.XYZ, P) + Plane.W) / DotProduct(Plane.XYZ, Direction);
+    v3 Result = P + T * Direction;
     return Result;
 }

@@ -4,9 +4,9 @@
 #include "Defense.h"
 
 #include "World.cpp"
-#include "Card.cpp"
 #include "Server.cpp"
 #include "Resources.cpp"
+#include "Card.cpp"
 #include "Water.cpp"
 #include "Render.cpp"
 #include "Settings.cpp"
@@ -317,13 +317,12 @@ GetShadowIntensity(int Hour, int Minute)
 }
 
 static v3
-ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
+ScreenToWorld(v3 CameraP, m4x4 InvWorldTransform, v2 ScreenPos /* Clip Space */ , f32 WorldZ)
 {
     //TODO: Cache inverse matrix?
+    v4 P = V4(ScreenPos, 1.0f, 1.0f) * InvWorldTransform;
     
-    v4 P = V4(ScreenPos, 1.0f, 1.0f) * Inverse(Game->WorldTransform);
-    
-    v3 P0 = Game->CameraP;
+    v3 P0 = CameraP;
     v3 P1 = {P.X / P.W, P.Y / P.W, P.Z / P.W};
     
     f32 Z = P0.Z;
@@ -333,6 +332,13 @@ ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
     
     v3 Result = P0 + T * (P1 - P0);
     
+    return Result;
+}
+
+static v3
+ScreenToWorld(game_state* Game, v2 ScreenPos /*Clip Space */, f32 WorldZ)
+{
+    v3 Result = ScreenToWorld(Game->CameraP, Inverse(Game->WorldTransform), ScreenPos, WorldZ);
     return Result;
 }
 
@@ -814,57 +820,24 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         GameState->Dragging = false;
     }
     
-    GameState->CameraP.X += SecondsPerFrame * Input->Movement.X;
-    GameState->CameraP.Y += SecondsPerFrame * Input->Movement.Y;
-    
     bool ShouldDrawHealthBars = true;
     
     //Do camera
     f32 CameraSpeed = 10.0f;
     
-    switch (GameState->Mode)
+    
+    if (Input->ButtonDown & Button_DebugCam)
     {
-        //Top down perspective
-        case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
-        case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack: case Mode_LaunchStrike:
+        GameState->DebugCamera = !GameState->DebugCamera;
+        GameState->FakeCameraP = GameState->CameraP;
+        GameState->FakeWorldTransform = GameState->WorldTransform;
+    }
+    
+    if (GameState->DebugCamera)
+    {
+        // Rotation
+        if (Input->Button & Button_LMouse)
         {
-            f32 WorldZForDragging = 0.1f;
-            SetCursorState(true);
-            
-            if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
-            {
-                GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
-                GameState->Dragging = true;
-            }
-            
-            f32 ZoomLevels[] = {0.05f, 0.0f, -0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
-            int DeltaZoom = -(int)Input->ScrollDelta;
-            GameState->TopDownCameraZoomLevel = Clamp(GameState->TopDownCameraZoomLevel + DeltaZoom, 0, ArrayCount(ZoomLevels) - 1);
-            
-            GameState->CameraTargetP.Z = ZoomLevels[GameState->TopDownCameraZoomLevel];
-            
-            GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
-            
-            if (GameState->Dragging)
-            {
-                v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
-                v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
-                GameState->CameraP.X -= DeltaP.X;
-                GameState->CameraP.Y -= DeltaP.Y;
-                GameState->CameraTargetP.XY = GameState->CameraP.XY;
-            }
-            
-            GameState->CameraDirection = UnitV(V3(0.0f, 2.0f, 5.5f));
-            GameState->FOV = 50.0f;
-        } break;
-        case Mode_TowerPOV:
-        {
-            SetCursorState(false);
-            
-            ShouldDrawHealthBars = false;
-            
-            Input->Cursor = V2(0.5f, 0.5f);
-            
             f32 ThetaOld = acosf(GameState->CameraDirection.Z);
             f32 PhiOld   = atan2(GameState->CameraDirection.Y, GameState->CameraDirection.X);
             
@@ -872,28 +845,103 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             f32 ThetaNew = Clamp(ThetaOld - Input->CursorDelta.Y * Sensitivity, 0.0001f, Pi - 0.0001f);
             f32 PhiNew = PhiOld - Input->CursorDelta.X * Sensitivity;
             
-            GameState->CameraTargetDirection = V3(sinf(ThetaNew) * cosf(PhiNew), sinf(ThetaNew) * sinf(PhiNew), cosf(ThetaNew));
-            //GameState->CameraDirection = GameState->CameraTargetDirection;
-            
-            GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
-            GameState->CameraDirection = UnitV(LinearInterpolate(GameState->CameraDirection, GameState->CameraTargetDirection, CameraSpeed * SecondsPerFrame));
-            GameState->FOV = LinearInterpolate(GameState->FOV, 90.0f, CameraSpeed * SecondsPerFrame);
-            
-            //Handle left click to throw
-            if (Input->ButtonDown & Button_LMouse)
+            GameState->CameraDirection = V3(sinf(ThetaNew) * cosf(PhiNew), sinf(ThetaNew) * sinf(PhiNew), cosf(ThetaNew));
+        }
+        
+        //Translation
+        v3 Forward = GameState->CameraDirection;
+        v3 Up = V3(0, 0, -1);
+        v3 Right = CrossProduct(Up, Forward);
+        
+        f32 Speed = 1.0f;
+        GameState->CameraP = GameState->CameraP + 
+            SecondsPerFrame * Speed * (Input->Movement.Y * Forward + Input->Movement.X * Right);
+        
+        v3 LookAt = GameState->CameraP + GameState->CameraDirection;
+        GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
+    }
+    else
+    {
+        switch (GameState->Mode)
+        {
+            //Top down perspective
+            case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
+            case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack: case Mode_LaunchStrike: case Mode_PlayCard:
             {
-                player_request Request = {.Type = Request_Throw};
-                Request.TowerIndex = GameState->SelectedTowerIndex;
-                Request.Direction = GameState->CameraDirection;
-                Request.P = GameState->CameraP;
-                SendPacket(&Request);
-            }
-        } break;
-        default: Assert(0);
+                f32 WorldZForDragging = 0.1f;
+                SetCursorState(true);
+                
+                if ((Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
+                {
+                    GameState->CursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
+                    GameState->Dragging = true;
+                }
+                
+                f32 ZoomLevels[] = {0.05f, 0.0f, -0.1f, -0.2f, -0.4f, -0.8f, -1.6f};
+                int DeltaZoom = -(int)Input->ScrollDelta;
+                GameState->TopDownCameraZoomLevel = Clamp(GameState->TopDownCameraZoomLevel + DeltaZoom, 0, ArrayCount(ZoomLevels) - 1);
+                
+                GameState->CameraTargetP.Z = ZoomLevels[GameState->TopDownCameraZoomLevel];
+                
+                GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
+                
+                if (GameState->Dragging)
+                {
+                    v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
+                    v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
+                    GameState->CameraP.X -= DeltaP.X;
+                    GameState->CameraP.Y -= DeltaP.Y;
+                    GameState->CameraTargetP.XY = GameState->CameraP.XY;
+                }
+                
+                GameState->CameraDirection = UnitV(V3(0.0f, 2.0f, 5.5f));
+                GameState->FOV = 50.0f;
+            } break;
+            case Mode_TowerPOV:
+            {
+                SetCursorState(false);
+                
+                ShouldDrawHealthBars = false;
+                
+                Input->Cursor = V2(0.5f, 0.5f);
+                
+                f32 ThetaOld = acosf(GameState->CameraDirection.Z);
+                f32 PhiOld   = atan2(GameState->CameraDirection.Y, GameState->CameraDirection.X);
+                
+                f32 Sensitivity = 0.001f;
+                f32 ThetaNew = Clamp(ThetaOld - Input->CursorDelta.Y * Sensitivity, 0.0001f, Pi - 0.0001f);
+                f32 PhiNew = PhiOld - Input->CursorDelta.X * Sensitivity;
+                
+                GameState->CameraTargetDirection = V3(sinf(ThetaNew) * cosf(PhiNew), sinf(ThetaNew) * sinf(PhiNew), cosf(ThetaNew));
+                //GameState->CameraDirection = GameState->CameraTargetDirection;
+                
+                GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
+                GameState->CameraDirection = UnitV(LinearInterpolate(GameState->CameraDirection, GameState->CameraTargetDirection, CameraSpeed * SecondsPerFrame));
+                GameState->FOV = LinearInterpolate(GameState->FOV, 90.0f, CameraSpeed * SecondsPerFrame);
+                
+                //Handle left click to throw
+                if (Input->ButtonDown & Button_LMouse)
+                {
+                    player_request Request = {.Type = Request_Throw};
+                    Request.TowerIndex = GameState->SelectedTowerIndex;
+                    Request.Direction = GameState->CameraDirection;
+                    Request.P = GameState->CameraP;
+                    SendPacket(&Request);
+                }
+            } break;
+            default: Assert(0);
+        }
+        
+        GameState->FakeCameraP = GameState->CameraP;
     }
     
     v3 LookAt = GameState->CameraP + GameState->CameraDirection;
     GameState->WorldTransform = ViewTransform(GameState->CameraP, LookAt) * PerspectiveTransform(GameState->FOV, 0.01f, 150.0f);
+    
+    if (!GameState->DebugCamera)
+    {
+        GameState->FakeWorldTransform = GameState->WorldTransform;
+    }
     
     {
         TimeBlock("GetCursorTarget");
@@ -905,7 +953,6 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             GameState->HoveringHexIndex = Cursor.HoveringHexIndex;
             GameState->HoveringHex = Cursor.HoveringHex;
         }
-        
     }
     
     render_group RenderGroup = {};
@@ -936,7 +983,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     GameState->HexOutlineColor = V4(1.15f, 1.15f, 1.15f, 1.0f);
     
-    //Select tower
+    // Logic for each mode
     switch (GameState->Mode)
     {
         case Mode_MyTurn:
@@ -1165,6 +1212,14 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 }
             } break;
             
+            case Mode_PlayCard:
+            {
+                if (GameState->HoveringHex && (Input->ButtonDown & Button_LMouse))
+                {
+                    SetMode(GameState, Mode_ConfirmPlayCard);
+                }
+            } break;
+            
             //Other cases may be handled below with GUI
             default: ;
         }
@@ -1181,7 +1236,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         GameState->Mode == Mode_EditTower ||
         GameState->Mode == Mode_WallUpgrade ||
         GameState->Mode == Mode_Attack || 
-        GameState->Mode == Mode_LaunchStrike)
+        GameState->Mode == Mode_LaunchStrike || 
+        GameState->Mode == Mode_PlayCard)
     {
         if (GameState->HoveringHex)
         {
@@ -1191,14 +1247,13 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     GameState->HexOutlineP = LinearInterpolate(GameState->HexOutlineP, GameState->HexOutlineTargetP, 0.95f);
     
-    RenderCards(&RenderGroup, GameState, Assets, AssetHandles);
+    v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
+    u64 HoveringEntityIndex = 0;
     
     RenderWorld(&RenderGroup, GameState, Assets, AssetHandles);
     
-    v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
-    u64 HoveringEntityIndex = 0; //RayCast(GameState, Assets, GameAssets, GameState->CameraP, CursorWorldP - GameState->CameraP);
-    
-    
+    v3 CursorWorldDirection = UnitV(CursorWorldP - GameState->CameraP);
+    UpdateAndRenderCards(GameState, Input, CursorWorldDirection, Allocator.Transient, Assets, AssetHandles, SecondsPerFrame);
     
     //Draw GUI
     SetDepthTest(false);

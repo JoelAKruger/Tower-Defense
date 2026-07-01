@@ -105,22 +105,24 @@ DrawTowers(render_group* RenderGroup, game_state* Game, defense_assets* Assets)
 static m4x4
 MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
 {
-    m4x4 InvWorldTransform = Inverse(Game->WorldTransform);
+    m4x4 InvWorldTransform = Inverse(Game->FakeWorldTransform);
     
     m4x4 LightViewTransform = ViewTransform(LightP, LightP + LightDirection);
     
-    f32 MinWorldZ = -0.4f;
-    f32 MaxWorldZ = 0.2f;
+    f32 MinWorldZ = -0.3f;
+    f32 MaxWorldZ = 0.1f;
+    
+    m4x4 FakeInvWorldTransform = Inverse(Game->FakeWorldTransform);
     
     v3 WorldPositions[8] = {
-        ScreenToWorld(Game, V2(-1, -1), MinWorldZ),
-        ScreenToWorld(Game, V2(-1, 1), MinWorldZ),
-        ScreenToWorld(Game, V2(1, -1), MinWorldZ),
-        ScreenToWorld(Game, V2(1, 1), MinWorldZ),
-        ScreenToWorld(Game, V2(-1, -1), MaxWorldZ),
-        ScreenToWorld(Game, V2(-1, 1), MaxWorldZ),
-        ScreenToWorld(Game, V2(1, -1), MaxWorldZ),
-        ScreenToWorld(Game, V2(1, 1), MaxWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(-1, -1), MinWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(-1, 1), MinWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(1, -1), MinWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(1, 1), MinWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(-1, -1), MaxWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(-1, 1), MaxWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(1, -1), MaxWorldZ),
+        ScreenToWorld(Game->FakeCameraP, FakeInvWorldTransform, V2(1, 1), MaxWorldZ),
     };
     
     f32 Right = FLT_MIN;
@@ -140,14 +142,10 @@ MakeLightTransform(game_state* Game, v3 LightP, v3 LightDirection)
         Right  = Max(LightP.X, Right);
         Top    = Max(LightP.Y, Top);
         Far    = Max(LightP.Z, Far);
-        Left = Min(LightP.X, Left);
+        Left   = Min(LightP.X, Left);
         Bottom = Min(LightP.Y, Bottom);
-        Near = Min(LightP.Z, Near);
+        Near   = Min(LightP.Z, Near);
     }
-    
-    Left = 0.5f * (Left + Right);
-    Bottom = 0.5f * (Bottom + Top);
-    
     
     m4x4 LightTransform = ViewTransform(LightP, LightP + LightDirection) * OrthographicTransform(Left, Right, Bottom, Top, Near, Far);
     

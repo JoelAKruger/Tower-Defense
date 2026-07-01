@@ -443,6 +443,8 @@ KeyboardAndMouseInputState(input_state* InputState, HWND Window)
         InputState->Buttons |= Button_Down;
     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000)
         InputState->Buttons |= Button_Escape;
+    if (GetAsyncKeyState(VK_F2) & 0x8000)
+        InputState->Buttons |= Button_DebugCam;
     
     //Movement
     if ((GetAsyncKeyState('A') & 0x8000))

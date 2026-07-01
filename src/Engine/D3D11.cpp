@@ -17,7 +17,7 @@ CreateD3D11Device()
     ID3D11DeviceContext* BaseDeviceContext;
     
     D3D_FEATURE_LEVEL FeatureLevels[] = {D3D_FEATURE_LEVEL_11_0};
-    UINT CreationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG;
+    UINT CreationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;// | D3D11_CREATE_DEVICE_DEBUG;
     
     HRESULT HResult = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE,
                                         0, CreationFlags,

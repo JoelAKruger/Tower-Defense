@@ -20,6 +20,7 @@ InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
     
     Player->Initialised = true;
     Player->Credits = 1;
+    Player->CardCount = 4;
     
     //Send player initialisation message
     server_packet_message Message = {.Channel = Channel_Message};

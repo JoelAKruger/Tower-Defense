@@ -547,7 +547,6 @@ CreateRenderBatches(render_group* Group, memory_arena* Arena)
     return ToSpan(Result);
 }
 
-
 static void
 DrawRenderBatches(span<render_batch> Batches, shader_constants Constants, render_draw_type Type, game_assets* Assets)
 {
@@ -600,7 +599,6 @@ DrawRenderBatches(span<render_batch> Batches, shader_constants Constants, render
         }
     }
 }
-
 
 static void 
 DrawRenderCommand(render_command* Command, shader_constants Constants, render_draw_type Type, game_assets* Assets)
