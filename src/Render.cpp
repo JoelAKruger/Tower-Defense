@@ -49,6 +49,7 @@ DrawHexOutline(render_group* RenderGroup, defense_assets* GameAssets, game_state
     PushVertexBuffer(RenderGroup, GameAssets->HexOutline, Transform);
     PushColor(RenderGroup, Game->HexOutlineColor);
     PushDoesNotCastShadow(RenderGroup);
+    //PushNoDepthTest(RenderGroup);
     PushShader(RenderGroup, Shader_Color);
 }
 
@@ -263,7 +264,8 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 {
                     bool Hidden = true;
                     
-                    if (IsWater(Entity) || Entity->Owner == Game->MyClientID)
+                    if (IsWater(Entity) || Entity->Owner == Game->MyClientID || 
+                        Game->LocalEntityInfo[EntityIndex].Revealed)
                     {
                         Hidden = false;
                     }
@@ -296,6 +298,12 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                     Transform = ScaleTransform(Entity->Size) * TranslateTransform(P + V3(0.0f, 0.0f, 0.1f));
                     Commands = PushModelNew(RenderGroup, GameAssets->WorldHexSkirt, Transform);
                     Commands[0]->Color = V4(0.15f, 0.25f, 0.5f, 1.0f);
+                    
+                    //Draw Hex Outline
+                    if (Game->HoveringHex == Entity)
+                    {
+                        DrawHexOutline(RenderGroup, GameAssets, Game, Game->HexOutlineP);
+                    }
                     
                     //Draw question mark
                     if (Hidden)
@@ -389,12 +397,6 @@ static void RenderWorld(render_group* RenderGroup, game_state* Game, game_assets
                 default: Assert(0);
             }
         }
-    }
-    
-    {
-        TimeBlock("DrawHexOutline");
-        v3 HexP = Game->HexOutlineP;
-        DrawHexOutline(RenderGroup, GameAssets, Game, HexP);
     }
     
     {

@@ -198,6 +198,19 @@ LoadAssets(game_assets* Assets, defense_assets* Handles, allocator Allocator)
     Handles->AttackHexes = {.Arena = Allocator.Permanent};
     
     Handles->CardTexture = LoadTexture("assets/textures/card.png");
+    
+    Handles->CardTextures[Card_Attack] = LoadTexture("assets/textures/card_attack.png");
+    Handles->CardTextures[Card_Defend] = LoadTexture("assets/textures/card_defend.png");
+    Handles->CardTextures[Card_Reveal] = LoadTexture("assets/textures/card_reveal.png");
+    Handles->CardTextures[Card_Gamble] = LoadTexture("assets/textures/card_gamble.png");
+    Handles->CardTextures[Card_SecretDefend] = LoadTexture("assets/textures/card_defence.png");
+    Handles->CardTextures[Card_LaunchBoat] = LoadTexture("assets/textures/card_boat.png");
+    Handles->CardTextures[Card_Blind] = LoadTexture("assets/textures/card_blind.png");
+    Handles->CardTextures[Card_Strike] = LoadTexture("assets/textures/card_strike.png");
+    Handles->CardTextures[Card_Arrow] = LoadTexture("assets/textures/card_arrow.png");
+    Handles->CardTextures[Card_Bribe] = LoadTexture("assets/textures/card_bribe.png");
+    Handles->CardTextures[Card_Block] = LoadTexture("assets/textures/card_block.png");
+    Handles->CardTextures[Card_Steal] = LoadTexture("assets/textures/card_steal.png");
 }
 
 static defense_assets

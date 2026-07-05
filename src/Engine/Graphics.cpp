@@ -488,6 +488,7 @@ RenderBatchIsCompatible(render_batch* Batch, render_command* Command)
                    Batch->Material == Command->Material &&
                    Batch->DisableDepthTest == Command->DisableDepthTest &&
                    Batch->EnableWind == Command->EnableWind &&
+                   Batch->DoesNotCastShadow == Command->DoesNotCastShadow &&
                    Batch->NoShadows == Command->NoShadows);
     return Result;
 }
@@ -552,6 +553,11 @@ DrawRenderBatches(span<render_batch> Batches, shader_constants Constants, render
 {
     for (render_batch& Batch : Batches)
     {
+        if ((Type & Draw_Shadow) && Batch.DoesNotCastShadow)
+        {
+            continue;
+        }
+        
         shader Shader = (Type & Draw_OnlyDepth) ? Shader_OnlyDepth : Batch.Shader;
         
         SetShader(Shader);

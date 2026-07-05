@@ -630,7 +630,6 @@ DoMyTurnMenu(game_state* Game, defense_assets* Assets, memory_arena* Arena)
     //Panel.DoBackground();
     
     Panel.Image(Assets->Crystal);
-    Panel.Text(ArenaPrint(Arena, "%u", Player->Credits));
     Panel.NextRow();
     
     /*
@@ -822,9 +821,15 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     bool ShouldDrawHealthBars = true;
     
+    
+    // Cards
+    v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
+    v3 CursorWorldDirection = UnitV(CursorWorldP - GameState->CameraP);
+    card_render CardRender = UpdateAndRenderCards(GameState, Input, CursorWorldDirection, 
+                                                  Allocator.Transient, Assets, AssetHandles, SecondsPerFrame);
+    
     //Do camera
     f32 CameraSpeed = 10.0f;
-    
     
     if (Input->ButtonDown & Button_DebugCam)
     {
@@ -866,7 +871,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
         {
             //Top down perspective
             case Mode_Waiting: case Mode_MyTurn:  case Mode_Place: case Mode_EditTower: case Mode_CellUpgrade:
-            case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack: case Mode_LaunchStrike: case Mode_PlayCard:
+            case Mode_BuildFarm: case Mode_WallUpgrade: case Mode_Attack: case Mode_LaunchStrike: case Mode_PlayCard: case Mode_PutCardBack: case Mode_TakeCard:
             {
                 f32 WorldZForDragging = 0.1f;
                 SetCursorState(true);
@@ -885,7 +890,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 
                 GameState->CameraP = LinearInterpolate(GameState->CameraP, GameState->CameraTargetP, CameraSpeed * SecondsPerFrame);
                 
-                if (GameState->Dragging)
+                if (GameState->Dragging && 
+                    (GameState->Mode != Mode_PlayCard && GameState->Mode != Mode_PutCardBack && GameState->Mode != Mode_TakeCard))
                 {
                     v2 CurrentCursorWorldPos = ScreenToWorld(GameState, Input->Cursor, WorldZForDragging).XY;
                     v2 DeltaP = CurrentCursorWorldPos - GameState->CursorWorldPos;
@@ -977,7 +983,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     GameState->LightP = -1.0f * GameState->LightDirection;
     
     f32 WaterFrequency = 0.2f;
-    GameState->WaterZ = 0.125f; // + 0.002f * sinf(WaterFrequency * 2 * Pi * GameState->Time);
+    //GameState->WaterZ = 0.125f;);
+    GameState->WaterZ = 0.125f + 0.002f * sinf(WaterFrequency * 2 * Pi * GameState->Time);
     
     f32 TowerRadius = 0.03f;
     
@@ -1054,8 +1061,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             //TODO: Fix this
             bool Upgradeable = (GameState->HoveringHex &&
                                 !IsWater(GameState->HoveringHex) &&
-                                GameState->HoveringHex->Owner == GameState->MyClientID &&
-                                GetPlayer(GameState)->Credits > 0);
+                                GameState->HoveringHex->Owner == GameState->MyClientID);
             
             if (Upgradeable && (Input->ButtonDown & Button_LMouse) && !GUIInputIsBeingHandled())
             {
@@ -1118,9 +1124,8 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 }
                 
                 bool HexIsMine = (GameState->HoveringHex->Owner == GameState->MyClientID);
-                bool EnoughCredits = GetPlayer(GameState)->Credits >= 1;
                 
-                bool Attackable = NeighbourIsPlayer && !HexIsMine && EnoughCredits;
+                bool Attackable = NeighbourIsPlayer && !HexIsMine;
                 if (Attackable)
                 {
                     v3 Color = GetPlayerColor(GameState->MyClientID).RGB;
@@ -1144,11 +1149,7 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
                 {
                     GameState->HexOutlineColor = V4(0.5f, 0.5f, 0.5f, 1.0f);
                     
-                    if (!EnoughCredits)
-                    {
-                        UserMessage = String("Cannot attack: insufficient credits");
-                    }
-                    else if (HexIsMine)
+                    if (HexIsMine)
                     {
                         UserMessage = String("Cannot attack: tile is already owned");
                     }
@@ -1214,9 +1215,130 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
             
             case Mode_PlayCard:
             {
-                if (GameState->HoveringHex && (Input->ButtonDown & Button_LMouse))
+                Assert(GameState->SelectedCardIdentifier);
+                if (GameState->HoveringHex)
                 {
-                    SetMode(GameState, Mode_ConfirmPlayCard);
+                    entity* Hex = GameState->HoveringHex;
+                    card* Card = GetCard(GameState, GameState->SelectedCardIdentifier);
+                    //GameState->
+                    
+                    bool NeighbourIsPlayer = false;
+                    span<entity*> Neighbours = GetHexNeighbours(&GameState->GlobalState.World, 
+                                                                GameState->HoveringHex, Allocator.Transient);
+                    for (entity* Neighbour : Neighbours)
+                    {
+                        if (Neighbour->Owner == GameState->MyClientID)
+                        {
+                            NeighbourIsPlayer = true;
+                            break;
+                        }
+                    }
+                    
+                    bool HexIsMine = (GameState->HoveringHex->Owner == GameState->MyClientID);
+                    
+                    bool ShouldPlayCard = (Input->ButtonUp & Button_LMouse);
+                    
+                    bool CardCanBePlayed = false;
+                    switch (Card->Type)
+                    {
+                        case Card_Attack:
+                        {
+                            bool Attackable = (NeighbourIsPlayer && !HexIsMine &&
+                                               (!IsWater(Hex) || ( IsWater(Hex) && IsEnemy(GameState, Hex) )));
+                            if (Attackable)
+                            {
+                                v3 Color = GetPlayerColor(GameState->MyClientID).RGB;
+                                GameState->HexOutlineColor = V4(1.7f * Color, 1.0f);
+                                
+                                //Draw arrows
+                                for (entity* Neighbour : Neighbours)
+                                {
+                                    if (Neighbour->Owner == GameState->MyClientID)
+                                    {
+                                        //TODO: Maybe use GetEntityP() ?
+                                        v3 P = V3(0.4f * Neighbour->P.XY + 0.6f * GameState->HoveringHex->P.XY, 0.1f);
+                                        f32 Angle = VectorAngle(GameState->HoveringHex->P.XY - Neighbour->P.XY);
+                                        PushModelNew(&RenderGroup, AssetHandles->Arrow, RotateTransform(0.5f * Pi - Angle) * ScaleTransform(0.009f) * TranslateTransform(P));
+                                        PushNoShadows(&RenderGroup);
+                                        PushColor(&RenderGroup, V4(2,2,2,1));
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                GameState->HexOutlineColor = V4(0.5f, 0.5f, 0.5f, 1.0f);
+                                
+                                if (HexIsMine)
+                                {
+                                    UserMessage = String("Cannot attack: tile is already owned");
+                                }
+                                else if (!NeighbourIsPlayer)
+                                {
+                                    UserMessage = String("Cannot attack: tile is not close enough");
+                                }
+                            }
+                            
+                            if (Attackable)
+                            {
+                                CardCanBePlayed = true;
+                            }
+                        } break;
+                        
+                        case Card_Defend:
+                        {
+                            bool Upgradeable = (!IsWater(GameState->HoveringHex) &&
+                                                GameState->HoveringHex->Owner == GameState->MyClientID);
+                            
+                            if (Upgradeable)
+                            {
+                                v3 Color = GetPlayerColor(GameState->MyClientID).RGB;
+                                GameState->HexOutlineColor = V4(1.7f * Color, 1.0f);
+                                CardCanBePlayed = true;
+                            }
+                        } break;
+                        
+                        case Card_Reveal:
+                        {
+                            bool Revealable = (!IsWater(GameState->HoveringHex) &&
+                                               !GameState->LocalEntityInfo[GameState->HoveringHexIndex.Index].Revealed);
+                            
+                            if (Revealable)
+                            {
+                                CardCanBePlayed = true;
+                                if (ShouldPlayCard)
+                                {
+                                    GameState->LocalEntityInfo[GameState->HoveringHexIndex.Index].Revealed = true;
+                                }
+                            }
+                        } break;
+                        
+                        case Card_Gamble:
+                        {
+                            CardCanBePlayed = true;
+                            if (ShouldPlayCard)
+                            {
+                                //TODO: What should we do here?
+                            }
+                        } break;
+                        
+                        case Card_SecretDefend:
+                        {
+                            bool Upgradeable = (!IsWater(GameState->HoveringHex) &&
+                                                GameState->HoveringHex->Owner == GameState->MyClientID);
+                        } break;
+                        default: Assert(0);
+                    }
+                    
+                    if (CardCanBePlayed && ShouldPlayCard)
+                    {
+                        player_request Request = {
+                            .Type = Request_PlayCard,
+                            .Hex = GameState->HoveringHexIndex,
+                            .CardIdentifier = GameState->SelectedCardIdentifier
+                        };
+                        SendPacket(&Request);
+                        SetMode(GameState, Mode_MyTurn);
+                    }
                 }
             } break;
             
@@ -1247,13 +1369,14 @@ RunGame(game_state* GameState, game_assets* Assets, defense_assets* AssetHandles
     
     GameState->HexOutlineP = LinearInterpolate(GameState->HexOutlineP, GameState->HexOutlineTargetP, 0.95f);
     
-    v3 CursorWorldP = ScreenToWorld(GameState, Input->Cursor, 2.0f);
+    
     u64 HoveringEntityIndex = 0;
     
     RenderWorld(&RenderGroup, GameState, Assets, AssetHandles);
     
-    v3 CursorWorldDirection = UnitV(CursorWorldP - GameState->CameraP);
-    UpdateAndRenderCards(GameState, Input, CursorWorldDirection, Allocator.Transient, Assets, AssetHandles, SecondsPerFrame);
+    // Draw cards
+    DrawRenderBatches(CardRender.RenderBatches, CardRender.Constants, Draw_Regular, Assets);
+    
     
     //Draw GUI
     SetDepthTest(false);

@@ -232,6 +232,13 @@ IsWater(entity* Entity)
 }
 
 static bool
+IsEnemy(game_state* Game, entity* Entity)
+{
+    Assert(Entity->Type == Entity_WorldHex);
+    return (Entity->Owner != Game->MyClientID && Entity->Owner != -1);
+}
+
+static bool
 LinesIntersect(v2 A0, v2 A1, v2 B0, v2 B1)
 {
     f32 Epsilon = 0.00001f;

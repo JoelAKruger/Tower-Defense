@@ -18,9 +18,97 @@ CreateCardOutlineMesh(game_assets* Assets)
     return Result;
 }
 
+static card*
+GetCard(game_state* Game, u64 Identifier)
+{
+    player* Player = Game->GlobalState.Players + Game->MyClientID;
+    
+    card* Result = 0;
+    
+    for (u64 I = 0; I < Player->CardCount; I++)
+    {
+        if (Player->Cards[I].Identifier == Identifier)
+        {
+            Result = Player->Cards + I;
+            break;
+        }
+    }
+    
+    return Result;
+}
+
+static v2*
+GetLocalCardPosition(game_state* Game, u64 Identifier)
+{
+    v2* Result = 0;
+    for (u64 I = 0; I < ArrayCount(Game->LocalCardIdentifiers); I++)
+    {
+        if (Game->LocalCardIdentifiers[I] == Identifier)
+        {
+            Result = Game->LocalCardPositions + I;
+            break;
+        }
+    }
+    return Result;
+}
+
 static void
+CheckLocalCardPositionArray(game_state* Game)
+{
+    v2 CardStartPosition = {};
+    
+    player* Player = Game->GlobalState.Players + Game->MyClientID;
+    
+    // Check for new cards
+    for (u64 CardIndex = 0; CardIndex < Player->CardCount; CardIndex++)
+    {
+        u64 Identifier = Player->Cards[CardIndex].Identifier;
+        if (!GetLocalCardPosition(Game, Identifier))
+        {
+            for (u64 I = 0; I < ArrayCount(Game->LocalCardIdentifiers); I++)
+            {
+                if (Game->LocalCardIdentifiers[I] == 0)
+                {
+                    Game->LocalCardIdentifiers[I] = Identifier;
+                    Game->LocalCardPositions[I] = CardStartPosition;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Discard old cards
+    for (u64 I = 0; I < ArrayCount(Game->LocalCardIdentifiers); I++)
+    {
+        u64 Identifier = Game->LocalCardIdentifiers[I];
+        bool Exists = false;
+        for (u64 CardIndex = 0; CardIndex < Player->CardCount; CardIndex++)
+        {
+            if (Player->Cards[CardIndex].Identifier == Identifier)
+            {
+                Exists = true;
+                break;
+            }
+        }
+        if (!Exists)
+        {
+            Game->LocalCardIdentifiers[I] = 0;
+        }
+        
+    }
+}
+
+struct card_render
+{
+    span<render_batch> RenderBatches;
+    shader_constants Constants;
+};
+
+static card_render
 UpdateAndRenderCards(game_state* Game, game_input* Input, v3 CursorWorldDirection, memory_arena* Arena, game_assets* Assets, defense_assets* Handles, f32 DeltaTime)
 {
+    CheckLocalCardPositionArray(Game);
+    
     static vertex_buffer_handle OutlineMesh = CreateCardOutlineMesh(Assets);
     
     render_group* RenderGroup = AllocStruct(Arena, render_group);
@@ -54,16 +142,66 @@ UpdateAndRenderCards(game_state* Game, game_input* Input, v3 CursorWorldDirectio
     
     v2 SelectedCardP = {};
     
+    m4x4 WorldToCardTransform = Inverse(CardToWorldTransform);
+    
+    rect PutCardBackRect = {
+        .MinCorner = CardP,
+        .MaxCorner = {CardP.X + TotalWidth, CardP.Y + CardHeight}
+    };
+    
+    bool CursorInPutBackArea = PointInRect(PutCardBackRect, CardFrameCursorP.XY);
+    
+    if (Game->Mode == Mode_PlayCard && CursorInPutBackArea)
+    {
+        SetMode(Game, Mode_PutCardBack);
+    }
+    else if ((Game->Mode == Mode_PutCardBack || Game->Mode == Mode_TakeCard)
+             && !CursorInPutBackArea)
+    {
+        SetMode(Game, Mode_PlayCard);
+    }
+    
     for (int I = 0; I < Player->CardCount; I++)
     {
+        card* Card = Player->Cards + I;
+        
+        v2 CurrentP = Game->LocalCardPositions[I];
+        v2 TargetP = CardP;
+        
+        bool Selected = ((Game->Mode == Mode_TakeCard || Game->Mode == Mode_PlayCard || Game->Mode == Mode_PutCardBack) &&
+                         (Game->SelectedCardIdentifier == Card->Identifier));
+        if (Selected)
+        {
+            if (Game->Mode == Mode_TakeCard || Game->Mode == Mode_PlayCard)
+            {
+                // Want: CardToWorld * (CardP + CursorCardPos) = Cursor
+                // So  : CardP = CardToWorld^-1 * Cursor - CursorCardPos
+                v4 P_ = V4(CursorP, 1.0f) * WorldToCardTransform;
+                TargetP = (P_.XYZ * (1.0f / P_.W)).XY - Game->CursorCardPos;
+                
+                CurrentP = TargetP;
+            }
+            else if (Game->Mode == Mode_PutCardBack)
+            {
+                TargetP = CardP + V2(0.0f, 0.03f);
+            }
+            
+            // Delay switching mode for one frame to handle button going up
+            if ((Input->ButtonUp & Button_LMouse) == 0 && (Input->Button & Button_LMouse) == 0)
+            {
+                // Let card go
+                SetMode(Game, Mode_MyTurn);
+            }
+        }
+        
         rect DefaultCardRect = {
             .MinCorner = CardP,
             .MaxCorner = CardP + CardSize
         };
         
         rect CardRect = {
-            .MinCorner = Game->LocalCardPositions[I],
-            .MaxCorner = Game->LocalCardPositions[I] + CardSize
+            .MinCorner = CurrentP,
+            .MaxCorner = CurrentP + CardSize
         };
         
         rect HitboxRect = {
@@ -71,47 +209,51 @@ UpdateAndRenderCards(game_state* Game, game_input* Input, v3 CursorWorldDirectio
             .MaxCorner = CardRect.MaxCorner
         };
         
+        if (!Selected)
+        {
+            bool Hovering = !Game->Dragging && PointInRect(HitboxRect, CardFrameCursorP.XY);
+            if (Hovering)
+            {
+                TargetP = CardP + V2(0.0f, 0.03f);
+            }
+            
+            if (Hovering && (Input->ButtonDown & Button_LMouse))
+            {
+                // Select card
+                Game->SelectedCardIdentifier = Card->Identifier;
+                Game->CursorCardPos = CardFrameCursorP.XY - CardRect.MinCorner;
+                Selected = true;
+                SetMode(Game, Mode_TakeCard);
+            }
+        }
+        
+        f32 CardSpeed = 18.0f;
+        v2 P = LinearInterpolate(CurrentP, 
+                                 TargetP, CardSpeed * DeltaTime);
+        Game->LocalCardPositions[I] = P;
+        
+        if (Selected)
+        {
+            SelectedCardP = P;
+        }
+        
         vertex Vertices[4] = {
-            {.P = V3(CardRect.MinCorner.X, CardRect.MaxCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(1, 0)},
-            {.P = V3(CardRect.MaxCorner.X, CardRect.MaxCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(0, 0)},
-            {.P = V3(CardRect.MinCorner.X, CardRect.MinCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(1, 1)},
-            {.P = V3(CardRect.MaxCorner.X, CardRect.MinCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(0, 1)}
+            {.P = V3(CardRect.MinCorner.X, CardRect.MaxCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(0, 1)},
+            {.P = V3(CardRect.MaxCorner.X, CardRect.MaxCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(1, 1)},
+            {.P = V3(CardRect.MinCorner.X, CardRect.MinCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(0, 0)},
+            {.P = V3(CardRect.MaxCorner.X, CardRect.MinCorner.Y, 0), .Normal = CardRowNormal, .UV = V2(1, 0)}
         };
         
         PushVertices(RenderGroup, (f32*)Vertices, sizeof(Vertices), D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP, sizeof(vertex), Shader_Texture);
         PushNoDepthTest(RenderGroup);
-        GetLastEntry(RenderGroup)->Texture = Handles->CardTexture;
+        Assert(Card->Type < ArrayCount(Handles->CardTextures));
+        GetLastEntry(RenderGroup)->Texture = Handles->CardTextures[Card->Type];
         GetLastEntry(RenderGroup)->Color = V4(1,1,1,1);
-        
-        f32 AddedHeight = 0.0f;
-        
-        bool Hovering = PointInRect(HitboxRect, CardFrameCursorP.XY);
-        if (Hovering)
-        {
-            AddedHeight = 0.03f;
-        }
-        
-        if (Hovering && (Input->ButtonDown & Button_LMouse))
-        {
-            Game->SelectedCardIndex = I;
-            SetMode(Game, Mode_PlayCard);
-        }
-        
-        bool Selected = (Game->Mode == Mode_PlayCard) && (Game->SelectedCardIndex == I);
-        if (Selected)
-        {
-            AddedHeight = 0.05f;
-            SelectedCardP = Game->LocalCardPositions[I];
-        }
-        
-        f32 CardSpeed = 12.0f;
-        Game->LocalCardPositions[I] = LinearInterpolate(Game->LocalCardPositions[I], 
-                                                        CardP + V2(0.0f, AddedHeight), CardSpeed * DeltaTime);
         
         CardP.X += dX;
     }
     
-    if (Game->Mode == Mode_PlayCard)
+    if (Game->Mode == Mode_TakeCard || Game->Mode == Mode_PlayCard)
     {
         PushVertexBuffer(RenderGroup, OutlineMesh, TranslateTransform(V3(SelectedCardP, 0.0f)));
     }
@@ -124,6 +266,11 @@ UpdateAndRenderCards(game_state* Game, game_input* Input, v3 CursorWorldDirectio
         .CameraPos = Game->CameraP
     };
     
-    DrawRenderBatches(RenderBatches, Constants, Draw_Regular, Assets);
+    card_render Result = {
+        .RenderBatches = RenderBatches,
+        .Constants = Constants
+    };
+    
+    return Result;
 }
 

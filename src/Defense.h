@@ -23,6 +23,8 @@ enum foliage_type : u8
 
 struct local_entity_info
 {
+    bool Revealed;
+    
     bool IsValid;
     v3 P;
 };
@@ -129,8 +131,9 @@ enum game_mode
     Mode_WallUpgrade,
     Mode_Attack,
     Mode_LaunchStrike,
+    Mode_TakeCard,
     Mode_PlayCard,
-    Mode_ConfirmPlayCard
+    Mode_PutCardBack
 };
 
 enum tower_type
@@ -162,10 +165,28 @@ enum tower_edit_mode
 enum card_type
 {
     Card_Null,
+    Card_Attack,
+    Card_Defend,
+    Card_Reveal,
+    
+    Card_Gamble,
+    Card_SecretDefend,
+    Card_LaunchBoat,
+    
+    Card_Blind,
+    Card_Strike,
+    Card_Arrow,
+    
+    Card_Bribe,
+    Card_Block,
+    Card_Steal,
+    
+    Card_Count
 };
 
 struct card
 {
+    u64 Identifier;
     card_type Type;
 };
 
@@ -175,11 +196,10 @@ struct player
     u32 NameLength;
     //u32 ColorIndex
     
-    u32 Credits;
     bool Initialised;
     
     int CardCount;
-    card Cards[16];
+    card Cards[10];
 };
 
 struct global_game_state
@@ -212,7 +232,8 @@ enum player_request_type
     Request_UpgradeWall,
     Request_Attack,
     Request_Darkness,
-    Request_LaunchStrike
+    Request_LaunchStrike,
+    Request_PlayCard
 };
 
 struct player_request
@@ -234,6 +255,9 @@ struct player_request
     
     //Type == UpgradeRegion, Type == Attack
     entity_handle Hex;
+    
+    //Type == PlayCard (also uses Hex)
+    u64 CardIdentifier;
 };
 
 enum animation_type : u32
@@ -351,8 +375,11 @@ struct game_state
     m4x4 CastleTransform;
     m4x4 TurretTransform;
     
+    u64 LocalCardIdentifiers[ ArrayCount(player::Cards) ];
     v2 LocalCardPositions[ ArrayCount(player::Cards) ]; // Card frame
-    i64 SelectedCardIndex;
+    v2 CursorCardPos;
+    
+    u64 SelectedCardIdentifier;
     
     //These are constants
     f32 ApproxTowerZ;
@@ -402,6 +429,8 @@ struct defense_assets
     dynamic_array<vertex_buffer_handle> AttackHexes;
     
     texture_handle CardTexture;
+    
+    texture_handle CardTextures[Card_Count];
 };
 
 struct map_file_header

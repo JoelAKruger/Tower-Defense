@@ -7,6 +7,63 @@ InitialiseServerState(global_game_state* Game)
     Game->World.EntityCount = 1; //Entity index 0 is invalid
 }
 
+static card
+CreateRandomCard()
+{
+    static u64 Identifier = 0;
+    card Result = {};
+    
+    Result.Identifier = ++Identifier;
+    //Result.Type = (card_type) RandomBetween(1, Card_Count - 1);
+    Result.Type = Card_Gamble;
+    
+    return Result;
+}
+
+static card*
+GetCard(global_game_state* Game, u32 PlayerIndex, u64 Identifier)
+{
+    Assert(PlayerIndex < ArrayCount(Game->Players));
+    player* Player = Game->Players + PlayerIndex;
+    for (u64 I = 0; I < Player->CardCount; I++)
+    {
+        if (Player->Cards[I].Identifier == Identifier)
+        {
+            return Player->Cards + I;
+        }
+    }
+    
+    Assert(0);
+    return 0;
+}
+
+static void
+RemoveCardFromPlayer(global_game_state* Game, u32 PlayerIndex, u64 Identifier)
+{
+    Assert(PlayerIndex < ArrayCount(Game->Players));
+    player* Player = Game->Players + PlayerIndex;
+    for (u64 I = 0; I < Player->CardCount; I++)
+    {
+        if (Player->Cards[I].Identifier == Identifier)
+        {
+            memmove(Player->Cards + I, Player->Cards + I + 1, (Player->CardCount - I - 1) * sizeof(card));
+            Player->CardCount--;
+            return;
+        }
+    }
+    
+    Assert(0);
+}
+
+static void
+GiveRandomCardToPlayer(player* Player)
+{
+    if (Player->CardCount < ArrayCount(Player->Cards))
+    {
+        Player->Cards[Player->CardCount++] = CreateRandomCard();
+    }
+}
+
 static void
 InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
 {
@@ -19,8 +76,11 @@ InitialisePlayer(global_game_state* Game, u32 PlayerIndex)
     *Player = {};
     
     Player->Initialised = true;
-    Player->Credits = 1;
-    Player->CardCount = 4;
+    
+    for (u64 I = 0; I < 4; I++)
+    {
+        GiveRandomCardToPlayer(Player);
+    }
     
     //Send player initialisation message
     server_packet_message Message = {.Channel = Channel_Message};
@@ -61,7 +121,7 @@ DoExplosion(global_game_state* Game, v2 P, f32 Radius)
 static void
 PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* MessageQueue)
 {
-    player* Player = Game->Players + Game->PlayerTurnIndex;\
+    player* Player = Game->Players + Game->PlayerTurnIndex;
     
     //Check if player owns the whole region
     int RegionHexesOwned[ArrayCount(Game->World.Regions)] = {};
@@ -73,8 +133,6 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
             Entity->Owner == Game->PlayerTurnIndex &&
             !IsWater(Entity))
         {
-            Player->Credits++; // Entity->Level;
-            
             if (Entity->Region > 0)
             {
                 RegionHexesOwned[Entity->Region]++;
@@ -87,7 +145,6 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
         if (RegionHexesOwned[RegionIndex] == Game->World.Regions[RegionIndex].HexCount)
         {
             //Region is owned
-            Player->Credits += Game->World.Regions[RegionIndex].HexCount;
         }
     }
     
@@ -113,7 +170,6 @@ PlayRound(global_game_state* Game, dynamic_array<server_packet_message>* Message
         
         if (Tower->Type == Tower_Mine)
         {
-            Player->Credits += 5;
         }
     }
 }
@@ -145,9 +201,8 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             int Cost = 5;
             player* Player = Game->Players + Game->PlayerTurnIndex;
-            bool CanPlace = (Player->Credits >= Cost);
             
-            if (CanPlace && (Game->TowerCount < ArrayCount(Game->Towers)))
+            if (Game->TowerCount < ArrayCount(Game->Towers))
             {
                 tower Tower = {Request->TowerType};
                 
@@ -158,8 +213,6 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
                 Tower.Health = 1.0f;
                 
                 Game->Towers[Game->TowerCount++] = Tower;
-                
-                Player->Credits -= Cost;
             }
             else
             {
@@ -186,6 +239,7 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             Assert(SenderIndex == Game->PlayerTurnIndex);
             PlayRound(Game, &ServerPackets);
             Game->PlayerTurnIndex = (Game->PlayerTurnIndex + 1) % Game->PlayerCount;
+            GiveRandomCardToPlayer(Player);
             *FlushWorld = true;
         } break;
         case Request_TargetTower:
@@ -232,41 +286,37 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             u64 MaxHexLevel = 5;
             int Cost = 1;
             
-            if (Player->Credits >= Cost)
+            if (Hex->Level < MaxHexLevel)
             {
-                if (Hex->Level < MaxHexLevel)
-                {
-                    Hex->Level++;
-                    Player->Credits -= Cost;
-                    
-                    /*
-                                    v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
-                                    
-                                    //Play animation
-                                    
-                                    animation Animation = {
-                                        .Type = Animation_Entity,
-                                        .P0 = Hex->P,
-                                        .P1 = NewP,
-                                        .EntityIndex = Request->HexIndex
-                                    };
-                                    
-                                    server_packet_message Packet = {
-                                        .Channel = Channel_Message,
-                                        .Type = Message_PlayAnimation,
-                                        .Animation = Animation
-                                    };
-                                    
-                                    Append(&ServerPackets, Packet);
-                                    
-                                    v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
-                                    
-                                    Hex->P = NewP;
-                                    Hex->Color = NewColor;
-                                    */
-                    
-                    *FlushWorld = true;
-                }
+                Hex->Level++;
+                
+                /*
+                                v3 NewP = Hex->P + V3(0.0f, 0.0f, -0.01f);
+                                
+                                //Play animation
+                                
+                                animation Animation = {
+                                    .Type = Animation_Entity,
+                                    .P0 = Hex->P,
+                                    .P1 = NewP,
+                                    .EntityIndex = Request->HexIndex
+                                };
+                                
+                                server_packet_message Packet = {
+                                    .Channel = Channel_Message,
+                                    .Type = Message_PlayAnimation,
+                                    .Animation = Animation
+                                };
+                                
+                                Append(&ServerPackets, Packet);
+                                
+                                v4 NewColor = GetPlayerColor(Hex->Owner) - 0.2f * Hex->Level * V4(1, 1, 1, 0);
+                                
+                                Hex->P = NewP;
+                                Hex->Color = NewColor;
+                                */
+                
+                *FlushWorld = true;
             }
         } break;
         case Request_BuildFarm:
@@ -323,30 +373,23 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
         {
             Assert(SenderIndex == Game->PlayerTurnIndex);
             
-            int Cost = 1;
+            //TODO: Check this is valid
+            entity* Defender = Game->World.Entities + Request->Hex.Index;
             
-            if (Player->Credits >= Cost)
+            span<entity*> Neighbours = GetHexNeighbours(&Game->World, Defender, Arena);
+            dynamic_array<entity*> Attackers = {.Arena = Arena};
+            
+            for (entity* Neighbour : Neighbours)
             {
-                Player->Credits -= Cost;
-                
-                //TODO: Check this is valid
-                entity* Defender = Game->World.Entities + Request->Hex.Index;
-                
-                span<entity*> Neighbours = GetHexNeighbours(&Game->World, Defender, Arena);
-                dynamic_array<entity*> Attackers = {.Arena = Arena};
-                
-                for (entity* Neighbour : Neighbours)
+                if (Neighbour->Owner == SenderIndex)
                 {
-                    if (Neighbour->Owner == SenderIndex)
-                    {
-                        Append(&Attackers, Neighbour);
-                    }
+                    Append(&Attackers, Neighbour);
                 }
-                
-                DoAttack(Game->PlayerTurnIndex, ToSpan(Attackers), Defender);
-                
-                *FlushWorld = true;
             }
+            
+            DoAttack(Game->PlayerTurnIndex, ToSpan(Attackers), Defender);
+            
+            *FlushWorld = true;
         } break;
         case Request_Darkness:
         {
@@ -369,6 +412,72 @@ ServerHandleRequest(global_game_state* Game, game_assets* Assets, defense_assets
             for (entity* Neighbour : Neighbours)
             {
                 DoAirAttack(Neighbour, AttackPower);
+            }
+            
+            *FlushWorld = true;
+        } break;
+        
+        case Request_PlayCard:
+        {
+            Assert(SenderIndex == Game->PlayerTurnIndex);
+            //TODO: Check player has card
+            card Card = *GetCard(Game, SenderIndex, Request->CardIdentifier);
+            RemoveCardFromPlayer(Game, SenderIndex, Request->CardIdentifier);
+            
+            switch (Card.Type)
+            {
+                case Card_Attack:
+                {
+                    //TODO: Check this is valid
+                    entity* Defender = Game->World.Entities + Request->Hex.Index;
+                    
+                    span<entity*> Neighbours = GetHexNeighbours(&Game->World, Defender, Arena);
+                    dynamic_array<entity*> Attackers = {.Arena = Arena};
+                    
+                    for (entity* Neighbour : Neighbours)
+                    {
+                        if (Neighbour->Owner == SenderIndex)
+                        {
+                            Append(&Attackers, Neighbour);
+                        }
+                    }
+                    
+                    DoAttack(Game->PlayerTurnIndex, ToSpan(Attackers), Defender);
+                } break;
+                case Card_Defend:
+                {
+                    entity* Hex = Game->World.Entities + Request->Hex.Index;
+                    u64 MaxHexLevel = 5;
+                    
+                    if (Hex->Level < MaxHexLevel)
+                    {
+                        Hex->Level++;
+                    }
+                } break;
+                case Card_Reveal:
+                {
+                } break;
+                case Card_Gamble:
+                {
+                    f32 Rand = Random();
+                    if (Rand < 0.2f)
+                    {
+                        Player->CardCount = 0;
+                    }
+                    else if (Rand < 0.4f)
+                    {
+                        while (Player->CardCount != ArrayCount(Player->Cards))
+                        {
+                            GiveRandomCardToPlayer(Player);
+                        }
+                    }
+                    *FlushWorld = true;
+                } break;
+                case Card_SecretDefend:
+                {
+                    
+                } break;
+                default: Assert(0);
             }
             
             *FlushWorld = true;

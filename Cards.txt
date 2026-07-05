@@ -1,0 +1,21 @@
+Cards:
+
+Grey:
+Basic advance - Attack a cell adjacent to one of your cells
+Basic defend - Reinforce one of your cells (should really be called reinforce)
+Reveal - Let a cell be revealed for the rest of the game
+
+Green:
+Gamble - 20% chance to receive a red card, 20% chance to lose all your cards
+Secret defence - Secretly upgrade one of your cells, getting attacked will set off a trap
+Launch a boat
+
+Gold:
+Blind other players - Other players cannot see adjacent cells
+Strike attack - Attack a group of 7 cells at any spot on the board
+Arrow attack - Attack a line of cells originating from one of your cells
+
+Red:
+Bribe - Force another player to attack a player of your choosing
+Block - Prevent another player from making a move
+Steal - Take a random card from another player
